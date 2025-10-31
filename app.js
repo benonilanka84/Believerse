@@ -1,6 +1,6 @@
 // ✅ Make sure the Supabase client is available globally
 const supabase = window.supabase.createClient(
-  'https://wwwgodenqeelebbzofrd.supabase.co',
+  'https://xpvlejqxqdsjulbyloyn.supabase.co',
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3d2dvZGVucWVlbGViYnpvZnJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE3NTEzNTQsImV4cCI6MjA3NzMyNzM1NH0.eWQgOecRwV1bEcayvcI6BiMa5Ssj_Lha5-CSNpdKoNY'
 );
 
