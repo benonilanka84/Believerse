@@ -1,7 +1,7 @@
 // ✅ Make sure the Supabase client is available globally
 const supabase = window.supabase.createClient(
   'https://xpvlejqxqdsjulbyloyn.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3d2dvZGVucWVlbGViYnpvZnJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE3NTEzNTQsImV4cCI6MjA3NzMyNzM1NH0.eWQgOecRwV1bEcayvcI6BiMa5Ssj_Lha5-CSNpdKoNY'
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhwdmxlanF4cWRzanVsYnlsb3luIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE5MDc3MzIsImV4cCI6MjA3NzQ4MzczMn0.CHJ1C0U1Ipm8tEkyen4O9ZfXV0zUVSh6mxo8jZ5E3Pk'
 );
 
 // Test connection with 'users' table
