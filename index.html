@@ -6,11 +6,34 @@
   <title>Believerse</title>
 </head>
 <body>
-  <h1>Welcome to Believerse</h1>
-  <p>Your Christian social platform is under construction ✝️</p>
+  <h1>Welcome to Believerse ✝️</h1>
 
+  <!-- AUTH SECTION -->
+<div id="auth-section">
+  <h2>Sign Up</h2>
+  <form id="signup-form">
+    <input type="email" name="email" placeholder="Email" required />
+    <input type="password" name="password" placeholder="Password" required />
+    <button type="submit">Sign Up</button>
+  </form>
+
+  <h2>Login</h2>
+  <form id="login-form">
+    <input type="email" name="email" placeholder="Email" required />
+    <input type="password" name="password" placeholder="Password" required />
+    <button type="submit">Login</button>
+  </form>
+</div>
+
+<!-- USER SECTION (hidden initially) -->
+<div id="user-section" style="display:none;">
+  <p>Welcome, <span id="user-email"></span>!</p>
+  <button id="logout-btn">Logout</button>
+</div>
+    
+  <p id="message"></p>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script type="module" src="./app.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-<script src="app.js"></script>
 </body>
 </html>
