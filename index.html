@@ -29,6 +29,15 @@
 <div id="user-section" style="display:none;">
   <p>Welcome, <span id="user-email"></span>!</p>
   <button id="logout-btn">Logout</button>
+<!-- PROFILE SECTION (hidden initially) -->
+<div id="profile-section" style="display:none;">
+  <h2>Your Profile</h2>
+  <form id="profile-form">
+    <input type="text" name="full_name" placeholder="Full Name" required />
+    <textarea name="bio" placeholder="Write something about yourself..."></textarea>
+    <button type="submit">Save Profile</button>
+  </form>
+  <button id="load-profile-btn">Load My Profile</button>
 </div>
     
   <p id="message"></p>

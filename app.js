@@ -5,6 +5,54 @@ const supabase = window.supabase.createClient(supabaseUrl, supabaseKey, {
   auth: { persistSession: true, autoRefreshToken: true }
 });
 
+// --- PROFILE LOGIC ---
+
+const profileSection = document.getElementById("profile-section");
+const profileForm = document.getElementById("profile-form");
+const loadProfileBtn = document.getElementById("load-profile-btn");
+
+// Show profile form after login
+async function showProfile(user) {
+  profileSection.style.display = "block";
+  loadProfileBtn.onclick = () => loadProfile(user);
+  profileForm.onsubmit = (e) => saveProfile(e, user);
+}
+
+// Save or update user profile
+async function saveProfile(e, user) {
+  e.preventDefault();
+  const full_name = profileForm.full_name.value;
+  const bio = profileForm.bio.value;
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .upsert([{ id: user.id, email: user.email, full_name, bio }]);
+
+  if (error) {
+    console.error("Error saving profile:", error);
+    alert("Error saving profile: " + error.message);
+  } else {
+    alert("Profile saved successfully!");
+  }
+}
+
+// Load existing profile
+async function loadProfile(user) {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
+    .single();
+
+  if (error) {
+    console.error("Error loading profile:", error);
+  } else if (data) {
+    profileForm.full_name.value = data.full_name || "";
+    profileForm.bio.value = data.bio || "";
+    alert("Profile loaded!");
+  }
+}
+
 const signupForm = document.getElementById("signup-form");
 const loginForm = document.getElementById("login-form");
 const logoutBtn = document.getElementById("logout-btn");
@@ -43,7 +91,13 @@ loginForm.addEventListener("submit", async (e) => {
     messageEl.textContent = "Login Error: " + error.message;
   } else {
     messageEl.textContent = "Login successful!";
+
+    // Get the logged-in user
+    const user = data.user;
+
+    // Update UI and show profile
     updateUI();
+    showProfile(user);
   }
 });
 
