@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Believerse — Profile</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="stars"></div>
+  <div class="shooting-star"></div>
+
+  <main class="profile-page">
+    <section class="profile-card">
+      <div class="avatar-wrapper">
+        <img id="avatar-preview" src="default-avatar.png" alt="Avatar" />
+        <input type="file" id="avatar-upload" accept="image/*" />
+      </div>
+
+      <div class="profile-info">
+        <h2 id="profile-fullname">Your Name</h2>
+        <p id="profile-email">you@example.com</p>
+
+        <form id="profile-form">
+          <input id="pf-full_name" placeholder="Full name" required />
+          <input id="pf-username" placeholder="Username" />
+          <textarea id="pf-bio" placeholder="About you..."></textarea>
+          <button id="save-profile" class="btn btn-primary" type="button">Save Profile</button>
+        </form>
+
+        <button id="logout-btn" class="btn btn-cta">Log out</button>
+        <p id="profile-message" class="message"></p>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
