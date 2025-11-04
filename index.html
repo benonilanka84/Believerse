@@ -22,15 +22,30 @@
   <div class="auth-card">
     <h2>Welcome</h2>
     <p>Sign up or log in to continue</p>
-    <form>
-      <input type="email" placeholder="Email" required />
-      <input type="password" placeholder="Password" required />
-      <div class="button-group">
-        <button type="submit" class="signup-btn">Sign Up</button>
-        <button type="submit" class="login-btn">Login</button>
-      </div>
-    </form>
+    <form id="auth-form">
+  <input 
+    type="email" 
+    id="email" 
+    name="email" 
+    placeholder="Email" 
+    required 
+  />
+  
+  <input 
+    type="password" 
+    id="password" 
+    name="password" 
+    placeholder="Password" 
+    required 
+  />
+
+  <div class="button-group">
+    <button type="button" id="signup-btn">Sign Up</button>
+    <button type="button" id="login-btn">Login</button>
   </div>
+</form>
+
+<p id="message"></p>
 
 </body>
 </html>
