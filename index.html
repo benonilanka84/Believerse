@@ -4,40 +4,57 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Believerse</title>
+
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <!-- Night sky canvas (pure CSS) -->
   <div class="stars"></div>
   <div class="shooting-star"></div>
+
   <div class="page-wrap">
+
+    <!-- LEFT (branding) -->
     <section class="left">
       <p class="verse">“I can do all things through Christ who strengthens me.”<span class="verse-ref"> — Philippians 4:13</span></p>
       <h1 class="brand">Believerse</h1>
       <p class="tag">One Family in Christ.</p>
     </section>
+
+    <!-- RIGHT (login card) -->
     <section class="right">
       <div class="auth-card">
         <h2>Welcome to Believerse</h2>
         <p class="small">Sign in or create a new account to join the family.</p>
+
         <form id="auth-form" autocomplete="on" novalidate>
           <input id="email" name="email" type="email" placeholder="Email address" required />
           <input id="password" name="password" type="password" placeholder="Password" required />
+
           <button id="login-btn" class="btn btn-primary" type="button">Log in</button>
+
           <div class="secondary-row">
             <a id="forgot-link" class="forgot" href="#">Forgotten password?</a>
           </div>
+
           <hr class="divider" />
+
           <button id="open-signup" class="btn btn-cta" type="button">Create new account</button>
+
           <p id="auth-message" class="message" aria-live="polite"></p>
         </form>
       </div>
     </section>
+
   </div>
+
+  <!-- SIGNUP MODAL -->
   <div id="signup-modal" class="modal" aria-hidden="true">
     <div class="modal-backdrop"></div>
     <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="signup-title">
       <button id="close-signup" class="modal-close" aria-label="Close">✕</button>
       <h3 id="signup-title">Create your account</h3>
+
       <form id="signup-form" autocomplete="on" novalidate>
         <input id="signup-name" name="full_name" type="text" placeholder="Full name" required />
         <input id="signup-email" name="email" type="email" placeholder="Email address" required />
@@ -49,6 +66,7 @@
       </form>
     </div>
   </div>
+
   <script type="module" src="./app.js"></script>
 </body>
 </html>
