@@ -3,46 +3,64 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Believerse</title>
+  <title>Believerse ✝️ | Profile</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-  <h1>Welcome to Believerse ✝️</h1>
 
-  <!-- AUTH SECTION -->
-<div id="auth-section">
-  <h2>Sign Up</h2>
-  <form id="signup-form">
-    <input type="email" name="email" placeholder="Email" required />
-    <input type="password" name="password" placeholder="Password" required />
-    <button type="submit">Sign Up</button>
-  </form>
+  <!-- HEADER -->
+  <header class="header">
+    <h1>Believerse ✝️</h1>
+    <button id="logout-btn" class="btn btn-outline" style="display:none;">Logout</button>
+  </header>
 
-  <h2>Login</h2>
-  <form id="login-form">
-    <input type="email" name="email" placeholder="Email" required />
-    <input type="password" name="password" placeholder="Password" required />
-    <button type="submit">Login</button>
-  </form>
-</div>
+  <!-- MAIN CONTENT -->
+  <main class="container">
 
-<!-- USER SECTION (hidden initially) -->
-<div id="user-section" style="display:none;">
-  <p>Welcome, <span id="user-email"></span>!</p>
-  <button id="logout-btn">Logout</button>
-<!-- PROFILE SECTION (hidden initially) -->
-<div id="profile-section" style="display:none;">
-  <h2>Your Profile</h2>
-  <form id="profile-form">
-    <input type="text" name="full_name" placeholder="Full Name" required />
-    <textarea name="bio" placeholder="Write something about yourself..."></textarea>
-    <button type="submit">Save Profile</button>
-  </form>
-  <button id="load-profile-btn">Load My Profile</button>
-</div>
-    
-  <p id="message"></p>
+    <!-- AUTH SECTION -->
+    <section id="auth-section" class="card">
+      <h2>Welcome</h2>
+      <p class="subtitle">Sign up or log in to continue</p>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+      <form id="signup-form">
+        <input type="email" name="email" placeholder="Email" required />
+        <input type="password" name="password" placeholder="Password" required />
+        <button type="submit" class="btn">Sign Up</button>
+      </form>
+
+      <hr class="divider" />
+
+      <form id="login-form">
+        <input type="email" name="email" placeholder="Email" required />
+        <input type="password" name="password" placeholder="Password" required />
+        <button type="submit" class="btn btn-secondary">Login</button>
+      </form>
+    </section>
+
+    <!-- PROFILE SECTION -->
+    <section id="profile-section" class="card" style="display:none;">
+      <h2>Your Profile</h2>
+      <p class="subtitle">Update your details</p>
+
+      <form id="profile-form">
+        <label>Full Name</label>
+        <input type="text" id="full_name" placeholder="Enter your full name" />
+
+        <label>Username</label>
+        <input type="text" id="username" placeholder="Choose a username" />
+
+        <label>Bio</label>
+        <textarea id="bio" placeholder="Write something about yourself..."></textarea>
+
+        <button type="submit" class="btn">Update Profile</button>
+      </form>
+    </section>
+
+    <p id="message" class="message"></p>
+
+  </main>
+
   <script type="module" src="./app.js"></script>
 </body>
 </html>

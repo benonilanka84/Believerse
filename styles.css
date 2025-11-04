@@ -1,0 +1,149 @@
+/* ---------- GLOBAL ---------- */
+body {
+  font-family: "Poppins", sans-serif;
+  background: linear-gradient(to bottom right, #f8f9fa, #e7f1ff);
+  color: #333;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ---------- HEADER ---------- */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 30px;
+  background: #ffffffcc;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.header h1 {
+  color: #4b6cb7;
+  font-size: 1.5rem;
+  letter-spacing: 1px;
+}
+
+/* ---------- CONTAINER ---------- */
+.container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+}
+
+/* ---------- CARD ---------- */
+.card {
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  padding: 30px;
+  width: 100%;
+  max-width: 400px;
+  transition: transform 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+}
+
+/* ---------- TEXT ---------- */
+h2 {
+  text-align: center;
+  color: #2c3e50;
+  margin-bottom: 10px;
+}
+
+.subtitle {
+  text-align: center;
+  color: #777;
+  margin-bottom: 20px;
+  font-size: 0.9rem;
+}
+
+/* ---------- FORMS ---------- */
+form {
+  display: flex;
+  flex-direction: column;
+}
+
+input, textarea {
+  margin-bottom: 15px;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  font-size: 1rem;
+}
+
+textarea {
+  resize: none;
+  height: 80px;
+}
+
+input:focus, textarea:focus {
+  outline: none;
+  border-color: #4b6cb7;
+  box-shadow: 0 0 0 2px rgba(75,108,183,0.2);
+}
+
+/* ---------- BUTTONS ---------- */
+.btn {
+  background: #4b6cb7;
+  color: #fff;
+  border: none;
+  padding: 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: 0.3s;
+  font-size: 1rem;
+}
+
+.btn:hover {
+  background: #3b5998;
+}
+
+.btn-secondary {
+  background: #1abc9c;
+}
+
+.btn-secondary:hover {
+  background: #16a085;
+}
+
+.btn-outline {
+  background: transparent;
+  border: 2px solid #4b6cb7;
+  color: #4b6cb7;
+}
+
+.btn-outline:hover {
+  background: #4b6cb7;
+  color: white;
+}
+
+/* ---------- OTHER ---------- */
+.divider {
+  margin: 20px 0;
+  border: none;
+  height: 1px;
+  background: #eee;
+}
+
+.message {
+  margin-top: 20px;
+  text-align: center;
+  color: #4b6cb7;
+  font-weight: 500;
+}
+
+/* ---------- RESPONSIVE ---------- */
+@media (max-width: 480px) {
+  .card {
+    padding: 20px;
+  }
+}

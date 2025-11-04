@@ -1,134 +1,93 @@
-// Initialize Supabase
-const supabaseUrl = "https://xpvlejqxqdsjulbyloyn.supabase.co";
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhwdmxlanF4cWRzanVsYnlsb3luIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE5MDc3MzIsImV4cCI6MjA3NzQ4MzczMn0.CHJ1C0U1Ipm8tEkyen4O9ZfXV0zUVSh6mxo8jZ5E3Pk"; // Replace with your anon key
-const supabase = window.supabase.createClient(supabaseUrl, supabaseKey, {
-  auth: { persistSession: true, autoRefreshToken: true }
+// ---------- SUPABASE INIT ----------
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+const supabaseUrl = "https://YOUR_PROJECT_URL.supabase.co";
+const supabaseKey = "YOUR_ANON_KEY";
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+const authSection = document.getElementById("auth-section");
+const profileSection = document.getElementById("profile-section");
+const logoutBtn = document.getElementById("logout-btn");
+const messageEl = document.getElementById("message");
+
+// ---------- SIGNUP ----------
+document.getElementById("signup-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const email = e.target.email.value;
+  const password = e.target.password.value;
+
+  const { data, error } = await supabase.auth.signUp({ email, password });
+  if (error) messageEl.textContent = "Signup error: " + error.message;
+  else messageEl.textContent = "Signup successful! Check your email for verification.";
 });
 
-// --- PROFILE LOGIC ---
-
-const profileSection = document.getElementById("profile-section");
-const profileForm = document.getElementById("profile-form");
-const loadProfileBtn = document.getElementById("load-profile-btn");
-
-// Show profile form after login
-async function showProfile(user) {
-  profileSection.style.display = "block";
-  loadProfileBtn.onclick = () => loadProfile(user);
-  profileForm.onsubmit = (e) => saveProfile(e, user);
-}
-
-// Save or update user profile
-async function saveProfile(e, user) {
+// ---------- LOGIN ----------
+document.getElementById("login-form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const full_name = profileForm.full_name.value;
-  const bio = profileForm.bio.value;
+  const email = e.target.email.value;
+  const password = e.target.password.value;
 
-  const { data, error } = await supabase
-    .from("profiles")
-    .upsert([{ id: user.id, email: user.email, full_name, bio }]);
-
-  if (error) {
-    console.error("Error saving profile:", error);
-    alert("Error saving profile: " + error.message);
-  } else {
-    alert("Profile saved successfully!");
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) messageEl.textContent = "Login error: " + error.message;
+  else {
+    messageEl.textContent = "Login successful!";
+    loadUserProfile();
   }
-}
+});
 
-// Load existing profile
-async function loadProfile(user) {
+// ---------- LOGOUT ----------
+logoutBtn.addEventListener("click", async () => {
+  await supabase.auth.signOut();
+  profileSection.style.display = "none";
+  authSection.style.display = "block";
+  logoutBtn.style.display = "none";
+  messageEl.textContent = "Logged out successfully.";
+});
+
+// ---------- LOAD PROFILE ----------
+async function loadUserProfile() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
+  authSection.style.display = "none";
+  profileSection.style.display = "block";
+  logoutBtn.style.display = "inline-block";
+
   const { data, error } = await supabase
     .from("profiles")
-    .select("*")
+    .select("full_name, username, bio")
     .eq("id", user.id)
     .single();
 
-  if (error) {
-    console.error("Error loading profile:", error);
-  } else if (data) {
-    profileForm.full_name.value = data.full_name || "";
-    profileForm.bio.value = data.bio || "";
-    alert("Profile loaded!");
+  if (error && error.code !== "PGRST116") {
+    messageEl.textContent = "Error loading profile: " + error.message;
+    return;
   }
+
+  document.getElementById("full_name").value = data?.full_name || "";
+  document.getElementById("username").value = data?.username || "";
+  document.getElementById("bio").value = data?.bio || "";
 }
 
-const signupForm = document.getElementById("signup-form");
-const loginForm = document.getElementById("login-form");
-const logoutBtn = document.getElementById("logout-btn");
-const messageEl = document.getElementById("message");
-const userSection = document.getElementById("user-section");
-const authSection = document.getElementById("auth-section");
-const userEmailEl = document.getElementById("user-email");
-
-// ---------------- SIGNUP ----------------
-signupForm.addEventListener("submit", async (e) => {
+// ---------- UPDATE PROFILE ----------
+document.getElementById("profile-form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const email = signupForm.email.value;
-  const password = signupForm.password.value;
 
-  const { data, error } = await supabase.auth.signUp({ email, password });
-  if (error) {
-    messageEl.textContent = "Signup Error: " + error.message;
-  } else {
-    messageEl.textContent =
-      "Signup successful! Please check your email to verify your account.";
-  }
+  const { data: { user } } = await supabase.auth.getUser();
+  const updates = {
+    id: user.id,
+    full_name: document.getElementById("full_name").value,
+    username: document.getElementById("username").value,
+    bio: document.getElementById("bio").value,
+    updated_at: new Date()
+  };
+
+  const { error } = await supabase.from("profiles").upsert(updates);
+  if (error) alert("Error saving profile: " + error.message);
+  else alert("Profile updated successfully!");
 });
 
-// ---------------- LOGIN ----------------
-loginForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const email = loginForm.email.value;
-  const password = loginForm.password.value;
-
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-
-  if (error) {
-    messageEl.textContent = "Login Error: " + error.message;
-  } else {
-    messageEl.textContent = "Login successful!";
-
-    // Get the logged-in user
-    const user = data.user;
-
-    // Update UI and show profile
-    updateUI();
-    showProfile(user);
-  }
+// ---------- AUTO LOGIN CHECK ----------
+supabase.auth.onAuthStateChange((_event, session) => {
+  if (session) loadUserProfile();
 });
-
-// ---------------- LOGOUT ----------------
-logoutBtn.addEventListener("click", async () => {
-  await supabase.auth.signOut();
-  messageEl.textContent = "Logged out successfully!";
-  updateUI();
-});
-
-// ---------------- SESSION LISTENER ----------------
-supabase.auth.onAuthStateChange((event, session) => {
-  console.log("Auth state changed:", event);
-  updateUI();
-});
-
-// ---------------- UPDATE UI ----------------
-async function updateUI() {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (user) {
-    authSection.style.display = "none";
-    userSection.style.display = "block";
-    userEmailEl.textContent = user.email;
-  } else {
-    authSection.style.display = "block";
-    userSection.style.display = "none";
-  }
-}
-
-// Run once on page load
-updateUI();
