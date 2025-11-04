@@ -1,44 +1,54 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Believerse</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-
-  <!-- Header with verse and branding -->
-  <header class="hero-header">
-    <p class="bible-verse">
-      “I can do all things through Christ who strengthens me.”<br>
-      <span class="verse-ref">— Philippians 4:13</span>
-    </p>
-    <h1 class="brand-name">Believerse</h1>
-    <p class="tagline">One Family in Christ.</p>
-  </header>
-
-  <!-- Auth Form -->
-<div id="auth-section">
-  <h2>Welcome to Believerse</h2>
-  <form id="auth-form">
-    <input type="email" name="email" id="email" placeholder="Email" required />
-    <input
-      type="password"
-      name="password"
-      id="password"
-      placeholder="Password"
-      required
-    />
-    <div>
-      <button id="signup-btn">Sign Up</button>
-      <button id="login-btn">Login</button>
+  <div class="stars"></div>
+  <div class="shooting-star"></div>
+  <div class="page-wrap">
+    <section class="left">
+      <p class="verse">“I can do all things through Christ who strengthens me.”<span class="verse-ref"> — Philippians 4:13</span></p>
+      <h1 class="brand">Believerse</h1>
+      <p class="tag">One Family in Christ.</p>
+    </section>
+    <section class="right">
+      <div class="auth-card">
+        <h2>Welcome to Believerse</h2>
+        <p class="small">Sign in or create a new account to join the family.</p>
+        <form id="auth-form" autocomplete="on" novalidate>
+          <input id="email" name="email" type="email" placeholder="Email address" required />
+          <input id="password" name="password" type="password" placeholder="Password" required />
+          <button id="login-btn" class="btn btn-primary" type="button">Log in</button>
+          <div class="secondary-row">
+            <a id="forgot-link" class="forgot" href="#">Forgotten password?</a>
+          </div>
+          <hr class="divider" />
+          <button id="open-signup" class="btn btn-cta" type="button">Create new account</button>
+          <p id="auth-message" class="message" aria-live="polite"></p>
+        </form>
+      </div>
+    </section>
+  </div>
+  <div id="signup-modal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="signup-title">
+      <button id="close-signup" class="modal-close" aria-label="Close">✕</button>
+      <h3 id="signup-title">Create your account</h3>
+      <form id="signup-form" autocomplete="on" novalidate>
+        <input id="signup-name" name="full_name" type="text" placeholder="Full name" required />
+        <input id="signup-email" name="email" type="email" placeholder="Email address" required />
+        <input id="signup-password" name="password" type="password" placeholder="Password (min 6 chars)" required />
+        <div class="modal-actions">
+          <button id="signup-submit" class="btn btn-primary" type="button">Sign Up</button>
+        </div>
+        <p id="signup-message" class="message" aria-live="polite"></p>
+      </form>
     </div>
-  </form>
-</div>
-
-
-<p id="message"></p>
-
+  </div>
+  <script type="module" src="./app.js"></script>
 </body>
 </html>
