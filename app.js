@@ -40,6 +40,9 @@ function showAuthMessage(msg, success=true){ if(authMessage) { authMessage.textC
 function showSignupMessage(msg, success=true){ if(signupMessage) { signupMessage.textContent = msg; signupMessage.style.color = success ? '#0b6b50' : '#b02a2a'; } }
 function showProfileMessage(msg, success=true){ if(profileMessage) { profileMessage.textContent = msg; profileMessage.style.color = success ? '#0b6b50' : '#b02a2a'; } }
 
+<div className="stars"></div>
+<div className="shooting-star"></div>
+
 
 /* ----------------- LOGIN ----------------- */
 if (loginBtn) {

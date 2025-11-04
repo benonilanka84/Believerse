@@ -387,3 +387,54 @@ body {
   from { opacity: 0; transform: translateY(-10px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Starry background */
+body {
+  background: radial-gradient(ellipse at bottom, #0d1b2a 0%, #000000 100%);
+  overflow: hidden;
+}
+
+/* Small stars */
+.stars {
+  width: 1px;
+  height: 1px;
+  background: transparent;
+  box-shadow: 
+    100px 200px white,
+    300px 400px white,
+    600px 150px white,
+    900px 500px white,
+    1200px 200px white,
+    400px 800px white,
+    800px 700px white;
+  animation: twinkling 2s infinite ease-in-out alternate;
+}
+
+@keyframes twinkling {
+  from { opacity: 0.2; }
+  to { opacity: 1; }
+}
+
+/* Shooting star */
+.shooting-star {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 2px;
+  height: 100px;
+  background: linear-gradient(45deg, white, rgba(255, 255, 255, 0));
+  border-radius: 999px;
+  transform: rotate(45deg);
+  animation: shoot 3s ease-in-out infinite;
+}
+
+@keyframes shoot {
+  0% {
+    transform: translateX(-100px) translateY(0) rotate(45deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(500px) translateY(500px) rotate(45deg);
+    opacity: 0;
+  }
+}
