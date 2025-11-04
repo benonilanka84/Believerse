@@ -147,3 +147,71 @@ input:focus, textarea:focus {
     padding: 20px;
   }
 }
+
+/* 🌿 Believerse Header Styling */
+.believerse-header {
+  text-align: center;
+  margin-top: 40px;
+  padding: 10px 20px;
+  font-family: 'Georgia', serif;
+  color: #2E8B57;
+}
+
+/* Bible Verse */
+.bible-verse {
+  font-style: italic;
+  font-size: 1.2rem;
+  color: #444;
+  opacity: 0;
+  animation: fadeIn 2s ease forwards;
+}
+.bible-verse span {
+  font-size: 1rem;
+  color: #666;
+}
+
+/* Believerse Title */
+.believerse-title {
+  font-family: 'Brush Script MT', cursive;
+  font-size: 3.5rem;
+  color: #2E8B57;
+  margin: 15px 0;
+  text-shadow: 0 0 10px rgba(46, 139, 87, 0.5);
+  opacity: 0;
+  animation: fadeInGlow 3s ease forwards 1.5s;
+}
+
+/* Tagline */
+.tagline {
+  font-size: 1.4rem;
+  font-weight: bold;
+  color: #444;
+  margin-bottom: 20px;
+  opacity: 0;
+  animation: fadeIn 2s ease forwards 3s;
+}
+
+/* 🌈 Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInGlow {
+  0% { opacity: 0; text-shadow: none; }
+  50% { opacity: 1; text-shadow: 0 0 20px rgba(46, 139, 87, 0.6); }
+  100% { opacity: 1; text-shadow: 0 0 10px rgba(46, 139, 87, 0.5); }
+}
+
+/* 📱 Responsive Design */
+@media (max-width: 768px) {
+  .believerse-title {
+    font-size: 2.5rem;
+  }
+  .bible-verse {
+    font-size: 1rem;
+  }
+  .tagline {
+    font-size: 1.1rem;
+  }
+}
