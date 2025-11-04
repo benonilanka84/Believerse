@@ -3,76 +3,34 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Believerse ✝️ | Profile</title>
+  <title>Believerse</title>
   <link rel="stylesheet" href="styles.css" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
-  <!-- HEADER -->
-  <header class="header">
-    <h1>Believerse ✝️</h1>
-    <button id="logout-btn" class="btn btn-outline" style="display:none;">Logout</button>
+  <!-- Header with verse and branding -->
+  <header class="hero-header">
+    <p class="bible-verse">
+      “I can do all things through Christ who strengthens me.”<br>
+      <span class="verse-ref">— Philippians 4:13</span>
+    </p>
+    <h1 class="brand-name">Believerse</h1>
+    <p class="tagline">One Family in Christ.</p>
   </header>
 
-  <!-- MAIN CONTENT -->
-  <main class="container">
+  <!-- Auth Form -->
+  <div class="auth-card">
+    <h2>Welcome</h2>
+    <p>Sign up or log in to continue</p>
+    <form>
+      <input type="email" placeholder="Email" required />
+      <input type="password" placeholder="Password" required />
+      <div class="button-group">
+        <button type="submit" class="signup-btn">Sign Up</button>
+        <button type="submit" class="login-btn">Login</button>
+      </div>
+    </form>
+  </div>
 
-    <!-- AUTH SECTION -->
-    <section id="auth-section" class="card">
-      <h2>Welcome</h2>
-      <p class="subtitle">Sign up or log in to continue</p>
-
-      <form id="signup-form">
-        <input type="email" name="email" placeholder="Email" required />
-        <input type="password" name="password" placeholder="Password" required />
-        <button type="submit" class="btn">Sign Up</button>
-      </form>
-
-      <hr class="divider" />
-
-      <form id="login-form">
-        <input type="email" name="email" placeholder="Email" required />
-        <input type="password" name="password" placeholder="Password" required />
-        <button type="submit" class="btn btn-secondary">Login</button>
-      </form>
-    </section>
-
-<!-- 🌿 Believerse Header -->
-<header class="believerse-header">
-  <p class="bible-verse">
-    “I can do all things through Christ who strengthens me.”<br>
-    <span>— Philippians 4:13</span>
-  </p>
-
-  <h1 class="believerse-title">Believerse</h1>
-
-  <p class="tagline">One Family in Christ.</p>
-</header>
-
-    <!-- PROFILE SECTION -->
-    <section id="profile-section" class="card" style="display:none;">
-      <h2>Your Profile</h2>
-      <p class="subtitle">Update your details</p>
-
-      <form id="profile-form">
-        <label>Full Name</label>
-        <input type="text" id="full_name" placeholder="Enter your full name" />
-
-        <label>Username</label>
-        <input type="text" id="username" placeholder="Choose a username" />
-
-        <label>Bio</label>
-        <textarea id="bio" placeholder="Write something about yourself..."></textarea>
-
-        <button type="submit" class="btn">Update Profile</button>
-      </form>
-    </section>
-
-    <p id="message" class="message"></p>
-
-  </main>
-
-  <script type="module" src="./app.js"></script>
 </body>
 </html>
