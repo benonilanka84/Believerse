@@ -2,27 +2,28 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Believerse</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>The Believerse</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <!-- Night sky canvas (pure CSS) -->
+  <!-- Night sky (CSS animated stars) -->
   <div class="stars"></div>
   <div class="shooting-star"></div>
 
-  <div class="page-wrap" id="auth-page">
-    <!-- LEFT (branding) -->
+  <div class="page-wrap">
+
+    <!-- LEFT: Branding -->
     <section class="left">
-      <p class="verse"><i>“I can do all things through Christ who strengthens me.”</i><span class="verse-ref"> — Philippians 4:13</span></p>
-      <h1 class="brand">Believerse</h1>
+      <p class="verse">“I can do all things through Christ who strengthens me.”<span class="verse-ref"> — Philippians 4:13</span></p>
+      <h1 class="brand">The Believerse</h1>
       <p class="tag">One Family in Christ.</p>
     </section>
 
-    <!-- RIGHT (login card) -->
+    <!-- RIGHT: Login Card -->
     <section class="right">
       <div class="auth-card">
-        <h2>Welcome to Believerse</h2>
+        <h2>Welcome to The Believerse</h2>
         <p class="small">Sign in or create a new account to join the family.</p>
 
         <form id="auth-form" autocomplete="on" novalidate>
@@ -46,16 +47,23 @@
   </div>
 
   <!-- SIGNUP MODAL -->
-<div id="signupModal" class="modal">
-  <div class="modal-content">
-    <span class="close">&times;</span>
-    <h2>Create your account</h2>
-    <input type="text" id="signupFullName" placeholder="Full name" required />
-    <input type="email" id="signupEmail" placeholder="Email address" required />
-    <input type="password" id="signupPassword" placeholder="Password (min 6 chars)" required />
-    <button id="signupButton">Sign Up</button>
+  <div id="signup-modal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="signup-title">
+      <button id="close-signup" class="modal-close" aria-label="Close">✕</button>
+      <h3 id="signup-title">Create your account</h3>
+
+      <form id="signup-form" autocomplete="on" novalidate>
+        <input id="signup-name" name="full_name" type="text" placeholder="Full name" required />
+        <input id="signup-email" name="email" type="email" placeholder="Email address" required />
+        <input id="signup-password" name="password" type="password" placeholder="Password (min 6 chars)" required />
+        <div class="modal-actions">
+          <button id="signup-submit" class="btn btn-primary" type="button">Sign Up</button>
+        </div>
+        <p id="signup-message" class="message" aria-live="polite"></p>
+      </form>
+    </div>
   </div>
-</div>
 
   <script type="module" src="./app.js"></script>
 </body>
