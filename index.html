@@ -7,21 +7,23 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+
   <div class="page-wrap">
 
-<!-- LEFT PANEL: CROSS THEME -->
-<section class="left">
-  <p class="verse">
-    “I can do all things through Christ who strengthens me.”
-    <span class="verse-ref"> — Philippians 4:13</span>
-  </p>
+    <!-- LEFT PANEL: CROSS THEME -->
+    <section class="left">
+      <p class="verse">
+        “I can do all things through Christ who strengthens me.”
+        <span class="verse-ref"> — Philippians 4:13</span>
+      </p>
 
-<h1 class="brand">
-  <span class="the">The</span> <span class="gold">B</span>elievers<span class="green">e</span>
-</h1>
+      <h1 class="brand">
+        <span class="the">The</span>
+        <span class="gold">B</span>elievers<span class="green">e</span>
+      </h1>
 
-  <p class="tagline">One Family in Christ.</p>
-</section>
+      <p class="tagline">One Family in Christ.</p>
+    </section>
 
     <!-- RIGHT PANEL: LOGIN / SIGNUP -->
     <section class="right">
@@ -50,33 +52,35 @@
 
   </div>
 
-<!-- PROFILE SECTION (Hidden until login) -->
-<section id="profile-section" style="display:none; padding:20px; max-width:500px; margin:auto;">
 
-  <h2>Your Profile</h2>
-  <p>Welcome, <span id="user-email-display"></span></p>
+  <!-- PROFILE SECTION (hidden until login) -->
+  <section id="profile-section" style="display:none; padding:20px; max-width:500px; margin:auto;">
 
-  <!-- Profile Picture -->
-  <div style="margin-top:15px; text-align:center;">
-    <img id="avatar-preview" 
-         src="https://via.placeholder.com/120"
-         alt="Profile Picture"
-         style="width:120px; height:120px; border-radius:50%; object-fit:cover; border:3px solid #fff;">
-    
-    <input type="file" id="avatar-upload" accept="image/*" style="margin-top:10px;">
-  </div>
+    <h2>Your Profile</h2>
+    <p>Welcome, <span id="user-email-display"></span></p>
 
-  <!-- Profile form -->
-  <form id="profile-form" style="margin-top:20px;">
-    <input type="text" id="full_name" placeholder="Full Name" required />
-    <input type="text" id="username" placeholder="Username" required />
-    <textarea id="bio" placeholder="Write something about yourself..." style="width:100%; height:80px;"></textarea>
+    <!-- Profile Picture -->
+    <div style="margin-top:15px; text-align:center;">
+      <img id="avatar-preview" 
+           src="https://via.placeholder.com/120"
+           alt="Profile Picture"
+           style="width:120px; height:120px; border-radius:50%; object-fit:cover; border:3px solid #fff;">
+      
+      <input type="file" id="avatar-upload" accept="image/*" style="margin-top:10px;">
+    </div>
 
-    <button type="submit" class="btn-cta" style="margin-top:10px;">Save Profile</button>
-  </form>
+    <!-- Profile form -->
+    <form id="profile-form" style="margin-top:20px;">
+      <input type="text" id="full_name" placeholder="Full Name" required />
+      <input type="text" id="username" placeholder="Username" required />
+      <textarea id="bio" placeholder="Write something about yourself..." style="width:100%; height:80px;"></textarea>
 
-  <button id="logout-btn" class="btn-primary" style="margin-top:15px;">Logout</button>
-</section>
+      <button type="submit" class="btn-cta" style="margin-top:10px;">Save Profile</button>
+    </form>
+
+    <button id="logout-btn" class="btn-primary" style="margin-top:15px;">Logout</button>
+  </section>
+
 
   <!-- SIGNUP MODAL -->
   <div id="signup-modal" class="modal" aria-hidden="true">
@@ -89,9 +93,11 @@
         <input id="signup-name" name="full_name" type="text" placeholder="Full name" required />
         <input id="signup-email" name="email" type="email" placeholder="Email address" required />
         <input id="signup-password" name="password" type="password" placeholder="Password (min 6 chars)" required />
+
         <div class="modal-actions">
           <button id="signup-submit" class="btn btn-primary" type="button">Sign Up</button>
         </div>
+
         <p id="signup-message" class="message" aria-live="polite"></p>
       </form>
     </div>

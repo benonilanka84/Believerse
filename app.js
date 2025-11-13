@@ -166,8 +166,34 @@ logoutBtn.addEventListener("click", async () => {
 });
 
 // ---------------------------------------------------------------
-// AUTH STATE LISTENER
+// AUTH STATE LISTENER (CORRECTED)
 // ---------------------------------------------------------------
-supabase.auth.onAuthStateChange((event, session) => {
-  if (session) loadUserProfile();
+supabase.auth.onAuthStateChange(async (event, session) => {
+  const loginArea = document.querySelector(".right");
+
+  if (session) {
+    // User logged in
+    loginArea.style.display = "none";
+    profileSection.style.display = "block";
+    await loadUserProfile();
+  } else {
+    // User logged out or first visit
+    loginArea.style.display = "block";
+    profileSection.style.display = "none";
+  }
 });
+
+(async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+
+  const loginArea = document.querySelector(".right");
+
+  if (session) {
+    loginArea.style.display = "none";
+    profileSection.style.display = "block";
+    await loadUserProfile();
+  } else {
+    loginArea.style.display = "block";
+    profileSection.style.display = "none";
+  }
+})();
