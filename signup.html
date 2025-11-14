@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Account — The Believerse</title>
+  <link rel="stylesheet" href="signup.css">
+</head>
+
+<body>
+
+  <div class="header">
+    <h1 class="brand">
+      <span class="the">The</span>
+      <span class="gold">B</span>elievers<span class="green">e</span>
+    </h1>
+  </div>
+
+  <div class="container">
+
+    <form class="signup-box" id="signup-form">
+
+      <h2>Create a new account</h2>
+
+      <!-- FIRST + LAST NAME -->
+      <div class="row">
+        <input type="text" id="first_name" placeholder="First name" required>
+        <input type="text" id="last_name" placeholder="Last name" required>
+      </div>
+
+      <!-- DOB -->
+      <label class="label">Date of birth</label>
+      <div class="row">
+        <select id="dob_day" required>
+          <option>13</option>
+        </select>
+
+        <select id="dob_month" required>
+          <option>NOV</option>
+        </select>
+
+        <select id="dob_year" required>
+          <option>2025</option>
+        </select>
+      </div>
+
+      <!-- GENDER -->
+      <label class="label">Gender</label>
+      <div class="row">
+        <label class="gender-option">
+          <input type="radio" name="gender" value="Male" required>
+          Male
+        </label>
+
+        <label class="gender-option">
+          <input type="radio" name="gender" value="Female" required>
+          Female
+        </label>
+      </div>
+
+      <!-- EMAIL -->
+      <input type="email" id="email" placeholder="Email address" required>
+
+      <!-- PASSWORD -->
+      <input type="password" id="password" placeholder="New password" required>
+
+      <!-- CHECKBOXES -->
+      <label class="checkbox">
+        <input type="checkbox" id="agree_terms">
+        I agree to The Believerse Terms & Conditions.
+      </label>
+
+      <label class="checkbox">
+        <input type="checkbox" id="agree_christian">
+        I agree to post only faith-based Christian content and understand that unrelated or prohibited content is not permitted on this platform.
+      </label>
+
+      <button id="signup-btn" disabled>Sign Up</button>
+
+      <p class="login-link">
+        Already have an account? <a href="index.html">Sign in</a>
+      </p>
+
+    </form>
+  </div>
+
+  <script src="signup.js"></script>
+</body>
+</html>

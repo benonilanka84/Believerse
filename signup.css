@@ -1,0 +1,121 @@
+/* GENERAL */
+body {
+  margin: 0;
+  font-family: "Inter", Arial, sans-serif;
+  background: #e7f1ff;  /* Light blue */
+}
+
+/* BRAND HEADER */
+.header {
+  text-align: center;
+  margin: 40px 0 20px;
+}
+
+.brand {
+  font-size: 2.8rem;
+  font-weight: 800;
+}
+
+.the { color: #ffffff; text-shadow: 0 0 2px #000; }
+.gold { color: #d4af37; }
+.green { color: #2e8b57; }
+
+/* SIGNUP CONTAINER */
+.container {
+  display: flex;
+  justify-content: center;
+}
+
+.signup-box {
+  background: white;
+  width: 380px;
+  padding: 25px;
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+
+.signup-box h2 {
+  text-align: center;
+  margin-bottom: 15px;
+}
+
+/* INPUT ROWS */
+.row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.row select,
+.row input {
+  flex: 1;
+}
+
+/* INPUTS */
+input, select {
+  width: 100%;
+  padding: 10px;
+  font-size: 0.95rem;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+/* LABELS */
+.label {
+  display: block;
+  margin-top: 10px;
+  margin-bottom: 5px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* GENDER */
+.gender-option {
+  background: #f0f2f5;
+  padding: 10px;
+  border-radius: 6px;
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+}
+
+/* CHECKBOXES */
+.checkbox {
+  font-size: 0.85rem;
+  margin-top: 10px;
+  display: flex;
+  align-items: start;
+  gap: 8px;
+}
+
+/* BUTTON */
+button {
+  width: 100%;
+  margin-top: 15px;
+  padding: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  background: #2e8b57;
+  color: white;
+  cursor: pointer;
+  opacity: 0.5;
+}
+
+button.enabled {
+  opacity: 1;
+}
+
+/* LOGIN LINK */
+.login-link {
+  text-align: center;
+  margin-top: 10px;
+}
+
+.login-link a {
+  color: #1877f2;
+  text-decoration: none;
+}
