@@ -1,227 +1,141 @@
-/* ===========================================================
-   THE BELIEVERSE — FINAL COMPLETE STYLESHEET
-   Background: Christ on the Cross (cross-bg.jpg)
-   Updated: November 2025
-   =========================================================== */
-
-/* ---------- RESET ---------- */
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html, body {
-  height: 100%;
-  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+/* GLOBAL --------------------------------------------------- */
+body {
+  margin: 0;
+  font-family: "Segoe UI", sans-serif;
+  background: #000;
   color: #fff;
-  background: url("images/cross-bg.jpg") no-repeat center center fixed;
-  background-size: cover;
-  overflow-x: hidden;
-  position: relative;
 }
 
-/* ---------- OVERLAY FOR READABILITY ---------- */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  background: linear-gradient(
-    180deg,
-    rgba(0,0,0,0.45) 0%,
-    rgba(0,0,0,0.35) 35%,
-    rgba(0,0,0,0.15) 60%,
-    rgba(255,204,102,0.15) 100%
-  );
-  z-index: 0;
-}
-
-/* ---------- PAGE LAYOUT ---------- */
 .page-wrap {
-  display: grid;
-  grid-template-columns: 1fr 440px;
-  gap: 40px;
-  max-width: 1200px;
-  margin: 40px auto;
-  align-items: center;
-  padding: 20px;
-  position: relative;
-  z-index: 1;
+  display: flex;
+  height: 100vh;
 }
 
-/* ---------- LEFT PANEL ---------- */
+/* LEFT PANEL --------------------------------------------------- */
 .left {
-  padding: 40px 20px;
+  flex: 1.3;
+  background: url("./bg.jpg") center/cover no-repeat;
+  padding: 40px;
+  color: white;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  align-items: flex-start;
-  position: relative;
-  z-index: 2;
-  text-shadow: 0 3px 8px rgba(0, 0, 0, 0.6);
 }
 
-/* Bible verse */
 .verse {
-  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 17px;
   font-style: italic;
-  font-size: 1.1rem;
-  color: #f5f5f5;
-  max-width: 680px;
-  margin-bottom: 18px;
-  line-height: 1.4;
-  letter-spacing: 0.2px;
-  text-align: left;
-}
-.verse-ref {
-  font-style: normal;
-  font-size: 0.9rem;
-  color: #e2e2e2;
-  margin-left: 6px;
+  margin-bottom: 30px;
 }
 
-/* The Believerse branding */
 .brand {
-  font-size: 4.8rem;
-  font-weight: 700;
-  color: #ffffff;
-  letter-spacing: -1px;
+  font-size: 68px;
+  font-weight: 800;
   margin: 0;
-  line-height: 1.1;
 }
-.brand .gold { color: #d9b23d; }   /* Gold “B” */
-.brand .green { color: #3d9c6d; }  /* Green “e” */
 
-/* Tagline (third line, aligned under end of brand name) */
+.the {
+  color: white;
+}
+
+.gold {
+  color: #d4af37;
+}
+
+.green {
+  color: #1fa34a;
+}
+
 .tagline {
-  font-size: 1.2rem;
-  color: #dfeff3;
-  font-weight: 500;
-  margin-top: 0.6em;
-  margin-left: 9.4rem;
-  text-shadow: 0 2px 6px rgba(0,0,0,0.5);
-  animation: fadeIn 2.6s ease-in forwards;
-  opacity: 0;
-}
-@keyframes fadeIn { to { opacity: 1; } }
-
-/* ---------- BRAND STYLING ENHANCEMENT ---------- */
-
-/* The “The” prefix before Believerse */
-.brand .the {
-  color: rgba(255, 255, 255, 0.85);       /* slightly softer white */
-  text-shadow: 0 0 10px rgba(255, 255, 255, 0.3),
-               0 0 20px rgba(255, 255, 255, 0.15);
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  margin-right: 4px;
-  transition: all 0.4s ease;
+  margin-top: 10px;
+  font-size: 20px;
 }
 
-/* Hover glow effect */
-.brand:hover .the {
-  text-shadow: 0 0 16px rgba(255, 255, 255, 0.45),
-               0 0 30px rgba(255, 255, 255, 0.25);
-  color: rgba(255, 255, 255, 0.95);
-}
-
-
-/* ---------- RIGHT PANEL ---------- */
+/* RIGHT PANEL --------------------------------------------------- */
 .right {
+  flex: 0.8;
   display: flex;
   justify-content: center;
-  align-items: flex-start;
-  position: relative;
-  z-index: 2;
+  align-items: center;
 }
 
-/* Login/Signup card */
 .auth-card {
-  background: rgba(255,255,255,0.95);
-  color: #0b2e4a;
+  width: 380px;
+  background: #ffffff;
+  color: #000;
+  padding: 35px;
   border-radius: 14px;
-  padding: 28px;
-  width: 100%;
-  max-width: 420px;
-  box-shadow: 0 18px 40px rgba(2,8,23,0.25);
-  border: 1px solid rgba(255,255,255,0.06);
-}
-.auth-card h2 {
-  color: #0b2e4a;
-  margin-bottom: 12px;
-}
-.auth-card .small {
-  font-size: 0.9rem;
-  color: #555;
-  margin-bottom: 10px;
+  box-shadow: 0 5px 25px rgba(0,0,0,0.3);
 }
 
+.auth-card h2 {
+  margin-top: 0;
+  text-align: center;
+}
+
+.small {
+  font-size: 14px;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+/* INPUTS --------------------------------------------------- */
 input {
   width: 100%;
-  padding: 10px 12px;
-  margin: 8px 0;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  font-size: 1rem;
-  font-family: inherit;
+  padding: 12px;
+  margin-bottom: 12px;
+  border-radius: 5px;
+  border: 1px solid #999;
+  font-size: 15px;
 }
 
-button {
+/* BUTTONS --------------------------------------------------- */
+.btn {
   width: 100%;
-  padding: 10px;
+  padding: 12px;
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 16px;
+}
+
+.btn-primary {
+  background: #166af4;
+  color: #fff;
+  margin-top: 5px;
+}
+
+.btn-primary:hover {
+  background: #0b4ac7;
+}
+
+.btn-cta {
+  background: #1fa34a;
+  color: #fff;
+  margin-top: 10px;
+}
+
+.btn-cta:hover {
+  background: #16863a;
+}
+
+.forgot {
   margin-top: 8px;
-  transition: background 0.25s ease;
+  display: inline-block;
+  font-size: 14px;
+  color: #166af4;
+  text-decoration: none;
+  cursor: pointer;
 }
-button:hover { opacity: 0.92; }
 
-.btn-primary { background: #2d6be3; color: white; }
-.btn-cta { background: #2e8b57; color: white; }
+.divider {
+  margin: 20px 0;
+  border: none;
+  border-top: 1px solid #ddd;
+}
 
-.forgot { color: #2d6be3; text-decoration: none; font-size: 0.9rem; }
-.divider { margin: 16px 0; border: none; border-top: 1px solid #ddd; }
-.message { font-size: 0.9rem; text-align: center; margin-top: 10px; }
-
-/* ---------- MODAL (Signup) ---------- */
-.modal {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-}
-.modal[aria-hidden="false"] { display: block; }
-.modal-backdrop {
-  position: absolute; inset: 0; background: rgba(0,0,0,0.6);
-}
-.modal-panel {
-  position: relative;
-  background: white;
-  color: #0b2e4a;
-  width: 95%;
-  max-width: 400px;
-  margin: 10vh auto;
-  padding: 20px;
-  border-radius: 12px;
-}
-.modal-close {
-  position: absolute; right: 10px; top: 10px;
-  border: none; background: none; font-size: 1.4rem; cursor: pointer;
-}
-.modal-actions { margin-top: 10px; }
-
-/* ---------- RESPONSIVE ---------- */
-@media (max-width: 860px) {
-  .page-wrap {
-    grid-template-columns: 1fr;
-    gap: 20px;
-    margin: 20px;
-  }
-  .left {
-    text-align: center;
-    align-items: center;
-  }
-  .tagline {
-    margin-left: 0;
-  }
-  .auth-card {
-    margin-top: 10px;
-  }
+.message {
+  margin-top: 12px;
+  text-align: center;
+  font-size: 14px;
 }

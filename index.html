@@ -3,87 +3,58 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>The Believerse</title>
+  <title>The Believerse - Login</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-  <div class="page-wrap">
+<div class="page-wrap">
 
-    <!-- LEFT PANEL: CROSS THEME -->
-    <section class="left">
-      <p class="verse">
-        “I can do all things through Christ who strengthens me.”
-        <span class="verse-ref"> — Philippians 4:13</span>
-      </p>
+  <!-- LEFT PANEL -->
+  <section class="left">
+    <p class="verse">
+      “I can do all things through Christ who strengthens me.”
+      <span class="verse-ref"> — Philippians 4:13</span>
+    </p>
 
-      <h1 class="brand">
-        <span class="the">The</span>
-        <span class="gold">B</span>elievers<span class="green">e</span>
-      </h1>
+    <h1 class="brand">
+      <span class="the">The</span>
+      <span class="gold">B</span>elievers<span class="green">e</span>
+    </h1>
 
-      <p class="tagline">One Family in Christ.</p>
-    </section>
-
-    <!-- RIGHT PANEL: LOGIN / SIGNUP -->
-    <section class="right">
-      <div class="auth-card">
-        <h2>Welcome to The Believerse</h2>
-        <p class="small">Sign in or create a new account to join the family.</p>
-
-        <form id="auth-form" autocomplete="on" novalidate>
-          <input id="email" name="email" type="email" placeholder="Email address" required />
-          <input id="password" name="password" type="password" placeholder="Password" required />
-
-          <button id="login-btn" class="btn btn-primary" type="button">Log in</button>
-
-          <div class="secondary-row">
-            <a id="forgot-link" class="forgot" href="#">Forgotten password?</a>
-          </div>
-
-          <hr class="divider" />
-
-          <button onclick="window.location.href='signup.html'" class="btn btn-cta" type="button">
-  Create new account
-</button>
-
-          <p id="auth-message" class="message" aria-live="polite"></p>
-        </form>
-      </div>
-    </section>
-
-  </div>
-
-
-  <!-- PROFILE SECTION (hidden until login) -->
-  <section id="profile-section" style="display:none; padding:20px; max-width:500px; margin:auto;">
-
-    <h2>Your Profile</h2>
-    <p>Welcome, <span id="user-email-display"></span></p>
-
-    <!-- Profile Picture -->
-    <div style="margin-top:15px; text-align:center;">
-      <img id="avatar-preview" 
-           src="https://via.placeholder.com/120"
-           alt="Profile Picture"
-           style="width:120px; height:120px; border-radius:50%; object-fit:cover; border:3px solid #fff;">
-      
-      <input type="file" id="avatar-upload" accept="image/*" style="margin-top:10px;">
-    </div>
-
-    <!-- Profile form -->
-    <form id="profile-form" style="margin-top:20px;">
-      <input type="text" id="full_name" placeholder="Full Name" required />
-      <input type="text" id="username" placeholder="Username" required />
-      <textarea id="bio" placeholder="Write something about yourself..." style="width:100%; height:80px;"></textarea>
-
-      <button type="submit" class="btn-cta" style="margin-top:10px;">Save Profile</button>
-    </form>
-
-    <button id="logout-btn" class="btn-primary" style="margin-top:15px;">Logout</button>
+    <p class="tagline">One Family in Christ.</p>
   </section>
 
+  <!-- LOGIN CARD -->
+  <section class="right">
+    <div class="auth-card">
+      <h2>Welcome to The Believerse</h2>
+      <p class="small">Sign in or create a new account to join the family.</p>
 
-  <script type="module" src="./app.js"></script>
+      <form id="login-form" novalidate>
+        <input id="login-email" type="email" placeholder="Email address" required />
+        <input id="login-password" type="password" placeholder="Password" required />
+
+        <button id="login-btn" class="btn btn-primary" type="button">
+          Log in
+        </button>
+
+        <a id="forgot-link" class="forgot" href="#">Forgotten password?</a>
+
+        <hr class="divider"/>
+
+        <button id="create-account" class="btn btn-cta" type="button">
+          Create new account
+        </button>
+
+        <p id="login-message" class="message"></p>
+      </form>
+    </div>
+  </section>
+
+</div>
+
+<script type="module" src="./login.js"></script>
+
 </body>
 </html>

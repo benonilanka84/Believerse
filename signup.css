@@ -1,121 +1,102 @@
-/* GENERAL */
 body {
   margin: 0;
-  font-family: "Inter", Arial, sans-serif;
-  background: #e7f1ff;  /* Light blue */
+  background: #e6f0ff;
+  font-family: "Segoe UI", sans-serif;
 }
 
-/* BRAND HEADER */
-.header {
+.signup-header {
   text-align: center;
-  margin: 40px 0 20px;
+  padding: 25px 0;
+  font-size: 42px;
+  font-weight: 900;
 }
 
-.brand {
-  font-size: 2.8rem;
-  font-weight: 800;
+.the {
+  color: #444;
 }
 
-.the { color: #ffffff; text-shadow: 0 0 2px #000; }
-.gold { color: #d4af37; }
-.green { color: #2e8b57; }
-
-/* SIGNUP CONTAINER */
-.container {
-  display: flex;
-  justify-content: center;
+.gold {
+  color: #d4af37;
 }
 
-.signup-box {
+.green {
+  color: #1fa34a;
+}
+
+.signup-card {
+  width: 450px;
+  margin: 30px auto;
   background: white;
-  width: 380px;
-  padding: 25px;
-  border-radius: 10px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  padding: 35px;
+  border-radius: 16px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.2);
 }
 
-.signup-box h2 {
+.signup-card h2 {
   text-align: center;
-  margin-bottom: 15px;
+  margin-top: 0;
 }
 
-/* INPUT ROWS */
 .row {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   margin-bottom: 12px;
 }
 
-.row select,
-.row input {
-  flex: 1;
-}
-
-/* INPUTS */
 input, select {
-  width: 100%;
-  padding: 10px;
-  font-size: 0.95rem;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-}
-
-/* LABELS */
-.label {
-  display: block;
-  margin-top: 10px;
-  margin-bottom: 5px;
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-/* GENDER */
-.gender-option {
-  background: #f0f2f5;
-  padding: 10px;
-  border-radius: 6px;
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 6px;
-}
-
-/* CHECKBOXES */
-.checkbox {
-  font-size: 0.85rem;
-  margin-top: 10px;
-  display: flex;
-  align-items: start;
-  gap: 8px;
-}
-
-/* BUTTON */
-button {
-  width: 100%;
-  margin-top: 15px;
   padding: 12px;
-  font-size: 1rem;
+  font-size: 15px;
+  flex: 1;
+  border-radius: 5px;
+  border: 1px solid #bbb;
+}
+
+label {
   font-weight: 600;
-  border: none;
-  border-radius: 6px;
-  background: #2e8b57;
+  display: block;
+  margin: 12px 0 5px;
+}
+
+.checkbox {
+  font-size: 14px;
+  margin: 8px 0;
+}
+
+.checkbox input {
+  transform: scale(1.2);
+  margin-right: 6px;
+}
+
+.signup-btn {
+  padding: 14px;
+  background: #1fa34a;
   color: white;
+  border: none;
+  width: 100%;
+  font-size: 17px;
+  border-radius: 6px;
   cursor: pointer;
-  opacity: 0.5;
+  margin-top: 15px;
 }
 
-button.enabled {
-  opacity: 1;
+.signup-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
-/* LOGIN LINK */
-.login-link {
+.small {
   text-align: center;
-  margin-top: 10px;
+  margin-top: 20px;
+  font-size: 15px;
 }
 
-.login-link a {
-  color: #1877f2;
+.small a {
+  color: #166af4;
   text-decoration: none;
+}
+
+.message {
+  margin-top: 10px;
+  font-size: 14px;
+  text-align: center;
 }
