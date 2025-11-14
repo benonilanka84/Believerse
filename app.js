@@ -1,201 +1,370 @@
-console.log("LOADED: APP.JS IS RUNNING");
+// app.js (replace your file with this entire contents)
+// Make sure your index.html includes: <script type="module" src="./app.js"></script>
 
-// ---------------------------------------------------------------
-// SUPABASE INIT
-// ---------------------------------------------------------------
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
-const SUPABASE_URL = "https://xpvlejqxqdsjulbyloyn.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhwdmxlanF4cWRzanVsYnlsb3luIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE5MDc3MzIsImV4cCI6MjA3NzQ4MzczMn0.CHJ1C0U1Ipm8tEkyen4O9ZfXV0zUVSh6mxo8jZ5E3Pk"; // keep your real key here
+/* ------------------ CONFIG - replace with your values ------------------ */
+const SUPABASE_URL = "https://xpvlejqxqdsjulbyloyn.supabase.co"; // <-- keep your URL
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhwdmxlanF4cWRzanVsYnlsb3luIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE5MDc3MzIsImV4cCI6MjA3NzQ4MzczMn0.CHJ1C0U1Ipm8tEkyen4O9ZfXV0zUVSh6mxo8jZ5E3Pk"; // <-- keep your anon key
+/* ---------------------------------------------------------------------- */
+
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// DOM Elements
-const authForm = document.getElementById("auth-form");
-const emailInput = document.getElementById("email");
-const passwordInput = document.getElementById("password");
-const loginBtn = document.getElementById("login-btn");
-const openSignup = document.getElementById("open-signup");
-const authMessage = document.getElementById("auth-message");
+/* ---------- DOM elements (guarded) ---------- */
+const el = (id) => document.getElementById(id);
+const authCard = document.querySelector(".auth-card");
+const authForm = el("auth-form");
+const emailInput = el("email");
+const passwordInput = el("password");
+const loginBtn = el("login-btn");
+const openSignup = el("open-signup");
+const authMessage = el("auth-message");
 
-const signupModal = document.getElementById("signup-modal");
-const closeSignup = document.getElementById("close-signup");
-const signupForm = document.getElementById("signup-form");
-const signupName = document.getElementById("signup-name");
-const signupEmail = document.getElementById("signup-email");
-const signupPassword = document.getElementById("signup-password");
-const signupSubmit = document.getElementById("signup-submit");
-const signupMessage = document.getElementById("signup-message");
+const signupModal = el("signup-modal");
+const closeSignup = el("close-signup");
+const signupForm = el("signup-form");
+const signupName = el("signup-name");
+const signupEmail = el("signup-email");
+const signupPassword = el("signup-password");
+const signupSubmit = el("signup-submit");
+const signupMessage = el("signup-message");
 
-// Profile DOM
-const profileSection = document.getElementById("profile-section");
-const avatarUpload = document.getElementById("avatar-upload");
-const avatarPreview = document.getElementById("avatar-preview");
-const logoutBtn = document.getElementById("logout-btn");
+const profileSection = el("profile-section");
+const userEmailDisplay = el("user-email-display");
+const avatarUpload = el("avatar-upload");
+const avatarPreview = el("avatar-preview");
+const profileForm = el("profile-form");
+const fullNameInput = el("full_name");
+const usernameInput = el("username");
+const bioInput = el("bio");
+const saveProfileBtn = profileForm ? profileForm.querySelector('button[type="submit"]') : null;
+const logoutBtn = el("logout-btn");
 
-// ---------------------------------------------------------------
-// SHOW MESSAGE
-// ---------------------------------------------------------------
-function showAuthMessage(msg, success = true) {
-  authMessage.textContent = msg;
-  authMessage.style.color = success ? "#0b6b50" : "#b02a2a";
+/* utility */
+function showMessage(targetEl, msg, ok = true) {
+  if (!targetEl) return;
+  targetEl.textContent = msg;
+  targetEl.style.color = ok ? "#0b6b50" : "#b02a2a";
 }
 
-// ---------------------------------------------------------------
-// LOGIN
-// ---------------------------------------------------------------
-loginBtn.addEventListener("click", async () => {
-  const email = emailInput.value.trim();
-  const password = passwordInput.value.trim();
+/* ---------- UI helpers ---------- */
+function showProfileUI(user) {
+  if (authCard) authCard.style.display = "none";
+  if (profileSection) profileSection.style.display = "block";
+  if (userEmailDisplay) userEmailDisplay.textContent = user?.email || "";
+}
 
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) return showAuthMessage("Login error: " + error.message, false);
+function showAuthUI() {
+  if (authCard) authCard.style.display = "";
+  if (profileSection) profileSection.style.display = "none";
+  if (authMessage) authMessage.textContent = "";
+}
 
-  showAuthMessage("Login successful!");
-});
-
-// ---------------------------------------------------------------
-// SIGNUP MODAL OPEN/CLOSE
-// ---------------------------------------------------------------
-openSignup.addEventListener("click", () => signupModal.setAttribute("aria-hidden", "false"));
-closeSignup.addEventListener("click", () => signupModal.setAttribute("aria-hidden", "true"));
-
-// ---------------------------------------------------------------
-// SIGNUP SUBMIT
-// ---------------------------------------------------------------
-signupSubmit.addEventListener("click", async () => {
-  const full_name = signupName.value.trim();
-  const email = signupEmail.value.trim();
-  const password = signupPassword.value.trim();
-
-  const { data, error } = await supabase.auth.signUp({ email, password });
-  if (error) {
-    signupMessage.textContent = "Signup error: " + error.message;
-    signupMessage.style.color = "#b02a2a";
-    return;
-  }
-
-  signupMessage.textContent = "Signup successful! Check your email.";
-  signupMessage.style.color = "#0b6b50";
-
-  // Create profile record
-  await supabase.from("profiles").upsert({
-    id: data.user.id,
-    email,
-    full_name,
-  });
-
-  setTimeout(() => signupModal.setAttribute("aria-hidden", "true"), 1500);
-});
-
-// ---------------------------------------------------------------
-// LOAD USER PROFILE
-// ---------------------------------------------------------------
+/* ---------- Load user profile from Supabase ---------- */
 async function loadUserProfile() {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
+  try {
+    const { data: getUser } = await supabase.auth.getUser();
+    const user = getUser?.user;
+    if (!user) {
+      showAuthUI();
+      return null;
+    }
 
-  document.getElementById("user-email-display").textContent = user.email;
+    showProfileUI(user);
 
-  // Fetch profile data
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single();
+    // fetch profile row
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, full_name, username, bio, avatar_url")
+      .eq("id", user.id)
+      .single();
 
-  document.getElementById("full_name").value = profile?.full_name || "";
-  document.getElementById("username").value = profile?.username || "";
-  document.getElementById("bio").value = profile?.bio || "";
-  if (profile?.avatar_url) avatarPreview.src = profile.avatar_url;
+    if (error && error.code !== "PGRST116") {
+      console.warn("Profile fetch error (non-empty):", error);
+    }
 
-  // Show profile section
-  document.querySelector(".right").style.display = "none";
-  profileSection.style.display = "block";
+    // populate fields if data exists
+    fullNameInput.value = data?.full_name || "";
+    usernameInput.value = data?.username || "";
+    bioInput.value = data?.bio || "";
+
+    if (data?.avatar_url) {
+      try {
+        // if we saved a public url string already
+        avatarPreview.src = data.avatar_url;
+      } catch (err) {
+        console.warn("Could not set avatar preview:", err);
+      }
+    }
+
+    return user;
+  } catch (err) {
+    console.error("loadUserProfile error:", err);
+    showAuthUI();
+    return null;
+  }
 }
 
-// ---------------------------------------------------------------
-// UPDATE PROFILE
-// ---------------------------------------------------------------
-document.getElementById("profile-form").addEventListener("submit", async (e) => {
-  e.preventDefault();
+/* ---------- Avatar preview & upload helper ---------- */
+let avatarFile = null; // store selected file until save
 
-  const { data: { user } } = await supabase.auth.getUser();
+if (avatarUpload) {
+  avatarUpload.addEventListener("change", async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    avatarFile = f;
 
-  const updates = {
-    id: user.id,
-    full_name: document.getElementById("full_name").value,
-    username: document.getElementById("username").value,
-    bio: document.getElementById("bio").value,
-    updated_at: new Date()
-  };
+    // show preview locally
+    const url = URL.createObjectURL(f);
+    if (avatarPreview) avatarPreview.src = url;
+  });
+}
 
-  await supabase.from("profiles").upsert(updates);
-  alert("Profile updated!");
-});
+/* ---------- SIGNUP handling (modal) ---------- */
+if (openSignup) {
+  openSignup.addEventListener("click", () => {
+    if (!signupModal) return;
+    signupModal.setAttribute("aria-hidden", "false");
+  });
+}
+if (closeSignup) {
+  closeSignup.addEventListener("click", () => {
+    if (!signupModal) return;
+    signupModal.setAttribute("aria-hidden", "true");
+    signupMessage.textContent = "";
+    signupForm.reset();
+  });
+}
 
-// ---------------------------------------------------------------
-// AVATAR UPLOAD
-// ---------------------------------------------------------------
-avatarUpload.addEventListener("change", async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
+/* Sign up */
+if (signupSubmit) {
+  signupSubmit.addEventListener("click", async (ev) => {
+    ev.preventDefault();
+    signupMessage.textContent = "";
+    const full_name = (signupName.value || "").trim();
+    const email = (signupEmail.value || "").trim();
+    const password = (signupPassword.value || "").trim();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  const ext = file.name.split(".").pop();
-  const fileName = `${user.id}.${ext}`;
+    if (!full_name || !email || !password) {
+      signupMessage.textContent = "Please provide name, email and password.";
+      signupMessage.style.color = "#b02a2a";
+      return;
+    }
 
-  // Upload
-  await supabase.storage.from("avatars").upload(fileName, file, { upsert: true });
+    signupSubmit.disabled = true;
+    try {
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) {
+        signupMessage.textContent = "Signup error: " + error.message;
+        signupMessage.style.color = "#b02a2a";
+        console.error("signup error:", error);
+        return;
+      }
 
-  // Get URL
-  const { data } = supabase.storage.from("avatars").getPublicUrl(fileName);
-  const url = data.publicUrl;
+      // if user object is returned immediately (rare), create profile
+      if (data?.user) {
+        const userId = data.user.id;
+        const { error: upsertErr } = await supabase.from("profiles").upsert({
+          id: userId,
+          email,
+          full_name,
+          updated_at: new Date()
+        });
+        if (upsertErr) console.warn("profile upsert error:", upsertErr);
+      }
 
-  avatarPreview.src = url;
+      signupMessage.textContent = "Signup successful — check email to confirm (if required).";
+      signupMessage.style.color = "#0b6b50";
 
-  // Save to profile
-  await supabase.from("profiles").update({ avatar_url: url }).eq("id", user.id);
+      // close modal
+      setTimeout(() => {
+        signupModal.setAttribute("aria-hidden", "true");
+        signupForm.reset();
+      }, 1200);
+    } catch (err) {
+      signupMessage.textContent = "Unexpected error: " + err.message;
+      signupMessage.style.color = "#b02a2a";
+      console.error(err);
+    } finally {
+      signupSubmit.disabled = false;
+    }
+  });
+}
 
-  alert("Profile picture updated!");
-});
+/* ---------- LOGIN ---------- */
+if (loginBtn) {
+  loginBtn.addEventListener("click", async (e) => {
+    e.preventDefault();
+    if (!emailInput || !passwordInput) return;
+    const email = (emailInput.value || "").trim();
+    const password = (passwordInput.value || "").trim();
+    if (!email || !password) {
+      showMessage(authMessage, "Please enter both email and password.", false);
+      return;
+    }
+    loginBtn.disabled = true;
+    showMessage(authMessage, "Signing in...", true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        showMessage(authMessage, "Login failed: " + error.message, false);
+        console.error("login error:", error);
+        return;
+      }
+      showMessage(authMessage, "Login successful.", true);
+      // onAuthStateChange will handle UI refresh
+    } catch (err) {
+      showMessage(authMessage, "Unexpected error: " + err.message, false);
+      console.error(err);
+    } finally {
+      loginBtn.disabled = false;
+    }
+  });
+}
 
-// ---------------------------------------------------------------
-// LOGOUT
-// ---------------------------------------------------------------
-logoutBtn.addEventListener("click", async () => {
-  await supabase.auth.signOut();
-  location.reload();
-});
+/* ---------- LOGOUT ---------- */
+if (logoutBtn) {
+  logoutBtn.addEventListener("click", async (e) => {
+    e.preventDefault();
+    logoutBtn.disabled = true;
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error("signOut error:", error);
+      }
+      // clear UI
+      showAuthUI();
+      // reset profile fields
+      if (profileForm) profileForm.reset();
+      if (avatarPreview) avatarPreview.src = "https://via.placeholder.com/120";
+      avatarFile = null;
+    } catch (err) {
+      console.error("logout err:", err);
+    } finally {
+      logoutBtn.disabled = false;
+    }
+  });
+}
 
-// ---------------------------------------------------------------
-// AUTH STATE LISTENER (CORRECTED)
-// ---------------------------------------------------------------
+/* ---------- SAVE PROFILE ---------- */
+if (profileForm) {
+  profileForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!fullNameInput || !usernameInput) return;
+
+    saveProfileBtn.disabled = true;
+    saveProfileBtn.textContent = "Saving...";
+
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const user = userData?.user;
+      if (!user) {
+        alert("No authenticated user. Please login again.");
+        showAuthUI();
+        return;
+      }
+
+      const updates = {
+        id: user.id,
+        full_name: fullNameInput.value.trim() || null,
+        username: usernameInput.value.trim() || null,
+        bio: bioInput.value.trim() || null,
+        updated_at: new Date()
+      };
+
+      // If an avatar file was chosen, upload it first
+      if (avatarFile) {
+        const ext = avatarFile.name.split('.').pop();
+        const fileName = `${user.id}.${ext}`;
+        const filePath = fileName;
+
+        // Upload to avatars bucket (make sure bucket exists & policy allows)
+        const { error: uploadError } = await supabase.storage
+          .from("avatars")
+          .upload(filePath, avatarFile, { upsert: true });
+
+        if (uploadError) {
+          throw new Error("Avatar upload failed: " + uploadError.message);
+        }
+
+        // Get public URL (public bucket) or create signed URL for private
+        const { data } = supabase.storage.from("avatars").getPublicUrl(filePath);
+        updates.avatar_url = data?.publicUrl || null;
+      }
+
+      // Upsert profile row
+      const { error: upsertError } = await supabase.from("profiles").upsert(updates);
+      if (upsertError) {
+        throw upsertError;
+      }
+
+      alert("Profile updated successfully!");
+      avatarFile = null;
+      // reload profile to reflect any changes
+      await loadUserProfile();
+    } catch (err) {
+      console.error("save profile error:", err);
+      alert("Error saving profile: " + (err.message || err));
+    } finally {
+      saveProfileBtn.disabled = false;
+      saveProfileBtn.textContent = "Save Profile";
+    }
+  });
+}
+
+/* ---------- FORGOT PASSWORD ---------- */
+const forgotLink = el("forgot-link");
+if (forgotLink) {
+  forgotLink.addEventListener("click", async (ev) => {
+    ev.preventDefault();
+    const email = (emailInput.value || "").trim();
+    if (!email) {
+      showMessage(authMessage, "Enter your email first to receive reset link.", false);
+      return;
+    }
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin
+    });
+    if (error) showMessage(authMessage, "Error: " + error.message, false);
+    else showMessage(authMessage, "Password reset email sent (check spam).", true);
+  });
+}
+
+/* ---------- AUTH STATE CHANGE ---------- */
 supabase.auth.onAuthStateChange(async (event, session) => {
-  const loginArea = document.querySelector(".right");
-
-  if (session) {
-    // User logged in
-    loginArea.style.display = "none";
-    profileSection.style.display = "block";
-    await loadUserProfile();
+  console.log("onAuthStateChange", event, session);
+  if (session?.access_token) {
+    // logged in
+    const { data: getUser } = await supabase.auth.getUser();
+    const user = getUser?.user;
+    if (user) {
+      await loadUserProfile();
+    } else {
+      showAuthUI();
+    }
   } else {
-    // User logged out or first visit
-    loginArea.style.display = "block";
-    profileSection.style.display = "none";
+    // logged out
+    showAuthUI();
   }
 });
 
-(async () => {
-  const { data: { session } } = await supabase.auth.getSession();
+/* ---------- INIT ---------- */
+(async function init() {
+  console.log("APP.JS IS RUNNING");
+  // initial UI state
+  showAuthUI();
 
-  const loginArea = document.querySelector(".right");
-
-  if (session) {
-    loginArea.style.display = "none";
-    profileSection.style.display = "block";
-    await loadUserProfile();
-  } else {
-    loginArea.style.display = "block";
-    profileSection.style.display = "none";
+  // if already logged in (session persisted), load profile
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (sessionData?.session) {
+      // session exists, load profile
+      await loadUserProfile();
+    } else {
+      showAuthUI();
+    }
+  } catch (err) {
+    console.warn("init auth check failed:", err);
+    showAuthUI();
   }
 })();
