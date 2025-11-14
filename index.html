@@ -43,7 +43,9 @@
 
           <hr class="divider" />
 
-          <button id="open-signup" class="btn btn-cta" type="button">Create new account</button>
+          <button onclick="window.location.href='signup.html'" class="btn btn-cta" type="button">
+  Create new account
+</button>
 
           <p id="auth-message" class="message" aria-live="polite"></p>
         </form>
@@ -81,27 +83,6 @@
     <button id="logout-btn" class="btn-primary" style="margin-top:15px;">Logout</button>
   </section>
 
-
-  <!-- SIGNUP MODAL -->
-  <div id="signup-modal" class="modal" aria-hidden="true">
-    <div class="modal-backdrop"></div>
-    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="signup-title">
-      <button id="close-signup" class="modal-close" aria-label="Close">✕</button>
-      <h3 id="signup-title">Create your account</h3>
-
-      <form id="signup-form" autocomplete="on" novalidate>
-        <input id="signup-name" name="full_name" type="text" placeholder="Full name" required />
-        <input id="signup-email" name="email" type="email" placeholder="Email address" required />
-        <input id="signup-password" name="password" type="password" placeholder="Password (min 6 chars)" required />
-
-        <div class="modal-actions">
-          <button id="signup-submit" class="btn btn-primary" type="button">Sign Up</button>
-        </div>
-
-        <p id="signup-message" class="message" aria-live="polite"></p>
-      </form>
-    </div>
-  </div>
 
   <script type="module" src="./app.js"></script>
 </body>

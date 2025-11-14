@@ -194,33 +194,46 @@ if (signupSubmit) {
 /* ---------- LOGIN ---------- */
 if (loginBtn) {
   loginBtn.addEventListener("click", async (e) => {
-    e.preventDefault();
-    if (!emailInput || !passwordInput) return;
-    const email = (emailInput.value || "").trim();
-    const password = (passwordInput.value || "").trim();
-    if (!email || !password) {
-      showMessage(authMessage, "Please enter both email and password.", false);
-      return;
-    }
-    loginBtn.disabled = true;
-    showMessage(authMessage, "Signing in...", true);
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        showMessage(authMessage, "Login failed: " + error.message, false);
-        console.error("login error:", error);
+  e.preventDefault();
+
+  const email = emailInput.value.trim();
+  const password = passwordInput.value.trim();
+
+  if (!email || !password) {
+    showMessage(authMessage, "Please enter both email and password.", false);
+    return;
+  }
+
+  loginBtn.disabled = true;
+  showMessage(authMessage, "Signing in...", true);
+
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      if (error.message.includes("Invalid login credentials")) {
+        showMessage(authMessage, "Account not found. Redirecting to signup...", false);
+        setTimeout(() => { window.location.href = "signup.html"; }, 1300);
         return;
       }
-      showMessage(authMessage, "Login successful.", true);
-      // onAuthStateChange will handle UI refresh
-    } catch (err) {
-      showMessage(authMessage, "Unexpected error: " + err.message, false);
-      console.error(err);
-    } finally {
-      loginBtn.disabled = false;
+
+      showMessage(authMessage, "Login failed: " + error.message, false);
+      return;
     }
-  });
-}
+
+    // SUCCESS — REDIRECT TO PROFILE PAGE
+    window.location.href = "profile.html";
+
+  } catch (err) {
+    showMessage(authMessage, "Unexpected error: " + err.message, false);
+  } finally {
+    loginBtn.disabled = false;
+  }
+});
+
 
 /* ---------- LOGOUT ---------- */
 if (logoutBtn) {
