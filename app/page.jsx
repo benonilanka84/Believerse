@@ -1,41 +1,67 @@
+// app/page.jsx
 "use client";
-import Link from "next/link";
-import "@/styles/globals.css";
+import { useState } from "react";
 
 export default function HomePage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  function handleSignIn(e) {
+    e.preventDefault();
+    // For now: simple placeholder. Later wire to Supabase or your API
+    alert(`Signing in: ${email}`);
+  }
+
   return (
-    <div
-      className="min-h-screen bg-cover bg-center flex flex-col items-center justify-center text-white"
-      style={{ backgroundImage: "url('/cross-bg.jpg')" }}
-    >
-      {/* Header */}
-      <h1 className="text-5xl font-extrabold tracking-wide text-center drop-shadow-lg">
-        The{" "}
-        <span className="text-[#d4af37]">B</span>
-        elievers
-        <span className="text-[#2e8b57]">e</span>
-      </h1>
+    <main className="page-wrap">
+      {/* LEFT */}
+      <section className="left">
+        <div className="verse">“I can do all things through Christ who strengthens me.”</div>
+        <div className="verse-ref">— Philippians 4:13</div>
 
-      <p className="text-lg mt-3 drop-shadow-lg">
-        Welcome to The Believerse! Supabase Connected ✓
-      </p>
+        <h1 className="brand">
+          <span className="the">The</span>
+          <span className="word">
+            Believers
+            <span className="gold">e</span>
+            {/* The gold/green letters — adjust markup if you want the 'B' gold *)
+               If you want specifically 'B' gold and last 'e' green, do:
+               <span className="gold">B</span>elieverse with <span className="green">e</span> at end.
+            */}
+          </span>
+        </h1>
 
-      {/* Buttons */}
-      <div className="mt-8 flex flex-col space-y-4">
-        <Link
-          href="/signup"
-          className="bg-black/70 px-8 py-3 rounded-md text-white hover:bg-black/90 text-center"
-        >
-          Create New Account
-        </Link>
+        <div className="tagline">One Family in Christ.</div>
+      </section>
 
-        <Link
-          href="/signin"
-          className="bg-white/80 text-black px-8 py-3 rounded-md hover:bg-white text-center"
-        >
-          Sign In
-        </Link>
-      </div>
-    </div>
+      {/* RIGHT */}
+      <aside className="right">
+        <div className="auth-card">
+          <h2>Welcome to The Believerse</h2>
+          <div className="small">Sign in or create a new account to join the family.</div>
+
+          <form onSubmit={handleSignIn}>
+            <input
+              type="email"
+              placeholder="Email address"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+            <button className="btn btn-primary" type="submit">Log in</button>
+          </form>
+
+          <hr className="divider" />
+          <button className="btn btn-ghost" onClick={() => window.location.href = "/signup"}>Create new account</button>
+        </div>
+      </aside>
+    </main>
   );
 }

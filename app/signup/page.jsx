@@ -1,71 +1,50 @@
+// app/signup/page.jsx
 "use client";
 import { useState } from "react";
-import "@/styles/globals.css";
-import { supabase } from "@/lib/supabaseClient";
 
 export default function SignupPage() {
-  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({
+    first: "", last: "", username: "", email: "", password: ""
+  });
 
-  async function handleSignup(e) {
+  function update(k, v){ setForm(prev => ({ ...prev, [k]: v })); }
+
+  function handleSubmit(e) {
     e.preventDefault();
-    setLoading(true);
-
-    const form = new FormData(e.target);
-    const first = form.get("first_name");
-    const last = form.get("last_name");
-    const username = form.get("username");
-    const email = form.get("email");
-    const password = form.get("password");
-
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { first, last, username },
-      },
-    });
-
-    setLoading(false);
-    if (error) alert(error.message);
-    else alert("Account created! Please check your email.");
+    // placeholder — later connect to Supabase / API
+    alert(`Sign up: ${form.email}`);
   }
 
   return (
-    <div
-      className="min-h-screen bg-cover bg-center flex items-center justify-center"
-      style={{ backgroundImage: "url('/cross-bg.jpg')" }}
-    >
-      <form
-        onSubmit={handleSignup}
-        className="bg-white/20 backdrop-blur-md p-8 rounded-xl w-full max-w-md text-white"
-      >
-        <h2 className="text-3xl font-bold mb-4">Create a new account</h2>
+    <main className="signup-wrap">
+      <div className="signup-header">
+        <h1 className="brand">
+          <span className="the">The</span>
+          <span className="word"><span className="gold">B</span>elievers<span className="green">e</span></span>
+        </h1>
+        <p className="tagline">One Family in Christ.</p>
+      </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <input name="first_name" placeholder="First name" className="input" required />
-          <input name="last_name" placeholder="Last name" className="input" required />
-        </div>
+      <div style={{ display: "flex", justifyContent: "center" }}>
+        <form className="auth-card" onSubmit={handleSubmit}>
+          <h2>Create a new account</h2>
+          <div style={{ display: "flex", gap: 12 }}>
+            <input value={form.first} onChange={e=>update("first", e.target.value)} placeholder="First name" />
+            <input value={form.last} onChange={e=>update("last", e.target.value)} placeholder="Last name" />
+          </div>
+          <input value={form.username} onChange={e=>update("username", e.target.value)} placeholder="Choose a username" />
+          <input value={form.email} onChange={e=>update("email", e.target.value)} placeholder="Email address" />
+          <input type="password" value={form.password} onChange={e=>update("password", e.target.value)} placeholder="New password (min 8 chars)" />
+          <div style={{ fontSize: ".9rem", marginTop: 8 }}>
+            <label><input type="checkbox" required /> I agree to The Believerse Terms & Conditions.</label><br/>
+            <label><input type="checkbox" required /> I will only post Christian content.</label>
+          </div>
 
-        <input name="username" placeholder="Choose a username" className="input mt-3" required />
-        <input name="email" placeholder="Email address" className="input mt-3" required />
-        <input name="password" type="password" className="input mt-3" placeholder="New password (min 8 chars)" required />
+          <button className="btn btn-cta" type="submit" style={{ marginTop: 12 }}>Sign Up</button>
 
-        <div className="mt-3 space-y-2 text-sm">
-          <label><input type="checkbox" required /> I agree to The Believerse Terms & Conditions.</label>
-          <label><input type="checkbox" required /> I will only post Christian content.</label>
-        </div>
-
-        <button
-          type="submit"
-          className="bg-green-600 w-full py-2 rounded-md mt-4 hover:bg-green-700 font-semibold"
-        >
-          {loading ? "Signing up…" : "Sign Up"}
-        </button>
-
-        <p className="mt-3 text-sm">
-          Already have an account? <a href="/signin" className="underline">Sign in</a>
-        </p>
-      </form>
-    </div>
+          <div className="message">Already have an account? <a href="/" style={{color:"#2d6be3"}}>Sign in</a></div>
+        </form>
+      </div>
+    </main>
   );
 }
