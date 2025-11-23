@@ -1,42 +1,41 @@
-'use client';
-
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+"use client";
+import Link from "next/link";
+import "@/styles/globals.css";
 
 export default function HomePage() {
-  const [message, setMessage] = useState("Loading...");
-
-  useEffect(() => {
-    const check = async () => {
-      const { data, error } = await supabase.from("profiles").select("*")
-
-      if (error) {
-        setMessage("Connected to Supabase, but no data found.");
-      } else {
-        setMessage("Welcome to The Believerse! Supabase Connected ✔");
-      }
-    };
-
-    check();
-  }, []);
-
   return (
-    <main style={{ textAlign: "center", paddingTop: "50px" }}>
-      <h1 style={{ fontSize: "32px" }}>The Believerse</h1>
-      <p style={{ fontSize: "18px", marginTop: "10px" }}>{message}</p>
+    <div
+      className="min-h-screen bg-cover bg-center flex flex-col items-center justify-center text-white"
+      style={{ backgroundImage: "url('/cross-bg.jpg')" }}
+    >
+      {/* Header */}
+      <h1 className="text-5xl font-extrabold tracking-wide text-center drop-shadow-lg">
+        The{" "}
+        <span className="text-[#d4af37]">B</span>
+        elievers
+        <span className="text-[#2e8b57]">e</span>
+      </h1>
 
-      <a href="/signup" 
-        style={{
-          display: "inline-block",
-          marginTop: "20px",
-          padding: "10px 20px",
-          background: "#333",
-          color: "#fff",
-          borderRadius: "8px",
-          textDecoration: "none",
-        }}>
-        Create New Account
-      </a>
-    </main>
+      <p className="text-lg mt-3 drop-shadow-lg">
+        Welcome to The Believerse! Supabase Connected ✓
+      </p>
+
+      {/* Buttons */}
+      <div className="mt-8 flex flex-col space-y-4">
+        <Link
+          href="/signup"
+          className="bg-black/70 px-8 py-3 rounded-md text-white hover:bg-black/90 text-center"
+        >
+          Create New Account
+        </Link>
+
+        <Link
+          href="/signin"
+          className="bg-white/80 text-black px-8 py-3 rounded-md hover:bg-white text-center"
+        >
+          Sign In
+        </Link>
+      </div>
+    </div>
   );
 }

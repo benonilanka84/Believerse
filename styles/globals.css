@@ -34,6 +34,14 @@ body {
   .grid-2 { grid-template-columns: 1fr; }
 }
 
+.input {
+  width: 100%;
+  padding: 10px;
+  background: rgba(255,255,255,0.85);
+  border-radius: 6px;
+  color: black;
+}
+
 .btn { border-radius:8px; padding:8px 12px; font-weight:600; }
 .btn-primary { background:#2d6be3; color:#fff; }
 .btn-cta { background:var(--green); color:#fff; }
