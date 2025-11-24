@@ -49,7 +49,7 @@ export default function Home() {
     <span className="gold">B</span>elievers<span className="green">e</span>
   </h1>
 
-  <p className="tagline" style={{ marginLeft: "12px" }}>One Family in Christ.</p>
+  <p className="tagline" style={{ marginLeft: "20px" }}>One Family in Christ</p>
 </section>
 
 
