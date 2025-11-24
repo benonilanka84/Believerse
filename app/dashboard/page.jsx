@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import ProfileAvatar from "@/components/ProfileAvatar";
+import VerseImage from "@/components/VerseImage";
 
 export default function DashboardPage() {
   const [user, setUser] = useState(null);
@@ -96,10 +97,13 @@ export default function DashboardPage() {
 
       {/* Future: Verse Image */}
       <section className="votd-img-card" style={styles.card}>
-        <h2>Verse Image</h2>
-        <p style={styles.placeholder}>Verse image will appear here...</p>
-        <button style={styles.btn}>Share Image to WhatsApp</button>
-      </section>
+  <h2>Verse Image</h2>
+  {verse ? (
+    <VerseImage verse={verse} />
+  ) : (
+    <p style={styles.placeholder}>Loading...</p>
+  )}
+</section>
     </div>
   );
 }
