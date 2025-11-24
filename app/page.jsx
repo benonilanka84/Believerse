@@ -64,7 +64,7 @@ export default function Home() {
 
           <button className="btn btn-primary" onClick={handleLogin}>Log in</button>
 
-          <p className="forgot-link" onClick={handleForgot}>Forgot password?</p>
+          <p className="forgot-link" onClick={handleForgot}>Forgot Password?</p>
 
           <hr className="divider" />
 
