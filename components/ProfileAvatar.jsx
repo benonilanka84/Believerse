@@ -1,4 +1,3 @@
-// components/ProfileAvatar.jsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -11,7 +10,6 @@ export default function ProfileAvatar() {
   const ref = useRef();
 
   useEffect(() => {
-    // read a simulated localStorage user
     try {
       const u = JSON.parse(localStorage.getItem("bv_user") || "null");
       setUser(u);
@@ -33,14 +31,11 @@ export default function ProfileAvatar() {
   }
 
   function goProfile() {
-    router.push("/dashboard"); // or /profile -> simple demo route
+    router.push("/dashboard");
     setOpen(false);
   }
 
-  if (!user) {
-    // if not logged in, show a simple static icon (or hide)
-    return null;
-  }
+  if (!user) return null;
 
   return (
     <div className="profile-avatar" ref={ref}>
@@ -51,12 +46,15 @@ export default function ProfileAvatar() {
         onClick={() => setOpen((s) => !s)}
         style={{ cursor: "pointer" }}
       />
+
       {open && (
         <div className="avatar-dropdown">
           <div className="avatar-name">{user?.email || "User"}</div>
+
           <button className="dropdown-btn" onClick={goProfile}>
             Edit Profile
           </button>
+
           <button
             className="dropdown-btn"
             onClick={() => {
@@ -66,6 +64,7 @@ export default function ProfileAvatar() {
           >
             Terms & Conditions
           </button>
+
           <button
             className="dropdown-btn"
             onClick={() => {
@@ -75,26 +74,40 @@ export default function ProfileAvatar() {
           >
             Settings
           </button>
+
           <button className="dropdown-btn danger" onClick={handleLogout}>
             Log out
           </button>
         </div>
       )}
+
       <style jsx>{`
-        .profile-avatar { position: relative; display: inline-block; }
-        .avatar-img { width: 42px; height: 42px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.9); }
+        .profile-avatar {
+          position: relative;
+          display: inline-block;
+        }
+        .avatar-img {
+          width: 42px;
+          height: 42px;
+          border-radius: 50%;
+          border: 2px solid rgba(255, 255, 255, 0.9);
+        }
         .avatar-dropdown {
           position: absolute;
           right: 0;
           margin-top: 8px;
           background: #fff;
           border-radius: 10px;
-          box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
           width: 200px;
           padding: 8px;
           z-index: 40;
         }
-        .avatar-name { padding: 6px 8px; font-weight: 600; color: #0b2e4a; }
+        .avatar-name {
+          padding: 6px 8px;
+          font-weight: 600;
+          color: #0b2e4a;
+        }
         .dropdown-btn {
           width: 100%;
           padding: 10px;
@@ -105,9 +118,13 @@ export default function ProfileAvatar() {
           cursor: pointer;
           color: #123;
         }
-        .dropdown-btn:hover { background: rgba(0,0,0,0.04); }
-        .dropdown-btn.danger { color: #b33; }
-      ,}</style>
+        .dropdown-btn:hover {
+          background: rgba(0, 0, 0, 0.04);
+        }
+        .dropdown-btn.danger {
+          color: #b33;
+        }
+      `}</style>
     </div>
-  ,);
+  );
 }
