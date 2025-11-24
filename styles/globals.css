@@ -42,6 +42,12 @@ html, body {
   gap: 12px;
 }
 
+.top-right {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+}
+
 .avatar-btn {
   background: transparent;
   border: none;

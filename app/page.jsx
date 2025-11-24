@@ -1,46 +1,51 @@
-// app/page.jsx
 "use client";
-
+import Link from "next/link";
 import { useState } from "react";
+import { supabase } from "@/supabase";
 
-export default function HomePage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [message, setMessage] = useState("");
+export default function Home() {
+  const [msg, setMsg] = useState("");
 
-  function handleLogin() {
-    // Placeholder: you will hook this to Supabase auth later
+  const handleLogin = async () => {
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value.trim();
+
     if (!email || !password) {
-      setMessage("Please enter both email and password.");
+      setMsg("Please enter email and password.");
       return;
     }
-    setMessage("Signing in...");
-    // simulate success
-    setTimeout(() => {
-      setMessage("Signed in (simulated). Redirecting to dashboard...");
-      // In real app: navigate to /dashboard or update auth state
-    }, 700);
-  }
 
-  function handleForgot() {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return setMsg(error.message);
+
+    window.location.href = "/dashboard";
+  };
+
+  const handleForgot = async () => {
+    const email = document.getElementById("email").value.trim();
     if (!email) {
-      setMessage("Enter e-mail address to receive password reset link.");
+      setMsg("Enter your email address to reset your password.");
       return;
     }
-    setMessage(`Password reset link sent to ${email} (simulated).`);
-  }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    if (error) return setMsg(error.message);
+
+    setMsg("Password reset link sent to your email.");
+  };
 
   return (
     <div className="page-wrap">
+
       {/* LEFT PANEL */}
       <section className="left">
         <p className="verse">
           “I can do all things through Christ who strengthens me.”
-          <span className="verse-ref">— Philippians 4:13</span>
+          <span className="verse-ref"> — Philippians 4:13</span>
         </p>
 
         <h1 className="brand">
-          <span className="the">The</span>
+          <span className="the">The </span>
           <span className="gold">B</span>elievers<span className="green">e</span>
         </h1>
 
@@ -53,52 +58,20 @@ export default function HomePage() {
           <h2>Welcome to The Believerse</h2>
           <p className="small">Sign in or create a new account to join the family.</p>
 
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleLogin();
-            }}
-            autoComplete="on"
-          >
-            <input
-              id="email"
-              type="email"
-              placeholder="Email address"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            <input
-              id="password"
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+          <input id="email" type="email" placeholder="Email address" />
+          <input id="password" type="password" placeholder="Password" />
 
-            <button id="login-btn" className="btn btn-primary" type="submit">
-              Log in
-            </button>
+          <button className="btn btn-primary" onClick={handleLogin}>Log in</button>
 
-            <p
-              className="forgot-link"
-              onClick={(e) => {
-                e.preventDefault();
-                handleForgot();
-              }}
-            >
-              Forgot password?
-            </p>
+          <p className="forgot-link" onClick={handleForgot}>Forgot password?</p>
 
-            <hr className="divider" />
+          <hr className="divider" />
 
-            <a className="btn btn-cta" href="/signup">
-              Create new account
-            </a>
+          <Link href="/signup">
+            <button className="btn btn-cta">Create new account</button>
+          </Link>
 
-            <p id="login-message" className="message">
-              {message}
-            </p>
-          </form>
+          <p className="message">{msg}</p>
         </div>
       </section>
     </div>

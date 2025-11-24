@@ -1,49 +1,58 @@
-// app/signup/page.jsx
 "use client";
-
-import { useState } from "react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { supabase } from "@/supabase";
 
 export default function SignupPage() {
-  const [first, setFirst] = useState("");
-  const [last, setLast] = useState("");
-  const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
-  const [pw, setPw] = useState("");
-  const [agreeT, setAgreeT] = useState(false);
-  const [agreeFaith, setAgreeFaith] = useState(false);
-  const [message, setMessage] = useState("");
+  const [valid, setValid] = useState(false);
+  const [msg, setMsg] = useState("");
 
-  const allOk =
-    first.trim() &&
-    last.trim() &&
-    username.trim() &&
-    email.trim() &&
-    pw.length >= 8 &&
-    agreeT &&
-    agreeFaith;
+  // enable Sign Up only when all requirements are met
+  useEffect(() => {
+    const validate = () => {
+      const first = document.getElementById("fn").value.trim();
+      const last = document.getElementById("ln").value.trim();
+      const user = document.getElementById("un").value.trim();
+      const email = document.getElementById("em").value.trim();
+      const pass = document.getElementById("pw").value.trim();
+      const tc = document.getElementById("tc").checked;
+      const faith = document.getElementById("faith").checked;
 
-  function handleSignup(e) {
-    e.preventDefault();
-    if (!allOk) {
-      setMessage("Please complete all fields and tick both checkboxes.");
-      return;
-    }
-    setMessage("Signing up (simulated)...");
-    setTimeout(() => setMessage("Account created (simulated)."), 800);
-  }
+      setValid(first && last && user && email && pass.length >= 8 && tc && faith);
+    };
+
+    document.addEventListener("input", validate);
+    return () => document.removeEventListener("input", validate);
+  }, []);
+
+  const handleSignup = async () => {
+    const email = document.getElementById("em").value.trim();
+    const password = document.getElementById("pw").value.trim();
+    const username = document.getElementById("un").value.trim();
+
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { username } }
+    });
+
+    if (error) return setMsg(error.message);
+
+    setMsg("Account created! Check your email for verification.");
+  };
 
   return (
     <div className="page-wrap">
+
       {/* LEFT PANEL */}
       <section className="left">
         <p className="verse">
           “I can do all things through Christ who strengthens me.”
-          <span className="verse-ref">— Philippians 4:13</span>
+          <span className="verse-ref"> — Philippians 4:13</span>
         </p>
 
         <h1 className="brand">
-          <span className="the">The</span>
+          <span className="the">The </span>
           <span className="gold">B</span>elievers<span className="green">e</span>
         </h1>
 
@@ -53,70 +62,42 @@ export default function SignupPage() {
       {/* RIGHT PANEL */}
       <section className="right">
         <div className="auth-card">
+
           <h2>Create a new account</h2>
 
-          <form onSubmit={handleSignup}>
-            <div style={{ display: "flex", gap: 10 }}>
-              <input
-                placeholder="First name"
-                value={first}
-                onChange={(e) => setFirst(e.target.value)}
-              />
-              <input
-                placeholder="Last name"
-                value={last}
-                onChange={(e) => setLast(e.target.value)}
-              />
+          <form className="signup-form" onSubmit={(e) => e.preventDefault()}>
+            <div className="row">
+              <input id="fn" type="text" placeholder="First name" />
+              <input id="ln" type="text" placeholder="Last name" />
             </div>
 
-            <input
-              placeholder="Choose a username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-            />
-            <input
-              placeholder="Email address"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            <input
-              placeholder="New password (min 8 chars)"
-              type="password"
-              value={pw}
-              onChange={(e) => setPw(e.target.value)}
-            />
+            <input id="un" type="text" placeholder="Choose a username" />
+            <input id="em" type="email" placeholder="Email address" />
+            <input id="pw" type="password" placeholder="New password (min 8 chars)" />
 
-            <div style={{ marginTop: 8 }}>
-              <label style={{ display: "block", marginBottom: 6 }}>
-                <input
-                  type="checkbox"
-                  checked={agreeT}
-                  onChange={(e) => setAgreeT(e.target.checked)}
-                />{" "}
-                I agree to The Believerse Terms & Conditions.
-              </label>
+            <label className="checkbox-line">
+              <input type="checkbox" id="tc" /> I agree to The Believerse Terms & Conditions.
+            </label>
 
-              <label style={{ display: "block" }}>
-                <input
-                  type="checkbox"
-                  checked={agreeFaith}
-                  onChange={(e) => setAgreeFaith(e.target.checked)}
-                />{" "}
-                I understand that only Christian-faith based content is allowed.
-              </label>
-            </div>
+            <label className="checkbox-line">
+              <input type="checkbox" id="faith" /> I understand that only Christian-faith based content is allowed.
+            </label>
 
-            <button className="btn btn-cta" type="submit" disabled={!allOk}>
+            <button
+              className="btn btn-cta"
+              disabled={!valid}
+              onClick={handleSignup}
+            >
               Sign Up
             </button>
 
-            <p style={{ marginTop: 10 }}>
-              Already have an account? <Link href="/"><a>Sign in</a></Link>
+            <p className="small mt-1">
+              Already have an account? <Link href="/">Sign in</Link>
             </p>
 
-            <p className="message">{message}</p>
+            <p className="message">{msg}</p>
           </form>
+
         </div>
       </section>
     </div>
