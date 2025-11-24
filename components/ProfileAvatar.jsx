@@ -107,7 +107,7 @@ export default function ProfileAvatar() {
         }
         .dropdown-btn:hover { background: rgba(0,0,0,0.04); }
         .dropdown-btn.danger { color: #b33; }
-      `}</style>
+      ,}</style>
     </div>
-  `);
+  ,);
 }
