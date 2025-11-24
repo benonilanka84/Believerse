@@ -1,7 +1,6 @@
-// app/layout.jsx
+// app/layout.js
 import "@/styles/globals.css";
-import ProfileAvatar from "@/components/ProfileAvatar";
-import { useEffect, useState } from "react";
+import Header from "@/components/Header";
 
 export const metadata = {
   title: "The Believerse",
@@ -12,20 +11,9 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body>
-        <div id="root-layout">
-          <Header />
-          <main>{children}</main>
-        </div>
+        <Header /> {/* <-- Now Header handles client logic */}
+        {children}
       </body>
     </html>
-  );
-}
-
-function Header() {
-  // simple header - keep transparent so background shines through
-  return (
-    <header style={{ position: "fixed", top: 8, right: 16, zIndex: 1200 }}>
-      <ProfileAvatar />
-    </header>
   );
 }
