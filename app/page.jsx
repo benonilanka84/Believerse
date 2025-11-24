@@ -1,107 +1,106 @@
 // app/page.jsx
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 export default function HomePage() {
-  const router = useRouter();
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    // if already "logged in" redirect to dashboard
-    try {
-      const u = JSON.parse(localStorage.getItem("bv_user") || "null");
-      if (u) router.replace("/dashboard");
-    } catch {}
-  }, []);
-
-  const doLogin = () => {
+  function handleLogin() {
+    // Placeholder: you will hook this to Supabase auth later
     if (!email || !password) {
-      setMessage("Please enter email and password.");
+      setMessage("Please enter both email and password.");
       return;
     }
-    // For demo: accept anything and set localStorage
-    localStorage.setItem("bv_user", JSON.stringify({ email }));
     setMessage("Signing in...");
-    router.push("/dashboard");
-  };
+    // simulate success
+    setTimeout(() => {
+      setMessage("Signed in (simulated). Redirecting to dashboard...");
+      // In real app: navigate to /dashboard or update auth state
+    }, 700);
+  }
 
-  const forgotPassword = () => {
+  function handleForgot() {
     if (!email) {
-      setMessage("Enter e-mail address");
+      setMessage("Enter e-mail address to receive password reset link.");
       return;
     }
-    // Simulate sending reset link
-    setMessage(`Password reset link sent to ${email}`);
-  };
+    setMessage(`Password reset link sent to ${email} (simulated).`);
+  }
 
   return (
     <div className="page-wrap">
+      {/* LEFT PANEL */}
       <section className="left">
         <p className="verse">
           “I can do all things through Christ who strengthens me.”
-          <span className="verse-ref"> — Philippians 4:13</span>
+          <span className="verse-ref">— Philippians 4:13</span>
         </p>
 
         <h1 className="brand">
           <span className="the">The</span>
-          <span className="gold">B</span>elievers
-          <span className="green">e</span>
+          <span className="gold">B</span>elievers<span className="green">e</span>
         </h1>
 
         <p className="tagline">One Family in Christ.</p>
       </section>
 
+      {/* RIGHT PANEL */}
       <section className="right">
         <div className="auth-card">
           <h2>Welcome to The Believerse</h2>
           <p className="small">Sign in or create a new account to join the family.</p>
 
-          <input
-            type="email"
-            placeholder="Email address"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-
-          <button className="btn btn-primary" onClick={doLogin}>
-            Log in
-          </button>
-
-          <p style={{ marginTop: 8 }}>
-            <a href="#" onClick={(e) => { e.preventDefault(); forgotPassword(); }}>
-              Forgot password?
-            </a>
-          </p>
-
-          <hr className="divider" />
-
-          <button
-            className="btn btn-cta"
-            onClick={() => {
-              router.push("/signup");
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleLogin();
             }}
+            autoComplete="on"
           >
-            Create new account
-          </button>
+            <input
+              id="email"
+              type="email"
+              placeholder="Email address"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <input
+              id="password"
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
 
-          {message && <p className="message">{message}</p>}
+            <button id="login-btn" className="btn btn-primary" type="submit">
+              Log in
+            </button>
+
+            <p
+              className="forgot-link"
+              onClick={(e) => {
+                e.preventDefault();
+                handleForgot();
+              }}
+            >
+              Forgot password?
+            </p>
+
+            <hr className="divider" />
+
+            <a className="btn btn-cta" href="/signup">
+              Create new account
+            </a>
+
+            <p id="login-message" className="message">
+              {message}
+            </p>
+          </form>
         </div>
       </section>
-
-      <style jsx>{`
-        /* keep styling consistent with your styles/globals.css */
-      `}</style>
     </div>
   );
 }

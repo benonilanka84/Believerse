@@ -1,128 +1,206 @@
+// components/ProfileAvatar.jsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 
 export default function ProfileAvatar() {
   const [open, setOpen] = useState(false);
-  const [user, setUser] = useState(null);
-  const router = useRouter();
-  const ref = useRef();
+  const [editing, setEditing] = useState(false);
+  const [profile, setProfile] = useState({
+    name: "",
+    dob: "",
+    gender: "",
+    about: "",
+    ministry: "",
+  });
 
   useEffect(() => {
     try {
-      const u = JSON.parse(localStorage.getItem("bv_user") || "null");
-      setUser(u);
-    } catch (e) {
-      setUser(null);
-    }
-
-    function onClick(e) {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-    }
-    document.addEventListener("click", onClick);
-    return () => document.removeEventListener("click", onClick);
+      const raw = localStorage.getItem("believerse_profile");
+      if (raw) setProfile(JSON.parse(raw));
+    } catch (e) {}
   }, []);
 
-  function handleLogout() {
-    localStorage.removeItem("bv_user");
-    setUser(null);
-    router.push("/");
+  function toggle() {
+    setOpen((v) => !v);
   }
 
-  function goProfile() {
-    router.push("/dashboard");
-    setOpen(false);
+  function saveProfile() {
+    localStorage.setItem("believerse_profile", JSON.stringify(profile));
+    setEditing(false);
   }
 
-  if (!user) return null;
+  function logout() {
+    // In real app -> call auth signOut
+    alert("Logged out (simulated).");
+    // optionally clear profile
+    // localStorage.removeItem("believerse_profile");
+  }
 
   return (
-    <div className="profile-avatar" ref={ref}>
-      <img
-        src="/images/default-avatar.png"
-        alt="Avatar"
-        className="avatar-img"
-        onClick={() => setOpen((s) => !s)}
-        style={{ cursor: "pointer" }}
-      />
+    <div style={{ position: "relative", display: "inline-block", margin: 12 }}>
+      <button
+        onClick={toggle}
+        aria-label="Profile"
+        className="avatar-btn"
+        title="Profile"
+      >
+        <span className="avatar-circle">{profile.name ? profile.name[0].toUpperCase() : "B"}</span>
+      </button>
 
       {open && (
-        <div className="avatar-dropdown">
-          <div className="avatar-name">{user?.email || "User"}</div>
+        <div className="avatar-dropdown" onMouseLeave={() => setOpen(false)}>
+          <div style={{ padding: 12 }}>
+            <div style={{ fontWeight: 700 }}>{profile.name || "Guest"}</div>
+            <div style={{ marginTop: 8 }}>
+              <button
+                className="dropdown-btn"
+                onClick={() => {
+                  setEditing(true);
+                  setOpen(false);
+                }}
+              >
+                Edit Profile
+              </button>
+              <button
+                className="dropdown-btn"
+                onClick={() => {
+                  window.location.href = "/terms";
+                }}
+              >
+                Terms & Conditions
+              </button>
+              <button
+                className="dropdown-btn"
+                onClick={() => {
+                  window.location.href = "/settings";
+                }}
+              >
+                Settings
+              </button>
+              <button className="dropdown-btn danger" onClick={logout}>
+                Log out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-          <button className="dropdown-btn" onClick={goProfile}>
-            Edit Profile
-          </button>
+      {editing && (
+        <div className="modal-backdrop">
+          <div className="modal">
+            <h3>Edit profile</h3>
+            <label>
+              Full name
+              <input
+                value={profile.name}
+                onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+              />
+            </label>
+            <label>
+              Date of birth
+              <input
+                type="date"
+                value={profile.dob}
+                onChange={(e) => setProfile({ ...profile, dob: e.target.value })}
+              />
+            </label>
+            <label>
+              Gender
+              <select
+                value={profile.gender}
+                onChange={(e) => setProfile({ ...profile, gender: e.target.value })}
+              >
+                <option value="">Select</option>
+                <option>Male</option>
+                <option>Female</option>
+                <option>Other</option>
+              </select>
+            </label>
+            <label>
+              Church/Ministry
+              <input
+                value={profile.ministry}
+                onChange={(e) => setProfile({ ...profile, ministry: e.target.value })}
+              />
+            </label>
+            <label>
+              About / Faith journey
+              <textarea
+                value={profile.about}
+                onChange={(e) => setProfile({ ...profile, about: e.target.value })}
+              />
+            </label>
 
-          <button
-            className="dropdown-btn"
-            onClick={() => {
-              router.push("/terms");
-              setOpen(false);
-            }}
-          >
-            Terms & Conditions
-          </button>
-
-          <button
-            className="dropdown-btn"
-            onClick={() => {
-              router.push("/settings");
-              setOpen(false);
-            }}
-          >
-            Settings
-          </button>
-
-          <button className="dropdown-btn danger" onClick={handleLogout}>
-            Log out
-          </button>
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              <button className="btn" onClick={() => setEditing(false)}>
+                Cancel
+              </button>
+              <button className="btn btn-cta" onClick={saveProfile}>
+                Save
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
       <style jsx>{`
-        .profile-avatar {
-          position: relative;
+        .avatar-btn { background: transparent; border: none; cursor: pointer; }
+        .avatar-circle {
           display: inline-block;
-        }
-        .avatar-img {
-          width: 42px;
-          height: 42px;
+          width: 36px;
+          height: 36px;
           border-radius: 50%;
-          border: 2px solid rgba(255, 255, 255, 0.9);
+          background: #0b2e4a;
+          color: #fff;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          font-weight:700;
+          box-shadow: 0 4px 8px rgba(0,0,0,0.2);
         }
         .avatar-dropdown {
           position: absolute;
           right: 0;
-          margin-top: 8px;
-          background: #fff;
+          top: 46px;
+          width: 220px;
+          background: white;
           border-radius: 10px;
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-          width: 200px;
-          padding: 8px;
+          box-shadow: 0 12px 30px rgba(0,0,0,0.2);
           z-index: 40;
         }
-        .avatar-name {
-          padding: 6px 8px;
-          font-weight: 600;
-          color: #0b2e4a;
-        }
         .dropdown-btn {
+          display: block;
           width: 100%;
-          padding: 10px;
-          margin: 4px 0;
+          text-align: left;
+          padding: 8px 10px;
           background: transparent;
           border: none;
-          text-align: left;
           cursor: pointer;
-          color: #123;
         }
-        .dropdown-btn:hover {
-          background: rgba(0, 0, 0, 0.04);
+        .dropdown-btn.danger { color: #b33; }
+        .modal-backdrop {
+          position: fixed;
+          inset: 0;
+          background: rgba(0,0,0,0.45);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 60;
         }
-        .dropdown-btn.danger {
-          color: #b33;
+        .modal {
+          width: 420px;
+          background: #fff;
+          padding: 18px;
+          border-radius: 10px;
+        }
+        .modal label { display:block; margin-top:10px; font-size:0.9rem; }
+        .modal input, .modal textarea, .modal select {
+          width: 100%;
+          padding:8px;
+          margin-top:6px;
+          border-radius:6px;
+          border: 1px solid #ddd;
         }
       `}</style>
     </div>
