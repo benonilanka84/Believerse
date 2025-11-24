@@ -37,20 +37,21 @@ export default function Home() {
   return (
     <div className="page-wrap">
 
-      {/* LEFT PANEL */}
-      <section className="left">
-        <p className="verse">
-          “I can do all things through Christ who strengthens me.”
-          <span className="verse-ref"> — Philippians 4:13</span>
-        </p>
+{/* LEFT PANEL */}
+<section className="left">
+  <p className="verse">
+    “I can do all things through Christ who strengthens me.”
+    <span className="verse-ref"> — Philippians 4:13</span>
+  </p>
 
-        <h1 className="brand">
-          <span className="the">The </span>
-          <span className="gold">B</span>elievers<span className="green">e</span>
-        </h1>
+  <h1 className="brand">
+    <span className="the">The </span>
+    <span className="gold">B</span>elievers<span className="green">e</span>
+  </h1>
 
-        <p className="tagline">One Family in Christ.</p>
-      </section>
+  <p className="tagline" style={{ marginLeft: "12px" }}>One Family in Christ.</p>
+</section>
+
 
       {/* RIGHT PANEL */}
       <section className="right">
@@ -68,7 +69,7 @@ export default function Home() {
           <hr className="divider" />
 
           <Link href="/signup">
-            <button className="btn btn-cta">Create new account</button>
+            <button className="btn btn-cta">Create New Account</button>
           </Link>
 
           <p className="message">{msg}</p>
