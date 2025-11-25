@@ -45,14 +45,11 @@ export default function Home() {
   </p>
 
   <h1 className="brand">
-    <span className="the">The</span>&nbsp;
+    <span className="the">The </span>
     <span className="gold">B</span>elievers<span className="green">e</span>
   </h1>
 
-  {/* small wrapper to nudge the tagline a bit right so it sits toward the end of "The Believerse" */}
-  <p className="tagline" style={{ display: "inline-block", marginLeft: "1.6rem" }}>
-    One Family in Christ.
-  </p>
+  <p className="tagline">One Family in Christ.</p>
 </section>
 
       {/* RIGHT PANEL */}
