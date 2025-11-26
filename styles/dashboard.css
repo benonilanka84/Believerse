@@ -1,14 +1,17 @@
-/* Force remove global background image from Dashboard */
-body {
+/* Remove Sign-in background for Dashboard */
+html, body {
+  background: #b4dcff !important;
   background-image: none !important;
-  background: #b4dcff !important; /* sky blue */
+  margin: 0;
+  padding: 0;
 }
 
-/* Dashboard overall layout */
+/* Main wrapper */
 .dashboard-wrapper {
-  background: #b4dcff; /* sky blue */
+  background: #b4dcff;
   min-height: 100vh;
   padding: 20px;
+  box-sizing: border-box;
 }
 
 /* Header */
@@ -25,7 +28,7 @@ body {
   font-weight: 700;
 }
 
-/* 3-column grid — 1/4, 1/2, 1/4 */
+/* 3-column layout (1/4 – 1/2 – 1/4) */
 .dashboard-grid {
   display: grid;
   grid-template-columns: 1fr 2fr 1fr;
@@ -87,11 +90,12 @@ body {
   background: #1b4ba8;
 }
 
-/* Verse Image Container */
+/* Verse Image Wrapper */
 .verse-image-box {
   width: 100%;
   display: flex;
   justify-content: center;
+  margin-top: 10px;
 }
 
 .verse-image {
@@ -103,8 +107,21 @@ body {
   box-shadow: 0 4px 16px rgba(0,0,0,0.15);
 }
 
-/* Limit Verse Image Panel */
-.panel-card.verse-image-panel {
-  max-width: 300px;
+.verse-image svg {
+  width: 100% !important;
+  height: auto !important;
+  object-fit: contain;
+  display: block;
 }
 
+/* Limit Verse Image Card (left panel only) */
+.panel-card.verse-image-panel {
+  max-width: 350px;
+}
+
+/* Responsive Fix — prevents layout collapse */
+@media (max-width: 1100px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
