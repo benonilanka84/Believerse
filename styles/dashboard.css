@@ -90,22 +90,17 @@ body {
 /* Verse Image Container */
 .verse-image-box {
   width: 100%;
-  max-width: 280px;
-  margin: 0 auto;
-  padding: 0;
   display: flex;
   justify-content: center;
-  align-items: center;
 }
 
-/* Restrict SVG size inside the card */
-.verse-image svg {
+.verse-image {
   width: 100%;
-  height: auto;
-  max-height: 420px;
-  object-fit: cover;
+  max-width: 350px;
   border-radius: 14px;
-  box-shadow: 0 3px 12px rgba(0,0,0,0.2);
+  overflow: hidden;
+  background: white;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
 }
 
 /* Limit Verse Image Panel */

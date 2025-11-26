@@ -20,48 +20,43 @@ export default function Dashboard() {
     { text: "Be strong and courageous. Do not be afraid.", ref: "Joshua 1:9" }
   ];
 
-  /** FIXED + SAFE VERSION */
-  function generateVerseImage(verseText, reference) {
-    const text = typeof verseText === "string" ? verseText : "";
-    const ref = typeof reference === "string" ? reference : "";
-
-    const safeVerse = text.replace(/`/g, "\\`");
-    const safeRef = ref.replace(/`/g, "\\`");
+  /** ********************************************
+   * CENTERED + SAFE + CANVAS-COMPATIBLE SVG
+   ********************************************* */
+  function generateVerseImage(text, reference) {
+    const safeVerse = (text || "").replace(/`/g, "\\`");
+    const safeRef = (reference || "").replace(/`/g, "\\`");
 
     return `
-      <svg xmlns="http://www.w3.org/2000/svg" width="600" height="900">
-        <defs>
-          <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="rgba(0,0,0,0.2)" />
-            <stop offset="100%" stop-color="rgba(0,0,0,0.65)" />
-          </linearGradient>
-        </defs>
+      <svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350">
 
-        <image
+        <image 
           href="https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1200&q=80"
-          width="100%"
-          height="100%"
+          width="1080"
+          height="1350"
           preserveAspectRatio="xMidYMid slice"
         />
 
-        <rect width="100%" height="100%" fill="url(#fade)" />
+        <rect width="100%" height="100%" fill="rgba(0,0,0,0.45)" />
 
         <text
-          x="50%" y="45%"
+          x="50%"
+          y="50%"
           text-anchor="middle"
-          fill="#fff"
-          font-size="30"
+          fill="white"
+          font-size="48"
           font-family="Georgia"
-          style="white-space: pre-line;"
+          style="white-space: pre-line"
         >
           ${safeVerse}
         </text>
 
         <text
-          x="50%" y="60%"
+          x="50%"
+          y="65%"
           text-anchor="middle"
-          fill="#fff"
-          font-size="22"
+          fill="white"
+          font-size="38"
           font-family="Georgia"
         >
           — ${safeRef}
@@ -70,7 +65,9 @@ export default function Dashboard() {
     `;
   }
 
-  /** FIXED USEEFFECT — now passes correct params */
+  /** ********************************************
+   * DAILY VERSE / USER LOGIC
+   ********************************************* */
   useEffect(() => {
     supabase.auth.getUser().then((res) => {
       if (res?.data?.user) setUser(res.data.user);
@@ -83,10 +80,7 @@ export default function Dashboard() {
     if (storedDate === today && storedVerse) {
       const parsed = JSON.parse(storedVerse);
       setVerse(parsed);
-
-      // FIXED: pass 2 separate strings
       setVerseImage(generateVerseImage(parsed.text, parsed.ref));
-
     } else {
       const random = bibleVerses[Math.floor(Math.random() * bibleVerses.length)];
 
@@ -94,12 +88,13 @@ export default function Dashboard() {
       localStorage.setItem(VERSE_DATE_KEY, today);
 
       setVerse(random);
-
-      // FIXED: pass 2 separate strings
       setVerseImage(generateVerseImage(random.text, random.ref));
     }
   }, []);
 
+  /** ********************************************
+   * TEXT SHARE / COPY
+   ********************************************* */
   function copyText() {
     navigator.clipboard.writeText(`${verse.text} — ${verse.ref}`);
     alert("Copied!");
@@ -116,6 +111,10 @@ export default function Dashboard() {
     }
   }
 
+  /** ********************************************
+   * DOWNLOAD & SHARE IMAGE
+   ********************************************* */
+
   function downloadPNG() {
     const svgBlob = new Blob([verseImage], { type: "image/svg+xml" });
     const url = URL.createObjectURL(svgBlob);
@@ -126,10 +125,50 @@ export default function Dashboard() {
     URL.revokeObjectURL(url);
   }
 
-  function shareImage() {
-    alert("Sharing image is not fully supported yet.");
+  async function shareImage() {
+    try {
+      const svgBlob = new Blob([verseImage], { type: "image/svg+xml" });
+      const svgURL = URL.createObjectURL(svgBlob);
+
+      const pngBlob = await convertSVGtoPNG(svgURL);
+
+      if (navigator.share) {
+        await navigator.share({
+          title: "Verse Image",
+          files: [new File([pngBlob], "verse.png", { type: "image/png" })],
+        });
+      } else {
+        alert("Sharing not supported on this device.");
+      }
+
+      URL.revokeObjectURL(svgURL);
+    } catch (error) {
+      console.error(error);
+      alert("Unable to share image.");
+    }
   }
 
+  function convertSVGtoPNG(svgURL) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 1080;
+        canvas.height = 1350;
+        const ctx = canvas.getContext("2d");
+
+        ctx.drawImage(img, 0, 0, 1080, 1350);
+
+        canvas.toBlob((blob) => resolve(blob), "image/png");
+      };
+      img.src = svgURL;
+    });
+  }
+
+  /** ********************************************
+   * RENDER
+   ********************************************* */
   return (
     <div className="dashboard-wrapper">
       <div className="dashboard-header">
@@ -138,6 +177,8 @@ export default function Dashboard() {
       </div>
 
       <div className="dashboard-grid">
+
+        {/* LEFT PANEL */}
         <div className="left-panel">
           <div className="panel-card">
             <h3>Verse of the Day</h3>
@@ -173,13 +214,15 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* CENTER PANEL */}
         <div className="center-panel">
           <div className="panel-card">
             <h3>Center Panel</h3>
-            <p>This area will show the user's feed.</p>
+            <p>This area will show the user’s feed.</p>
           </div>
         </div>
 
+        {/* RIGHT PANEL */}
         <div className="right-panel">
           <div className="panel-card">
             <h3>Right Panel</h3>
