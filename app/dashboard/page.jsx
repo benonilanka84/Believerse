@@ -33,57 +33,55 @@ export default function Dashboard() {
     },
   ];
 
-function generateVerseImageSvg(verseText, reference) {
+function generateVerseImage(verseText, reference) {
+  const safeVerse = verseText.replace(/`/g, "\\`");
+  const safeRef = reference.replace(/`/g, "\\`");
+
   return `
-  <svg xmlns="http://www.w3.org/2000/svg" width="600" height="900">
-    <defs>
-      <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="rgba(0,0,0,0.3)" />
-        <stop offset="100%" stop-color="rgba(0,0,0,0.7)" />
-      </linearGradient>
-    </defs>
+    <svg xmlns="http://www.w3.org/2000/svg" width="600" height="900">
+      <defs>
+        <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="rgba(0, 0, 0, 0.2)" />
+          <stop offset="100%" stop-color="rgba(0, 0, 0, 0.65)" />
+        </linearGradient>
+      </defs>
 
-    <!-- BEAUTIFUL BACKGROUND IMAGE -->
-    <image
-      href="https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?auto=format&fit=crop&w=800&q=80"
-      x="0"
-      y="0"
-      height="100%"
-      width="100%"
-      preserveAspectRatio="xMidYMid slice"
-    />
+      <image
+        href="https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1200&q=80"
+        x="0"
+        y="0"
+        width="100%"
+        height="100%"
+        preserveAspectRatio="xMidYMid slice"
+      />
 
-    <!-- Gradient overlay to help text visibility -->
-    <rect width="100%" height="100%" fill="url(#fade)"></rect>
+      <rect width="100%" height="100%" fill="url(#fade)" />
 
-    <!-- Verse text -->
-    <text
-      x="50%"
-      y="45%"
-      text-anchor="middle"
-      fill="#ffffff"
-      font-size="28"
-      font-family="Georgia"
-      style="white-space: pre-line"
-    >
-      ${verseText}
-    </text>
+      <text
+        x="50%"
+        y="45%"
+        text-anchor="middle"
+        fill="#ffffff"
+        font-size="30"
+        font-family="Georgia"
+        style="white-space: pre-line"
+      >
+        ${safeVerse}
+      </text>
 
-    <!-- Reference -->
-    <text
-      x="50%"
-      y="60%"
-      text-anchor="middle"
-      fill="#ffffff"
-      font-size="20"
-      font-family="Georgia"
-    >
-      — ${reference}
-    </text>
-  </svg>
+      <text
+        x="50%"
+        y="60%"
+        text-anchor="middle"
+        fill="#ffffff"
+        font-size="22"
+        font-family="Georgia"
+      >
+        — ${safeRef}
+      </text>
+    </svg>
   `;
 }
-
 
   useEffect(() => {
     const userSession = supabase.auth.getUser();
