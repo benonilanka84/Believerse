@@ -3,290 +3,177 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import ProfileAvatar from "@/components/ProfileAvatar";
+import "@/styles/dashboard.css";
 
-// A small Bible verse list for now.
-// You can replace with API later.
-const VERSES = [
-  {
-    text:
-      "“Trust in the Lord with all your heart and lean not on your own understanding.”",
-    ref: "— Proverbs 3:5",
-  },
-  {
-    text:
-      "“The Lord is my shepherd; I shall not want.”",
-    ref: "— Psalm 23:1",
-  },
-  {
-    text:
-      "“I can do all things through Christ who strengthens me.”",
-    ref: "— Philippians 4:13",
-  },
-  {
-    text:
-      "“Be strong and courageous… for the Lord your God is with you wherever you go.”",
-    ref: "— Joshua 1:9",
-  },
-];
-
-// Function to generate an image (simple placeholder for now)
-async function generateVerseImage(verseText, verseRef) {
-  const canvas = document.createElement("canvas");
-  canvas.width = 800;
-  canvas.height = 1000;
-  const ctx = canvas.getContext("2d");
-
-  // Background
-  ctx.fillStyle = "#222";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // Verse text
-  ctx.fillStyle = "#fff";
-  ctx.font = "28px Georgia";
-  ctx.textAlign = "center";
-  ctx.fillText(verseText, canvas.width / 2, 400);
-
-  // Reference
-  ctx.font = "22px serif";
-  ctx.fillText(verseRef, canvas.width / 2, 470);
-
-  return canvas.toDataURL("image/png");
-}
-
-export default function DashboardPage() {
+export default function Dashboard() {
   const [user, setUser] = useState(null);
   const [verse, setVerse] = useState(null);
   const [verseImage, setVerseImage] = useState(null);
 
-  // Load logged-in user
+  // Daily Verse Logic ─ persists one full day
+  const VERSE_KEY = "dailyVerse";
+  const VERSE_DATE_KEY = "dailyVerseDate";
+
+  const bibleVerses = [
+    {
+      text: "I can do all things through Christ who strengthens me.",
+      ref: "Philippians 4:13",
+    },
+    {
+      text: "The Lord is my shepherd; I shall not want.",
+      ref: "Psalm 23:1",
+    },
+    {
+      text: "Trust in the Lord with all your heart.",
+      ref: "Proverbs 3:5",
+    },
+    {
+      text: "Be strong and courageous. Do not be afraid.",
+      ref: "Joshua 1:9",
+    },
+  ];
+
+  function generateVerseImage(verseObj) {
+    return `
+      <svg width="600" height="800" viewBox="0 0 600 800" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#87CEEB"/>
+            <stop offset="100%" stop-color="#4aa3df"/>
+          </linearGradient>
+        </defs>
+
+        <rect width="600" height="800" fill="url(#bg)" />
+
+        <text x="50%" y="40%" font-size="26" fill="white" font-family="Georgia"
+          text-anchor="middle" width="80%">
+          ${verseObj.text}
+        </text>
+
+        <text x="50%" y="52%" font-size="20" fill="#fff" font-family="Georgia"
+          text-anchor="middle">
+          — ${verseObj.ref}
+        </text>
+      </svg>
+    `;
+  }
+
   useEffect(() => {
-    async function loadUser() {
-      const { data } = await supabase.auth.getUser();
-      if (!data?.user) {
-        window.location.href = "/";
-      } else {
-        setUser(data.user);
+    const userSession = supabase.auth.getUser();
+
+    userSession.then((res) => {
+      if (res?.data?.user) {
+        setUser(res.data.user);
       }
+    });
+
+    const today = new Date().toISOString().split("T")[0];
+    const storedDate = localStorage.getItem(VERSE_DATE_KEY);
+    const storedVerse = localStorage.getItem(VERSE_KEY);
+
+    if (storedDate === today && storedVerse) {
+      const parsed = JSON.parse(storedVerse);
+      setVerse(parsed);
+      setVerseImage(generateVerseImage(parsed));
+    } else {
+      const random = bibleVerses[Math.floor(Math.random() * bibleVerses.length)];
+      localStorage.setItem(VERSE_KEY, JSON.stringify(random));
+      localStorage.setItem(VERSE_DATE_KEY, today);
+      setVerse(random);
+      setVerseImage(generateVerseImage(random));
     }
-    loadUser();
   }, []);
 
-  // Generate Verse of the Day (once per day)
-  useEffect(() => {
-    async function initVerse() {
-      const today = new Date().toISOString().split("T")[0];
-      const saved = localStorage.getItem("verse-date");
+  function copyText() {
+    navigator.clipboard.writeText(`${verse.text} — ${verse.ref}`);
+    alert("Copied!");
+  }
 
-      if (saved === today) {
-        // load saved verse
-        setVerse(JSON.parse(localStorage.getItem("verse-data")));
-        setVerseImage(localStorage.getItem("verse-image"));
-      } else {
-        // pick a new verse
-        const randomVerse = VERSES[Math.floor(Math.random() * VERSES.length)];
-        setVerse(randomVerse);
-
-        const img = await generateVerseImage(
-          randomVerse.text,
-          randomVerse.ref
-        );
-        setVerseImage(img);
-
-        // store for entire day
-        localStorage.setItem("verse-date", today);
-        localStorage.setItem("verse-data", JSON.stringify(randomVerse));
-        localStorage.setItem("verse-image", img);
-      }
+  function shareText() {
+    if (navigator.share) {
+      navigator.share({
+        title: "Verse of the Day",
+        text: `${verse.text} — ${verse.ref}`,
+      });
+    } else {
+      alert("Sharing not supported on this device.");
     }
+  }
 
-    initVerse();
-  }, []);
+  function downloadPNG() {
+    const svgBlob = new Blob([verseImage], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(svgBlob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "verse.png";
+    link.click();
+    URL.revokeObjectURL(url);
+  }
 
-  if (!user) return null;
+  function shareImage() {
+    alert("Sharing image is not supported on all devices yet.");
+  }
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        backgroundImage: "url('/images/cross-bg.jpg')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        padding: "20px",
-        position: "relative",
-      }}
-    >
-      {/* ──────────────────────────────── */}
-      {/* FIXED PROFILE AVATAR (top-right) */}
-      {/* ──────────────────────────────── */}
-      <div
-        style={{
-          position: "absolute",
-          top: "20px",
-          right: "20px",
-          zIndex: 50,
-        }}
-      >
+    <div className="dashboard-wrapper">
+      <div className="dashboard-header">
+        <h1>Welcome to your Dashboard</h1>
         <ProfileAvatar user={user} />
       </div>
 
-      {/* ──────────────────────────────── */}
-      {/* PAGE TITLE */}
-      {/* ──────────────────────────────── */}
-      <h1
-        style={{
-          fontSize: "32px",
-          color: "white",
-          textShadow: "0 2px 6px rgba(0,0,0,0.5)",
-          marginBottom: "20px",
-        }}
-      >
-        Welcome to your Dashboard
-      </h1>
+      <div className="dashboard-grid">
 
-      {/* ──────────────────────────────── */}
-      {/* 3-COLUMN LAYOUT */}
-      {/* ──────────────────────────────── */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr",
-          gap: "20px",
-        }}
-      >
-        {/* LEFT COLUMN */}
-        <div>
-          {/* ● VERSE OF THE DAY */}
-          <div
-            style={{
-              background: "rgba(255,255,255,0.92)",
-              padding: "20px",
-              borderRadius: "12px",
-              marginBottom: "20px",
-              boxShadow: "0 6px 18px rgba(0,0,0,0.15)",
-            }}
-          >
+        {/* Left Panel */}
+        <div className="left-panel">
+          <div className="panel-card">
             <h3>Verse of the Day</h3>
-
             {verse && (
-              <>
-                <p style={{ fontSize: "18px" }}>{verse.text}</p>
-                <p style={{ opacity: 0.7 }}>{verse.ref}</p>
-              </>
+              <p className="verse-text">
+                “{verse.text}”
+                <br />
+                <span className="verse-ref">— {verse.ref}</span>
+              </p>
             )}
 
-            <div style={{ display: "flex", gap: "10px" }}>
-              <button
-                onClick={() =>
-                  navigator.clipboard.writeText(
-                    `${verse.text}\n${verse.ref}`
-                  )
-                }
-                className="btn btn-small"
-              >
-                Copy
-              </button>
-
-              <button
-                className="btn btn-small"
-                onClick={() => {
-                  if (navigator.share) {
-                    navigator.share({
-                      title: "Verse of the Day",
-                      text: `${verse.text}\n${verse.ref}`,
-                    });
-                  } else {
-                    alert("Sharing not supported on this device.");
-                  }
-                }}
-              >
-                Share
-              </button>
+            <div className="btn-row">
+              <button className="btn" onClick={copyText}>Copy</button>
+              <button className="btn" onClick={shareText}>Share</button>
             </div>
           </div>
 
-          {/* ● VERSE IMAGE */}
-          <div
-            style={{
-              background: "rgba(255,255,255,0.92)",
-              padding: "20px",
-              borderRadius: "12px",
-              boxShadow: "0 6px 18px rgba(0,0,0,0.15)",
-            }}
-          >
+          <div className="panel-card">
             <h3>Verse Image</h3>
 
-            {verseImage && (
-              <img
-                src={verseImage}
-                alt="Verse"
-                style={{
-                  width: "100%",
-                  borderRadius: "10px",
-                  marginBottom: "10px",
-                }}
+            <div className="verse-image-box">
+              <div
+                dangerouslySetInnerHTML={{ __html: verseImage }}
+                className="verse-image"
               />
-            )}
+            </div>
 
-            <div style={{ display: "flex", gap: "10px" }}>
-              <a
-                href={verseImage}
-                download="verse.png"
-                className="btn btn-small"
-              >
-                Download
-              </a>
-
-              <button
-                className="btn btn-small"
-                onClick={() => {
-                  if (navigator.share) {
-                    navigator.share({
-                      title: "Verse Image",
-                      files: [],
-                      url: verseImage,
-                    });
-                  } else {
-                    alert("Sharing not supported on this device.");
-                  }
-                }}
-              >
-                Share
-              </button>
+            <div className="btn-row">
+              <button className="btn" onClick={downloadPNG}>Download</button>
+              <button className="btn" onClick={shareImage}>Share</button>
             </div>
           </div>
         </div>
 
-        {/* CENTER COLUMN */}
-        <div>
-          <div
-            style={{
-              background: "rgba(255,255,255,0.92)",
-              padding: "20px",
-              borderRadius: "12px",
-              height: "400px",
-              boxShadow: "0 6px 18px rgba(0,0,0,0.15)",
-            }}
-          >
+        {/* Center Panel */}
+        <div className="center-panel">
+          <div className="panel-card">
             <h3>Center Panel</h3>
-            <p>This space is ready for prayer journals, notes, feeds, etc.</p>
+            <p>This area will be used to show the user's feed.</p>
           </div>
         </div>
 
-        {/* RIGHT COLUMN */}
-        <div>
-          <div
-            style={{
-              background: "rgba(255,255,255,0.92)",
-              padding: "20px",
-              borderRadius: "12px",
-              height: "400px",
-              boxShadow: "0 6px 18px rgba(0,0,0,0.15)",
-            }}
-          >
+        {/* Right Panel */}
+        <div className="right-panel">
+          <div className="panel-card">
             <h3>Right Panel</h3>
-            <p>Upcoming features will be placed here.</p>
+            <p>Upcoming features will appear here.</p>
           </div>
         </div>
+
       </div>
     </div>
   );
