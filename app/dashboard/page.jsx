@@ -31,34 +31,58 @@ function generateVerseImage(verseText, reference) {
   const safeRef = ref.replace(/`/g, "\\`");
 
   return `
-    <svg xmlns="http://www.w3.org/2000/svg" width="600" height="820" viewBox="0 0 600 820">
+    <svg xmlns="http://www.w3.org/2000/svg" width="600" height="900" viewBox="0 0 600 900">
 
+      <!-- Background Image -->
       <image
-        href="https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=900&q=80"
+        href="https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80"
         width="600"
-        height="820"
+        height="900"
         preserveAspectRatio="xMidYMid slice"
       />
 
-      <rect width="100%" height="100%" fill="rgba(0,0,0,0.45)" />
+      <!-- Soft vignette overlay -->
+      <rect width="600" height="900" fill="rgba(0,0,0,0.35)" />
 
-      <foreignObject x="40" y="180" width="520" height="360">
+      <!-- Light glow center -->
+      <radialGradient id="softGlow" cx="50%" cy="40%" r="60%">
+        <stop offset="0%" stop-color="rgba(255,255,255,0.35)" />
+        <stop offset="100%" stop-color="rgba(255,255,255,0)" />
+      </radialGradient>
+
+      <rect width="600" height="900" fill="url(#softGlow)" />
+
+      <!-- Verse Text -->
+      <foreignObject x="60" y="260" width="480" height="340">
         <div xmlns="http://www.w3.org/1999/xhtml"
-          style="color:white; font-size:32px; font-family:Georgia; text-align:center; line-height:1.4;">
+          style="
+            font-size:38px;
+            font-family: 'Georgia', serif;
+            font-weight: 500;
+            color: white;
+            text-align: center;
+            line-height: 1.35;
+            text-shadow: 0px 3px 12px rgba(0,0,0,0.45);
+          ">
           ${safeVerse}
         </div>
       </foreignObject>
 
+      <!-- Reference -->
       <text
-        x="50%" y="650"
+        x="50%"
+        y="620"
         text-anchor="middle"
-        fill="#fff"
-        font-size="26"
+        fill="rgba(255,255,255,0.9)"
+        font-size="30"
         font-family="Georgia"
+        style="text-shadow: 0px 3px 10px rgba(0,0,0,0.4);"
       >
         — ${safeRef}
       </text>
 
+      <!-- Gold bottom border -->
+      <rect x="150" y="780" width="300" height="3" fill="#d8c16f" rx="2" />
     </svg>
   `;
 }
