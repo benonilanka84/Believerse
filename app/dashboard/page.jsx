@@ -23,47 +23,45 @@ export default function Dashboard() {
   /** ********************************************
    * CENTERED + SAFE + CANVAS-COMPATIBLE SVG
    ********************************************* */
-  function generateVerseImage(text, reference) {
-    const safeVerse = (text || "").replace(/`/g, "\\`");
-    const safeRef = (reference || "").replace(/`/g, "\\`");
+function generateVerseImage(verseText, reference) {
+  const text = typeof verseText === "string" ? verseText : "";
+  const ref = typeof reference === "string" ? reference : "";
 
-    return `
-      <svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350">
+  const safeVerse = text.replace(/`/g, "\\`");
+  const safeRef = ref.replace(/`/g, "\\`");
 
-        <image 
-          href="https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1200&q=80"
-          width="1080"
-          height="1350"
-          preserveAspectRatio="xMidYMid slice"
-        />
+  return `
+    <svg xmlns="http://www.w3.org/2000/svg" width="600" height="820" viewBox="0 0 600 820">
 
-        <rect width="100%" height="100%" fill="rgba(0,0,0,0.45)" />
+      <image
+        href="https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=900&q=80"
+        width="600"
+        height="820"
+        preserveAspectRatio="xMidYMid slice"
+      />
 
-        <text
-          x="50%"
-          y="50%"
-          text-anchor="middle"
-          fill="white"
-          font-size="48"
-          font-family="Georgia"
-          style="white-space: pre-line"
-        >
+      <rect width="100%" height="100%" fill="rgba(0,0,0,0.45)" />
+
+      <foreignObject x="40" y="180" width="520" height="360">
+        <div xmlns="http://www.w3.org/1999/xhtml"
+          style="color:white; font-size:32px; font-family:Georgia; text-align:center; line-height:1.4;">
           ${safeVerse}
-        </text>
+        </div>
+      </foreignObject>
 
-        <text
-          x="50%"
-          y="65%"
-          text-anchor="middle"
-          fill="white"
-          font-size="38"
-          font-family="Georgia"
-        >
-          — ${safeRef}
-        </text>
-      </svg>
-    `;
-  }
+      <text
+        x="50%" y="650"
+        text-anchor="middle"
+        fill="#fff"
+        font-size="26"
+        font-family="Georgia"
+      >
+        — ${safeRef}
+      </text>
+
+    </svg>
+  `;
+}
 
   /** ********************************************
    * DAILY VERSE / USER LOGIC
