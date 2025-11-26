@@ -1,3 +1,9 @@
+/* Force remove global background image from Dashboard */
+body {
+  background-image: none !important;
+  background: #b4dcff !important; /* sky blue */
+}
+
 /* Dashboard overall layout */
 .dashboard-wrapper {
   background: #b4dcff; /* sky blue */
@@ -81,17 +87,29 @@
   background: #1b4ba8;
 }
 
-/* Verse Image */
+/* Verse Image Container */
 .verse-image-box {
   width: 100%;
+  max-width: 280px;
+  margin: 0 auto;
+  padding: 0;
   display: flex;
   justify-content: center;
-  margin-top: 15px;
+  align-items: center;
 }
 
+/* Restrict SVG size inside the card */
 .verse-image svg {
   width: 100%;
-  max-width: 350px;
-  border-radius: 12px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+  height: auto;
+  max-height: 420px;
+  object-fit: cover;
+  border-radius: 14px;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.2);
 }
+
+/* Limit Verse Image Panel */
+.panel-card.verse-image-panel {
+  max-width: 300px;
+}
+

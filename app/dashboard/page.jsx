@@ -33,30 +33,57 @@ export default function Dashboard() {
     },
   ];
 
-  function generateVerseImage(verseObj) {
-    return `
-      <svg width="600" height="800" viewBox="0 0 600 800" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#87CEEB"/>
-            <stop offset="100%" stop-color="#4aa3df"/>
-          </linearGradient>
-        </defs>
+function generateVerseImageSvg(verseText, reference) {
+  return `
+  <svg xmlns="http://www.w3.org/2000/svg" width="600" height="900">
+    <defs>
+      <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="rgba(0,0,0,0.3)" />
+        <stop offset="100%" stop-color="rgba(0,0,0,0.7)" />
+      </linearGradient>
+    </defs>
 
-        <rect width="600" height="800" fill="url(#bg)" />
+    <!-- BEAUTIFUL BACKGROUND IMAGE -->
+    <image
+      href="https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?auto=format&fit=crop&w=800&q=80"
+      x="0"
+      y="0"
+      height="100%"
+      width="100%"
+      preserveAspectRatio="xMidYMid slice"
+    />
 
-        <text x="50%" y="40%" font-size="26" fill="white" font-family="Georgia"
-          text-anchor="middle" width="80%">
-          ${verseObj.text}
-        </text>
+    <!-- Gradient overlay to help text visibility -->
+    <rect width="100%" height="100%" fill="url(#fade)"></rect>
 
-        <text x="50%" y="52%" font-size="20" fill="#fff" font-family="Georgia"
-          text-anchor="middle">
-          — ${verseObj.ref}
-        </text>
-      </svg>
-    `;
-  }
+    <!-- Verse text -->
+    <text
+      x="50%"
+      y="45%"
+      text-anchor="middle"
+      fill="#ffffff"
+      font-size="28"
+      font-family="Georgia"
+      style="white-space: pre-line"
+    >
+      ${verseText}
+    </text>
+
+    <!-- Reference -->
+    <text
+      x="50%"
+      y="60%"
+      text-anchor="middle"
+      fill="#ffffff"
+      font-size="20"
+      font-family="Georgia"
+    >
+      — ${reference}
+    </text>
+  </svg>
+  `;
+}
+
 
   useEffect(() => {
     const userSession = supabase.auth.getUser();
@@ -141,7 +168,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="panel-card">
+          <div className="panel-card verse-image-panel">
             <h3>Verse Image</h3>
 
             <div className="verse-image-box">
