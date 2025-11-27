@@ -11,3 +11,59 @@
 .profile-form .field { margin-bottom:10px; }
 .profile-form label { display:block; font-size:0.85rem; margin-bottom:6px; color:#eaeaea; }
 .profile-form input, .profile-form textarea, .profile-form select { width:100%; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); color:#fff; }
+
+.settings-section {
+  margin-top: 20px;
+  padding: 15px;
+  background: #f7faff;
+  border-radius: 10px;
+  border-left: 4px solid #2d6be3;
+}
+
+.settings-field {
+  margin-bottom: 15px;
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-field label {
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+
+.settings-field input,
+.settings-field select {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+.btn-primary {
+  display: inline-block;
+  background: #2d6be3;
+  color: white;
+  padding: 10px 16px;
+  border-radius: 8px;
+  margin-top: 10px;
+}
+
+.btn-secondary {
+  display: inline-block;
+  background: #e1e9f6;
+  color: #2d6be3;
+  padding: 10px 16px;
+  border-radius: 8px;
+}
+
+.danger {
+  border-left-color: #d62828 !important;
+}
+
+.btn-danger {
+  background: #d62828;
+  color: white;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: none;
+}
+
