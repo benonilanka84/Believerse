@@ -20,76 +20,36 @@ export default function Dashboard() {
     { text: "Be strong and courageous. Do not be afraid.", ref: "Joshua 1:9" }
   ];
 
-  /** ********************************************
-   * CENTERED + SAFE + CANVAS-COMPATIBLE SVG
-   ********************************************* */
-function generateVerseImage(verseText, reference) {
-  const text = typeof verseText === "string" ? verseText : "";
-  const ref = typeof reference === "string" ? reference : "";
+  /** ******************************************************
+   * SVG GENERATOR
+   *********************************************************/
+  function generateVerseImage(verseText, reference) {
+    const safeVerse = (verseText || "").replace(/`/g, "\\`");
+    const safeRef = (reference || "").replace(/`/g, "\\`");
 
-  const safeVerse = text.replace(/`/g, "\\`");
-  const safeRef = ref.replace(/`/g, "\\`");
+    return `
+      <svg xmlns="http://www.w3.org/2000/svg" width="600" height="900" viewBox="0 0 600 900">
+        <image href="https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80"
+          width="600" height="900" preserveAspectRatio="xMidYMid slice" />
+        <rect width="600" height="900" fill="rgba(0,0,0,0.35)" />
 
-  return `
-    <svg xmlns="http://www.w3.org/2000/svg" width="600" height="900" viewBox="0 0 600 900">
+        <foreignObject x="60" y="260" width="480" height="340">
+          <div xmlns="http://www.w3.org/1999/xhtml"
+            style="font-size:38px;font-family:Georgia;color:white;text-align:center;line-height:1.35;text-shadow:0px 3px 12px rgba(0,0,0,0.45);">
+            ${safeVerse}
+          </div>
+        </foreignObject>
 
-      <!-- Background Image -->
-      <image
-        href="https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80"
-        width="600"
-        height="900"
-        preserveAspectRatio="xMidYMid slice"
-      />
+        <text x="50%" y="620" text-anchor="middle" fill="white" font-size="30" font-family="Georgia">
+          — ${safeRef}
+        </text>
+      </svg>
+    `;
+  }
 
-      <!-- Soft vignette overlay -->
-      <rect width="600" height="900" fill="rgba(0,0,0,0.35)" />
-
-      <!-- Light glow center -->
-      <radialGradient id="softGlow" cx="50%" cy="40%" r="60%">
-        <stop offset="0%" stop-color="rgba(255,255,255,0.35)" />
-        <stop offset="100%" stop-color="rgba(255,255,255,0)" />
-      </radialGradient>
-
-      <rect width="600" height="900" fill="url(#softGlow)" />
-
-      <!-- Verse Text -->
-      <foreignObject x="60" y="260" width="480" height="340">
-        <div xmlns="http://www.w3.org/1999/xhtml"
-          style="
-            font-size:38px;
-            font-family: 'Georgia', serif;
-            font-weight: 500;
-            color: white;
-            text-align: center;
-            line-height: 1.35;
-            text-shadow: 0px 3px 12px rgba(0,0,0,0.45);
-          ">
-          ${safeVerse}
-        </div>
-      </foreignObject>
-
-      <!-- Reference -->
-      <text
-        x="50%"
-        y="620"
-        text-anchor="middle"
-        fill="rgba(255,255,255,0.9)"
-        font-size="30"
-        font-family="Georgia"
-        style="text-shadow: 0px 3px 10px rgba(0,0,0,0.4);"
-      >
-        — ${safeRef}
-      </text>
-
-      <!-- Gold bottom border -->
-      <rect x="150" y="780" width="300" height="3" fill="#d8c16f" rx="2" />
-    </svg>
-  `;
-}
-
-  /** ********************************************
-   * DAILY VERSE / USER LOGIC
-   ********************************************* */
+  /** ******************************************************
+   * INITIAL LOAD
+   *********************************************************/
   useEffect(() => {
     supabase.auth.getUser().then((res) => {
       if (res?.data?.user) setUser(res.data.user);
@@ -105,86 +65,32 @@ function generateVerseImage(verseText, reference) {
       setVerseImage(generateVerseImage(parsed.text, parsed.ref));
     } else {
       const random = bibleVerses[Math.floor(Math.random() * bibleVerses.length)];
-
       localStorage.setItem(VERSE_KEY, JSON.stringify(random));
       localStorage.setItem(VERSE_DATE_KEY, today);
-
       setVerse(random);
       setVerseImage(generateVerseImage(random.text, random.ref));
     }
   }, []);
 
-  /** ********************************************
-   * TEXT SHARE / COPY
-   ********************************************* */
+  /** ******************************************************
+   * COPY & SHARE TEXT
+   *********************************************************/
   function copyText() {
     navigator.clipboard.writeText(`${verse.text} — ${verse.ref}`);
     alert("Copied!");
   }
 
   function shareText() {
-    if (navigator.share) {
-      navigator.share({
-        title: "Verse of the Day",
-        text: `${verse.text} — ${verse.ref}`,
-      });
-    } else {
-      alert("Sharing not supported on this device.");
-    }
+    if (!navigator.share) return alert("Sharing not supported.");
+    navigator.share({ title: "Verse of the Day", text: `${verse.text} — ${verse.ref}` });
   }
 
-  /** ********************************************
-   * DOWNLOAD & SHARE IMAGE
-   ********************************************* */
-
-function getTodayFilename() {
-  const d = new Date();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  const yyyy = d.getFullYear();
-  return `${mm}${dd}${yyyy} verse.png`;
-}
-
-async function downloadPNG() {
-  try {
-    const blob = new Blob([verseImage], { type: "image/svg+xml" });
-    const url = URL.createObjectURL(blob);
-
-    const pngBlob = await convertSVGtoPNG(url);
-
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(pngBlob);
-    link.download = getTodayFilename(); // ← includes date
-    link.click();
-
-    URL.revokeObjectURL(url);
-  } catch (err) {
-    console.error(err);
-    alert("Unable to download the image.");
-  }
-}
-
-  async function shareImage() {
-    try {
-      const svgBlob = new Blob([verseImage], { type: "image/svg+xml" });
-      const svgURL = URL.createObjectURL(svgBlob);
-
-      const pngBlob = await convertSVGtoPNG(svgURL);
-
-      if (navigator.share) {
-        await navigator.share({
-          title: "Verse Image",
-          files: [new File([pngBlob], "verse.png", { type: "image/png" })],
-        });
-      } else {
-        alert("Sharing not supported on this device.");
-      }
-
-      URL.revokeObjectURL(svgURL);
-    } catch (error) {
-      console.error(error);
-      alert("Unable to share image.");
-    }
+  /** ******************************************************
+   * IMAGE DOWNLOAD + SHARE
+   *********************************************************/
+  function getTodayFilename() {
+    const d = new Date();
+    return `${String(d.getMonth() + 1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}${d.getFullYear()} verse.png`;
   }
 
   function convertSVGtoPNG(svgURL) {
@@ -196,35 +102,70 @@ async function downloadPNG() {
         canvas.width = 1080;
         canvas.height = 1350;
         const ctx = canvas.getContext("2d");
-
         ctx.drawImage(img, 0, 0, 1080, 1350);
-
         canvas.toBlob((blob) => resolve(blob), "image/png");
       };
       img.src = svgURL;
     });
   }
 
-  /** ********************************************
-   * RENDER
-   ********************************************* */
+  async function downloadPNG() {
+    try {
+      const svgBlob = new Blob([verseImage], { type: "image/svg+xml" });
+      const svgUrl = URL.createObjectURL(svgBlob);
+      const pngBlob = await convertSVGtoPNG(svgUrl);
+
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(pngBlob);
+      link.download = getTodayFilename();
+      link.click();
+    } catch (err) {
+      console.error(err);
+      alert("Download failed.");
+    }
+  }
+
+  async function shareImage() {
+    try {
+      const svgBlob = new Blob([verseImage], { type: "image/svg+xml" });
+      const svgUrl = URL.createObjectURL(svgBlob);
+      const pngBlob = await convertSVGtoPNG(svgUrl);
+
+      if (!navigator.share) return alert("Sharing not supported.");
+
+      await navigator.share({
+        title: "Verse Image",
+        files: [new File([pngBlob], "verse.png", { type: "image/png" })],
+      });
+    } catch (err) {
+      console.error(err);
+      alert("Share failed.");
+    }
+  }
+
+  /** ******************************************************
+   * RENDER (FIXED)
+   *********************************************************/
   return (
-    <div className="dashboard-header">
-  <div className="dashboard-logo">
-    <img src="/images/logo.png" alt="Believerse Logo" />
-    <span className="logo-text">The Believerse</span>
-  </div>
+    <div className="dashboard-wrapper">
 
-  <ProfileAvatar user={user} />
-</div>
+      {/* HEADER */}
+      <div className="dashboard-header">
+        <div className="dashboard-logo">
+          <img src="/images/Final Logo.png" alt="The Believerse Logo" />
+          <span className="logo-text">The Believerse</span>
+        </div>
 
+        <ProfileAvatar user={user} />
+      </div>
+
+      {/* GRID */}
       <div className="dashboard-grid">
 
-        {/* LEFT PANEL */}
+        {/* LEFT */}
         <div className="left-panel">
           <div className="panel-card">
             <h3>Verse of the Day</h3>
-
             {verse && (
               <p className="verse-text">
                 “{verse.text}”
@@ -232,7 +173,6 @@ async function downloadPNG() {
                 <span className="verse-ref">— {verse.ref}</span>
               </p>
             )}
-
             <div className="btn-row">
               <button className="btn" onClick={copyText}>Copy</button>
               <button className="btn" onClick={shareText}>Share</button>
@@ -241,12 +181,8 @@ async function downloadPNG() {
 
           <div className="panel-card verse-image-panel">
             <h3>Verse Image</h3>
-
             <div className="verse-image-box">
-              <div
-                dangerouslySetInnerHTML={{ __html: verseImage }}
-                className="verse-image"
-              />
+              <div className="verse-image" dangerouslySetInnerHTML={{ __html: verseImage }} />
             </div>
 
             <div className="btn-row">
@@ -256,7 +192,7 @@ async function downloadPNG() {
           </div>
         </div>
 
-        {/* CENTER PANEL */}
+        {/* CENTER */}
         <div className="center-panel">
           <div className="panel-card">
             <h3>Center Panel</h3>
@@ -264,13 +200,14 @@ async function downloadPNG() {
           </div>
         </div>
 
-        {/* RIGHT PANEL */}
+        {/* RIGHT */}
         <div className="right-panel">
           <div className="panel-card">
             <h3>Right Panel</h3>
             <p>Upcoming features will appear here.</p>
           </div>
         </div>
+
       </div>
     </div>
   );
