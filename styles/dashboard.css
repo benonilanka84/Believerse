@@ -90,17 +90,15 @@ html, body {
   background: #1b4ba8;
 }
 
-/* Verse Image Wrapper */
+/* Verse Image Container */
 .verse-image-box {
   width: 100%;
   display: flex;
   justify-content: center;
-  margin-top: 10px;
 }
 
 .verse-image {
-  width: 100%;
-  max-width: 350px;
+  width: 100%;          /* full width */
   border-radius: 14px;
   overflow: hidden;
   background: white;
@@ -110,13 +108,6 @@ html, body {
 .verse-image svg {
   width: 100% !important;
   height: auto !important;
-  object-fit: contain;
-  display: block;
-}
-
-/* Limit Verse Image Card (left panel only) */
-.panel-card.verse-image-panel {
-  max-width: 350px;
 }
 
 /* Responsive Fix — prevents layout collapse */

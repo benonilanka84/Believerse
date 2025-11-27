@@ -137,15 +137,32 @@ function generateVerseImage(verseText, reference) {
    * DOWNLOAD & SHARE IMAGE
    ********************************************* */
 
-  function downloadPNG() {
-    const svgBlob = new Blob([verseImage], { type: "image/svg+xml" });
-    const url = URL.createObjectURL(svgBlob);
+function getTodayFilename() {
+  const d = new Date();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  return `${mm}${dd}${yyyy} verse.png`;
+}
+
+async function downloadPNG() {
+  try {
+    const blob = new Blob([verseImage], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+
+    const pngBlob = await convertSVGtoPNG(url);
+
     const link = document.createElement("a");
-    link.href = url;
-    link.download = "verse.png";
+    link.href = URL.createObjectURL(pngBlob);
+    link.download = getTodayFilename(); // ← includes date
     link.click();
+
     URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error(err);
+    alert("Unable to download the image.");
   }
+}
 
   async function shareImage() {
     try {
