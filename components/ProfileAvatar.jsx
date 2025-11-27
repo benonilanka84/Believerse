@@ -3,258 +3,154 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import supabase from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 export default function ProfileAvatar() {
   const router = useRouter();
+  const fileRef = useRef();
+  const menuRef = useRef();
+
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [avatarUrl, setAvatarUrl] = useState(null);
   const [open, setOpen] = useState(false);
-  const fileRef = useRef();
 
+  // -------------------------------------------------------------------
+  // Load Authenticated User
+  // -------------------------------------------------------------------
   useEffect(() => {
-    const s = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!session?.user) {
-        setUser(null);
-        setProfile(null);
-        setLoading(false);
-      } else {
-        setUser(session.user);
-        await loadProfile(session.user);
-      }
-    });
+    async function loadUser() {
+      const { data, error } = await supabase.auth.getUser();
 
-    // initial
-    (async () => {
-      const session = supabase.auth.getSession
-        ? (await supabase.auth.getSession()).data.session
-        : null;
-      const u = session?.user ?? supabase.auth.user?.() ?? null;
-      if (u) {
-        setUser(u);
-        await loadProfile(u);
-      } else {
-        setLoading(false);
+      if (data?.user) {
+        setUser(data.user);
+        loadProfile(data.user.id);
       }
-    })();
-
-    return () => {
-      if (s?.data?.subscription) s.data.subscription.unsubscribe();
-    };
+    }
+    loadUser();
   }, []);
 
-  async function loadProfile(u) {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", u.id)
-        .single();
-      if (!error && data) {
-        setProfile(data);
-      } else {
-        setProfile(null);
-      }
-    } catch (err) {
-      console.error("loadProfile error", err);
-    } finally {
-      setLoading(false);
+  // -------------------------------------------------------------------
+  // Load Profile Row
+  // -------------------------------------------------------------------
+  async function loadProfile(userId) {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", userId)
+      .single();
+
+    if (data) {
+      setProfile(data);
+      setAvatarUrl(data.avatar_url || null);
     }
   }
 
+  // -------------------------------------------------------------------
+  // Calculate Initials
+  // -------------------------------------------------------------------
   function getInitials() {
-    const full = (profile?.full_name || user?.user_metadata?.full_name || "").trim();
-    if (!full) {
-      const email = user?.email || "";
-      return (email[0] || "U").toUpperCase();
-    }
-    const parts = full.split(/\s+/);
-    const first = (parts[0] || "").slice(0, 1);
-    const last = (parts[parts.length - 1] || "").slice(0, 1);
+    if (!profile?.full_name) return (user?.email?.[0] || "U").toUpperCase();
+
+    const parts = profile.full_name.trim().split(/\s+/);
+    const first = parts[0]?.[0] || "";
+    const last = parts[parts.length - 1]?.[0] || "";
     return (first + last).toUpperCase();
   }
 
-  async function uploadFile(file) {
+  // -------------------------------------------------------------------
+  // Upload Avatar to Supabase Storage
+  // -------------------------------------------------------------------
+  async function uploadAvatar(file) {
     if (!user) return;
-    const filename = `${user.id}-${Date.now()}-${file.name}`;
-    const filePath = `avatars/${filename}`;
-    try {
-      const { error: uploadError } = await supabase.storage
-        .from("avatars")
-        .upload(filePath, file, { upsert: true });
 
-      if (uploadError) {
-        console.error("Upload error", uploadError);
-        alert("Failed to upload avatar.");
-        return;
-      }
+    const fileName = `${user.id}-${Date.now()}-${file.name}`;
+    const filePath = `avatars/${fileName}`;
 
-      // get public url
-      const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(filePath);
-      const publicUrl = urlData?.publicUrl || "";
+    const { error } = await supabase.storage
+      .from("avatars")
+      .upload(filePath, file, { upsert: true });
 
-      // save to profiles table
-      const updates = {
-        id: user.id,
-        avatar_url: publicUrl,
-        updated_at: new Date(),
-      };
-
-      const { error: updateError } = await supabase.from("profiles").upsert(updates);
-      if (updateError) {
-        console.error("Profile update error", updateError);
-        alert("Failed to save avatar to profile.");
-      } else {
-        await loadProfile(user);
-      }
-    } catch (err) {
-      console.error("uploadFile error", err);
-      alert("Unexpected error during upload.");
+    if (error) {
+      alert("Avatar upload failed.");
+      return;
     }
+
+    const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(filePath);
+    const publicUrl = urlData?.publicUrl;
+
+    await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", user.id);
+
+    setAvatarUrl(publicUrl);
+    setOpen(false);
   }
 
   function onFileChange(e) {
     const file = e.target.files?.[0];
-    if (file) {
-      uploadFile(file);
-    }
+    if (file) uploadAvatar(file);
   }
 
+  // -------------------------------------------------------------------
+  // LOG OUT
+  // -------------------------------------------------------------------
   async function signOut() {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error("Sign out error", error);
-      alert("Failed to sign out.");
-    } else {
-      router.push("/");
+    await supabase.auth.signOut();
+    router.push("/");
+  }
+
+  // -------------------------------------------------------------------
+  // Close menu on outside click
+  // -------------------------------------------------------------------
+  useEffect(() => {
+    function handleClick(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setOpen(false);
+      }
     }
-  }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
-  if (loading) {
-    return <div style={{ width: 40, height: 40 }} />;
-  }
-
-  const avatarUrl = profile?.avatar_url || null;
-
+  // -------------------------------------------------------------------
+  // UI
+  // -------------------------------------------------------------------
   return (
-    <div style={{ position: "relative", display: "inline-block" }}>
+    <div className="avatar-wrapper" ref={menuRef}>
       <button
-        aria-label="Profile menu"
-        onClick={() => setOpen((s) => !s)}
+        className="avatar-btn"
+        onClick={() => setOpen(!open)}
         style={{
-          width: 44,
-          height: 44,
-          borderRadius: "50%",
-          background: avatarUrl ? `url(${avatarUrl}) center/cover` : "#113",
-          color: "#fff",
-          border: "none",
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontWeight: 700,
-          cursor: "pointer",
+          background: avatarUrl ? `url(${avatarUrl}) center/cover` : "#002b54",
         }}
       >
         {!avatarUrl && getInitials()}
       </button>
 
       {open && (
-        <div
-          style={{
-            position: "absolute",
-            right: 0,
-            marginTop: 8,
-            width: 200,
-            background: "#fff",
-            borderRadius: 8,
-            boxShadow: "0 6px 18px rgba(0,0,0,0.12)",
-            padding: 8,
-            zIndex: 1200,
-          }}
-        >
-          <button
-            onClick={() => {
-              setOpen(false);
-              router.push("/profile/edit");
-            }}
-            style={{
-              display: "block",
-              width: "100%",
-              textAlign: "left",
-              padding: "8px 10px",
-              border: "none",
-              background: "transparent",
-              cursor: "pointer",
-            }}
-          >
+        <div className="avatar-menu">
+          <button onClick={() => fileRef.current.click()}>Upload Photo</button>
+
+          <button onClick={() => router.push(`/profile/${user?.id}/edit`)}>
             Edit Profile
           </button>
 
-          <button
-            onClick={() => {
-              setOpen(false);
-              router.push("/settings");
-            }}
-            style={{
-              display: "block",
-              width: "100%",
-              textAlign: "left",
-              padding: "8px 10px",
-              border: "none",
-              background: "transparent",
-              cursor: "pointer",
-            }}
-          >
-            Settings
-          </button>
+          <button onClick={() => router.push("/settings")}>Settings</button>
 
-          <button
-            onClick={() => {
-              setOpen(false);
-              router.push("/terms");
-            }}
-            style={{
-              display: "block",
-              width: "100%",
-              textAlign: "left",
-              padding: "8px 10px",
-              border: "none",
-              background: "transparent",
-              cursor: "pointer",
-            }}
-          >
+          <button onClick={() => router.push("/terms")}>
             Terms & Conditions
           </button>
 
-          <div style={{ height: 1, background: "#eee", margin: "8px 0" }} />
+          <hr />
 
-          <button
-            onClick={() => {
-              setOpen(false);
-              signOut();
-            }}
-            style={{
-              display: "block",
-              width: "100%",
-              textAlign: "left",
-              padding: "8px 10px",
-              border: "none",
-              background: "transparent",
-              color: "#b33",
-              cursor: "pointer",
-            }}
-          >
+          <button className="logout-btn" onClick={signOut}>
             Log Out
           </button>
 
-          {/* Hidden file input for quick avatar update (optional) */}
           <input
-            ref={fileRef}
             type="file"
-            accept="image/*"
+            ref={fileRef}
             style={{ display: "none" }}
+            accept="image/*"
             onChange={onFileChange}
           />
         </div>

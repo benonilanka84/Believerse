@@ -67,6 +67,56 @@ html, body {
   box-shadow: 0 4px 8px rgba(0,0,0,0.2);
 }
 
+.avatar-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.avatar-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  color: white;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.avatar-menu {
+  position: absolute;
+  right: 0;
+  top: 50px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+  width: 200px;
+  padding: 8px;
+  z-index: 1000;
+}
+
+.avatar-menu button {
+  width: 100%;
+  padding: 10px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.avatar-menu button:hover {
+  background: #eef4ff;
+}
+
+.logout-btn {
+  color: #b22;
+}
+
+
 /* ---------------------------------------------------
    MAIN PAGE LAYOUT (Login + Signup Shared)
 --------------------------------------------------- */
