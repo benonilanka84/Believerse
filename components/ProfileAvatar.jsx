@@ -1,36 +1,38 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import supabase from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
-export default function ProfileAvatar({ user }) {
+export default function ProfileAvatar() {
   const router = useRouter();
+  const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [open, setOpen] = useState(false);
+  const fileRef = useRef();
 
-  // Load profile once (full_name, avatar_url, etc.)
   useEffect(() => {
-    if (!user?.id) return;
-    loadProfile();
-  }, [user]);
+    supabase.auth.getUser().then(async (res) => {
+      if (res.data.user) {
+        setUser(res.data.user);
+        await loadProfile(res.data.user);
+      }
+    });
+  }, []);
 
-  async function loadProfile() {
+  async function loadProfile(u) {
     const { data } = await supabase
       .from("profiles")
       .select("*")
-      .eq("id", user.id)
+      .eq("id", u.id)
       .single();
 
-    if (data) setProfile(data);
+    setProfile(data);
   }
 
   function getInitials() {
-    const full = profile?.full_name || user?.user_metadata?.full_name || "";
-    if (!full.trim()) return (user?.email?.charAt(0) || "U").toUpperCase();
-
-    const parts = full.trim().split(/\s+/);
-    return (parts[0][0] + (parts[1]?.[0] || "")).toUpperCase();
+    const name = profile?.full_name || user?.email || "U";
+    return name.charAt(0).toUpperCase();
   }
 
   async function signOut() {
@@ -38,75 +40,55 @@ export default function ProfileAvatar({ user }) {
     router.push("/");
   }
 
-  const avatarUrl = profile?.avatar_url;
-
   return (
     <div style={{ position: "relative" }}>
-      {/* Avatar Button */}
       <button
-        onClick={() => setOpen(!open)}
+        onClick={() => setOpen((o) => !o)}
         style={{
           width: 44,
           height: 44,
           borderRadius: "50%",
-          background: avatarUrl
-            ? `url(${avatarUrl}) center/cover`
-            : "#1d3557",
+          background: profile?.avatar_url
+            ? `url(${profile.avatar_url}) center/cover`
+            : "#113",
           color: "#fff",
           border: "none",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
           fontWeight: 700,
           cursor: "pointer",
         }}
       >
-        {!avatarUrl && getInitials()}
+        {!profile?.avatar_url && getInitials()}
       </button>
 
-      {/* Dropdown Menu */}
       {open && (
         <div
           style={{
             position: "absolute",
             right: 0,
-            marginTop: 10,
+            marginTop: 8,
             width: 200,
             background: "#fff",
-            borderRadius: 10,
-            boxShadow: "0 5px 18px rgba(0,0,0,0.15)",
-            overflow: "hidden",
-            zIndex: 500,
+            borderRadius: 8,
+            boxShadow: "0 5px 16px rgba(0,0,0,0.15)",
+            padding: 10,
+            zIndex: 999,
           }}
         >
-          <button
-            onClick={() => { setOpen(false); router.push("/profile/edit"); }}
-            className="menu-btn"
-          >
+          <button onClick={() => router.push("/profile/edit")} className="menu-btn">
             Edit Profile
           </button>
 
-          <button
-            onClick={() => { setOpen(false); router.push("/settings"); }}
-            className="menu-btn"
-          >
+          <button onClick={() => router.push("/settings")} className="menu-btn">
             Settings
           </button>
 
-          <button
-            onClick={() => { setOpen(false); router.push("/terms"); }}
-            className="menu-btn"
-          >
+          <button onClick={() => router.push("/terms")} className="menu-btn">
             Terms & Conditions
           </button>
 
-          <div style={{ height: 1, background: "#eee" }} />
+          <hr />
 
-          <button
-            onClick={() => { setOpen(false); signOut(); }}
-            className="menu-btn"
-            style={{ color: "#c00" }}
-          >
+          <button onClick={signOut} style={{ color: "#c00" }} className="menu-btn">
             Log Out
           </button>
         </div>

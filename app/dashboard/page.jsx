@@ -209,11 +209,14 @@ async function downloadPNG() {
    * RENDER
    ********************************************* */
   return (
-    <div className="dashboard-wrapper">
-      <div className="dashboard-header">
-        <h1>Welcome to your Dashboard</h1>
-        <ProfileAvatar user={user} />
-      </div>
+    <div className="dashboard-header">
+  <div className="dashboard-logo">
+    <img src="/images/logo.png" alt="Believerse Logo" />
+    <span className="logo-text">The Believerse</span>
+  </div>
+
+  <ProfileAvatar user={user} />
+</div>
 
       <div className="dashboard-grid">
 

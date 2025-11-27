@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { supabase } from "@/supabase";
+import { supabase } from "@/lib/supabase";  // ✅ FIXED IMPORT
 
 export default function Home() {
   const [msg, setMsg] = useState("");
@@ -15,7 +15,11 @@ export default function Home() {
       return;
     }
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
     if (error) return setMsg(error.message);
 
     window.location.href = "/dashboard";
@@ -37,20 +41,20 @@ export default function Home() {
   return (
     <div className="page-wrap">
 
-{/* LEFT PANEL */}
-<section className="left">
-  <p className="verse">
-    “I can do all things through Christ who strengthens me.”
-    <span className="verse-ref"> — Philippians 4:13</span>
-  </p>
+      {/* LEFT PANEL */}
+      <section className="left">
+        <p className="verse">
+          “I can do all things through Christ who strengthens me.”
+          <span className="verse-ref"> — Philippians 4:13</span>
+        </p>
 
-  <h1 className="brand">
-    <span className="the">The </span>
-    <span className="gold">B</span>elievers<span className="green">e</span>
-  </h1>
+        <h1 className="brand">
+          <span className="the">The </span>
+          <span className="gold">B</span>elievers<span className="green">e</span>
+        </h1>
 
-  <p className="tagline">One Family in Christ.</p>
-</section>
+        <p className="tagline">One Family in Christ.</p>
+      </section>
 
       {/* RIGHT PANEL */}
       <section className="right">
@@ -61,9 +65,13 @@ export default function Home() {
           <input id="email" type="email" placeholder="Email address" />
           <input id="password" type="password" placeholder="Password" />
 
-          <button className="btn btn-primary" onClick={handleLogin}>Log in</button>
+          <button className="btn btn-primary" onClick={handleLogin}>
+            Log in
+          </button>
 
-          <p className="forgot-link" onClick={handleForgot}>Forgot Password?</p>
+          <p className="forgot-link" onClick={handleForgot}>
+            Forgot Password?
+          </p>
 
           <hr className="divider" />
 
