@@ -94,52 +94,64 @@ export default function EditProfile() {
     loadProfile();
   }, [router]);
 
-  // -------------------------------------------------------
-  // 🔹 UPLOAD AVATAR
-  // -------------------------------------------------------
-  async function uploadAvatar(e) {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
+// -------------------------------------------------------
+// 🔹 UPLOAD AVATAR (Final Correct Version)
+// -------------------------------------------------------
+async function uploadAvatar(e) {
+  const file = e.target.files?.[0];
+  if (!file || !user) return;
 
-    try {
-      const fileName = `${user.id}-${Date.now()}`;
+  try {
+    const fileName = `${user.id}-${Date.now()}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from("avatars")
-        .upload(fileName, file, { upsert: true });
+    // 🔹 Upload the file
+    const { error: uploadError } = await supabase.storage
+      .from("avatars")
+      .upload(fileName, file, { upsert: true });
 
-      if (uploadError) {
-        console.error("avatar upload error", uploadError);
-        alert("Upload failed: " + uploadError.message);
-        return;
-      }
+    if (uploadError) {
+      console.error("Avatar upload error:", uploadError);
+      alert("Upload failed: " + uploadError.message);
+      return;
+    }
 
-      const { data: urlData } = supabase.storage
-        .from("avatars")
-        .getPublicUrl(fileName);
+    // 🔹 Get public URL
+    const { data: urlData } = supabase.storage
+      .from("avatars")
+      .getPublicUrl(fileName);
 
-      const publicURL = urlData?.publicUrl;
-      if (!publicURL) return;
+    const publicURL = urlData?.publicUrl;
+    if (!publicURL) return;
 
-      // Show immediately
-      setProfile((p) => ({ ...p, avatar_url: publicURL }));
+    // 🔹 Show immediately on screen
+    setProfile((p) => ({ ...p, avatar_url: publicURL }));
 
-      // Persist in DB (use upsert so first-time user is created)
-      const { error: upsertError } = await supabase.from("profiles").upsert({
-        id: user.id,
-        email: user.email,
+    // -------------------------------------------------------
+    // 🔥 IMPORTANT:
+    // Use UPDATE instead of UPSERT
+    // because your "profiles" table has a FOREIGN KEY to auth.users
+    // and RLS allows UPDATE but not INSERT for authenticated users.
+    // -------------------------------------------------------
+
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update({
         avatar_url: publicURL,
         updated_at: new Date().toISOString(),
-      });
+      })
+      .eq("id", user.id);
 
-      if (upsertError) {
-        console.error("avatar upsert error", upsertError);
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Unexpected error while uploading avatar.");
+    if (updateError) {
+      console.error("Avatar DB update error:", updateError);
+      alert("Failed to update profile: " + updateError.message);
+      return;
     }
+
+  } catch (err) {
+    console.error("Unexpected avatar error:", err);
+    alert("Unexpected error while uploading avatar.");
   }
+}
 
   // -------------------------------------------------------
   // 🔹 SAVE PROFILE
