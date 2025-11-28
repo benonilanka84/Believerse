@@ -92,3 +92,26 @@
   border-radius: 8px;
   cursor: pointer;
 }
+
+.form-label {
+  color: #333;
+  font-weight: 600;
+  margin-top: 12px;
+  display: block;
+}
+
+.form-input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid #d9dfe6;
+  margin-bottom: 12px;
+}
+
+.form-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid #d9dfe6;
+  margin-bottom: 12px;
+}
