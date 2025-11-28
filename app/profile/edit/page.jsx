@@ -102,7 +102,7 @@ export default function EditProfile() {
     if (!file || !user) return;
 
     try {
-      const fileName = `avatars/${user.id}-${Date.now()}`;
+      const fileName = `${user.id}-${Date.now()}`;
 
       const { error: uploadError } = await supabase.storage
         .from("avatars")
