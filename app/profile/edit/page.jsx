@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import supabase from "@/lib/supabase";
+import supabase from "@/lib/supabase"; // ✅ default import
 
 export default function EditProfile() {
   const router = useRouter();
+  const fileRef = useRef(null);
 
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -20,123 +21,191 @@ export default function EditProfile() {
     avatar_url: "",
   });
 
-  const fileRef = useRef(null);
+  // Simple shared styles so labels & inputs always look right
+  const labelStyle = {
+    display: "block",
+    marginBottom: 6,
+    marginTop: 10,
+    fontWeight: 600,
+    color: "#0b2e4a",
+    fontSize: 14,
+  };
+
+  const inputStyle = {
+    width: "100%",
+    padding: "10px 12px",
+    borderRadius: 8,
+    border: "1px solid #d0d7e2",
+    marginBottom: 12,
+    fontSize: 14,
+  };
+
+  const textareaStyle = {
+    ...inputStyle,
+    minHeight: 90,
+    resize: "vertical",
+  };
 
   // -------------------------------------------------------
   // 🔹 LOAD PROFILE
   // -------------------------------------------------------
   useEffect(() => {
     async function loadProfile() {
-      const { data: auth } = await supabase.auth.getUser();
+      try {
+        const { data: auth, error: authError } = await supabase.auth.getUser();
 
-      if (!auth?.user) {
-        router.push("/");
-        return;
+        if (authError) {
+          console.error("auth.getUser error", authError);
+        }
+
+        if (!auth?.user) {
+          router.push("/");
+          return;
+        }
+
+        setUser(auth.user);
+
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", auth.user.id)
+          .maybeSingle();
+
+        if (error) {
+          console.error("profiles select error", error);
+        }
+
+        if (data) {
+          setProfile({
+            full_name: data.full_name ?? "",
+            dob: data.dob ?? "",
+            gender: data.gender ?? "",
+            church: data.church ?? "",
+            about: data.about ?? "",
+            faith_journey: data.faith_journey ?? "",
+            avatar_url: data.avatar_url ?? "",
+          });
+        }
+      } finally {
+        setLoading(false);
       }
-
-      setUser(auth.user);
-
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", auth.user.id)
-        .single();
-
-      if (error) console.log(error);
-
-      if (data) {
-        setProfile({
-          full_name: data.full_name ?? "",
-          dob: data.dob ?? "",
-          gender: data.gender ?? "",
-          church: data.church ?? "",
-          about: data.about ?? "",
-          faith_journey: data.faith_journey ?? "",
-          avatar_url: data.avatar_url ?? "",
-        });
-      }
-
-      setLoading(false);
     }
 
     loadProfile();
-  }, []);
+  }, [router]);
 
   // -------------------------------------------------------
   // 🔹 UPLOAD AVATAR
   // -------------------------------------------------------
   async function uploadAvatar(e) {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (!file || !user) return;
 
-    const fileName = `${user.id}-${Date.now()}`;
+    try {
+      const fileName = `avatars/${user.id}-${Date.now()}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from("avatars")
-      .upload(fileName, file, { upsert: true });
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(fileName, file, { upsert: true });
 
-    if (uploadError) {
-      alert("Upload failed: " + uploadError.message);
-      return;
+      if (uploadError) {
+        console.error("avatar upload error", uploadError);
+        alert("Upload failed: " + uploadError.message);
+        return;
+      }
+
+      const { data: urlData } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(fileName);
+
+      const publicURL = urlData?.publicUrl;
+      if (!publicURL) return;
+
+      // Show immediately
+      setProfile((p) => ({ ...p, avatar_url: publicURL }));
+
+      // Persist in DB (use upsert so first-time user is created)
+      const { error: upsertError } = await supabase.from("profiles").upsert({
+        id: user.id,
+        email: user.email,
+        avatar_url: publicURL,
+        updated_at: new Date().toISOString(),
+      });
+
+      if (upsertError) {
+        console.error("avatar upsert error", upsertError);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Unexpected error while uploading avatar.");
     }
-
-    const { data: urlData } = supabase.storage
-      .from("avatars")
-      .getPublicUrl(fileName);
-
-    const publicURL = urlData?.publicUrl;
-
-    setProfile((p) => ({ ...p, avatar_url: publicURL }));
-
-    await supabase.from("profiles").update({ avatar_url: publicURL }).eq("id", user.id);
   }
 
   // -------------------------------------------------------
   // 🔹 SAVE PROFILE
   // -------------------------------------------------------
   async function saveProfile() {
-    const updates = {
-      full_name: profile.full_name,
-      dob: profile.dob,
-      gender: profile.gender,
-      church: profile.church,
-      about: profile.about,
-      faith_journey: profile.faith_journey,
-      avatar_url: profile.avatar_url,
-      updated_at: new Date(),
-    };
+    if (!user) return;
 
-    const { error } = await supabase
-      .from("profiles")
-      .update(updates)
-      .eq("id", user.id);
+    try {
+      const updates = {
+        id: user.id,
+        email: user.email,
+        full_name: profile.full_name,
+        dob: profile.dob || null,
+        gender: profile.gender || null,
+        church: profile.church || null,
+        about: profile.about || null,
+        faith_journey: profile.faith_journey || null,
+        avatar_url: profile.avatar_url || null,
+        updated_at: new Date().toISOString(),
+      };
 
-    if (error) {
-      alert("Save failed: " + error.message);
-      return;
+      // ✅ upsert: create row if missing, update if exists
+      const { error } = await supabase.from("profiles").upsert(updates);
+
+      if (error) {
+        console.error("saveProfile error", error);
+        alert("Save failed: " + error.message);
+        return;
+      }
+
+      router.push("/dashboard");
+    } catch (err) {
+      console.error(err);
+      alert("Unexpected error while saving profile.");
     }
-
-    router.push("/dashboard");
   }
 
-  if (loading) return <p style={{ padding: 40 }}>Loading Profile...</p>;
+  if (loading) {
+    return <p style={{ padding: 40 }}>Loading Profile...</p>;
+  }
 
   return (
-    <div style={{ padding: 40, maxWidth: "900px", margin: "0 auto" }}>
-      <h1 style={{ fontSize: "2rem", marginBottom: 20 }}>Edit Profile</h1>
+    <div style={{ padding: 40, maxWidth: 900, margin: "0 auto" }}>
+      <h1
+        style={{
+          fontSize: "2rem",
+          fontWeight: 700,
+          marginBottom: 20,
+          color: "#0b2e4a",
+        }}
+      >
+        Edit Profile
+      </h1>
 
       <div
         style={{
-          background: "#fff",
+          background: "#ffffff",
           padding: 30,
-          borderRadius: 12,
-          boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
+          borderRadius: 16,
+          boxShadow: "0 12px 30px rgba(0,0,0,0.12)",
         }}
       >
         {/* Avatar */}
         <div style={{ textAlign: "center", marginBottom: 20 }}>
           <img
-            src={profile.avatar_url || "/default-avatar.png"}
+            src={profile.avatar_url || "/images/default-avatar.png"}
             alt="Avatar"
             width={120}
             height={120}
@@ -144,19 +213,21 @@ export default function EditProfile() {
               borderRadius: "50%",
               objectFit: "cover",
               background: "#eee",
+              boxShadow: "0 6px 16px rgba(0,0,0,0.15)",
             }}
           />
 
           <br />
 
           <button
-            onClick={() => fileRef.current.click()}
+            type="button"
+            onClick={() => fileRef.current?.click()}
             style={{
               marginTop: 10,
               padding: "6px 16px",
               borderRadius: 6,
               border: "1px solid #ccc",
-              background: "#eee",
+              background: "#f5f5f5",
               cursor: "pointer",
             }}
           >
@@ -172,76 +243,106 @@ export default function EditProfile() {
           />
         </div>
 
-        {/* INPUT FIELDS */}
-        <label className="form-label">Full Name</label>
+        {/* Full Name */}
+        <label style={labelStyle}>Full Name</label>
         <input
-          className="form-input"
+          style={inputStyle}
           value={profile.full_name}
-          onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
+          onChange={(e) =>
+            setProfile((p) => ({ ...p, full_name: e.target.value }))
+          }
+          placeholder="Your full name"
         />
 
-        <label className="form-label">Date of Birth</label>
+        {/* DOB */}
+        <label style={labelStyle}>Date of Birth</label>
         <input
           type="date"
-          className="form-input"
-          value={profile.dob}
-          onChange={(e) => setProfile({ ...profile, dob: e.target.value })}
+          style={inputStyle}
+          value={profile.dob || ""}
+          onChange={(e) =>
+            setProfile((p) => ({ ...p, dob: e.target.value }))
+          }
         />
 
-        <label className="form-label">Gender</label>
+        {/* Gender */}
+        <label style={labelStyle}>Gender</label>
         <select
-          className="form-input"
-          value={profile.gender}
-          onChange={(e) => setProfile({ ...profile, gender: e.target.value })}
+          style={inputStyle}
+          value={profile.gender || ""}
+          onChange={(e) =>
+            setProfile((p) => ({ ...p, gender: e.target.value }))
+          }
         >
           <option value="">Select</option>
           <option value="male">Male</option>
           <option value="female">Female</option>
+          <option value="other">Other</option>
+          <option value="prefer_not">Prefer not to say</option>
         </select>
 
-        <label className="form-label">Church / Ministry</label>
+        {/* Church */}
+        <label style={labelStyle}>Church / Ministry</label>
         <input
-          className="form-input"
+          style={inputStyle}
           value={profile.church}
-          onChange={(e) => setProfile({ ...profile, church: e.target.value })}
+          onChange={(e) =>
+            setProfile((p) => ({ ...p, church: e.target.value }))
+          }
+          placeholder="Church / Ministry name"
         />
 
-        <label className="form-label">About</label>
+        {/* About */}
+        <label style={labelStyle}>About</label>
         <textarea
-          className="form-textarea"
-          rows={3}
+          style={textareaStyle}
           value={profile.about}
-          onChange={(e) => setProfile({ ...profile, about: e.target.value })}
+          onChange={(e) =>
+            setProfile((p) => ({ ...p, about: e.target.value }))
+          }
+          placeholder="Short bio"
         />
 
-        <label className="form-label">Faith Journey</label>
+        {/* Faith Journey */}
+        <label style={labelStyle}>Faith Journey</label>
         <textarea
-          className="form-textarea"
-          rows={4}
+          style={textareaStyle}
           value={profile.faith_journey}
-          onChange={(e) => setProfile({ ...profile, faith_journey: e.target.value })}
+          onChange={(e) =>
+            setProfile((p) => ({ ...p, faith_journey: e.target.value }))
+          }
+          placeholder="Share a brief testimony or faith journey"
         />
 
-        {/* BUTTONS */}
+        {/* Buttons */}
         <div style={{ marginTop: 20, display: "flex", gap: 12 }}>
           <button
+            type="button"
             onClick={() => router.push("/dashboard")}
             style={{
               padding: "10px 20px",
-              background: "#eee",
-              borderRadius: 6,
+              borderRadius: 8,
+              border: "1px solid #ddd",
+              background: "#f5f5f5",
+              cursor: "pointer",
             }}
           >
             Cancel
           </button>
 
           <button
+            type="button"
             onClick={saveProfile}
             style={{
               padding: "10px 20px",
+              borderRadius: 8,
               background: "#2e8b57",
+              border: "none",
               color: "#fff",
-              borderRadius: 6,
+              fontWeight: 600,
+              cursor: "pointer",
+              marginLeft: "auto",
+              minWidth: 120,
             }}
           >
             Save
