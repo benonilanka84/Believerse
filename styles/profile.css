@@ -67,3 +67,28 @@
   border: none;
 }
 
+.profile-input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid #ccd4dd;
+  margin-bottom: 15px;
+  font-size: 15px;
+}
+
+.btn-save {
+  padding: 10px 20px;
+  background: #2e8b57;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.btn-cancel {
+  padding: 10px 20px;
+  background: #f1f1f1;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  cursor: pointer;
+}
