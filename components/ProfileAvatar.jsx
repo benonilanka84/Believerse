@@ -1,140 +1,92 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import supabase from "@/lib/supabase";
 
-export default function ProfileAvatar({ user: passedUser }) {
+export default function ProfileAvatar() {
   const router = useRouter();
-  const [user, setUser] = useState(passedUser || null);
+  const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [open, setOpen] = useState(false);
 
-  // --------------------------------------------------
-  // LOAD USER
-  // --------------------------------------------------
   useEffect(() => {
     async function load() {
       const { data } = await supabase.auth.getUser();
-      if (data?.user) {
-        setUser(data.user);
-        await loadProfile(data.user);
+      const u = data?.user || null;
+      setUser(u);
+
+      if (u) {
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", u.id)
+          .single();
+
+        if (prof) setProfile(prof);
       }
     }
+    load();
+  }, []);
 
-    if (!passedUser) load();
-    else {
-      setUser(passedUser);
-      loadProfile(passedUser);
-    }
-  }, [passedUser]);
-
-  // --------------------------------------------------
-  // LOAD PROFILE FROM SUPABASE
-  // --------------------------------------------------
-  async function loadProfile(u) {
-    if (!u) return;
-
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", u.id)
-      .single();
-
-    if (!error) setProfile(data);
-  }
-
-  // --------------------------------------------------
-  // INITIALS FALLBACK
-  // --------------------------------------------------
   function getInitials() {
-    const name = profile?.full_name || user?.email || "U";
+    const name = profile?.full_name || user?.email || "";
     return name.charAt(0).toUpperCase();
   }
 
-  // --------------------------------------------------
-  // LOG OUT
-  // --------------------------------------------------
-  async function signOut() {
+  async function logout() {
     await supabase.auth.signOut();
     router.push("/");
   }
 
-  // --------------------------------------------------
-  // RENDER
-  // --------------------------------------------------
   return (
-    <div style={{ position: "relative", display: "inline-block" }}>
-      {/* Avatar circle */}
+    <div style={{ position: "relative" }}>
       <button
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen(!open)}
         style={{
-          width: 44,
-          height: 44,
+          width: 42,
+          height: 42,
           borderRadius: "50%",
           background: profile?.avatar_url
             ? `url(${profile.avatar_url}) center/cover`
-            : "#113",
-          color: "#fff",
-          border: "none",
-          fontWeight: 700,
+            : "#1d3557",
+          color: "white",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          fontWeight: "bold",
           cursor: "pointer",
         }}
       >
         {!profile?.avatar_url && getInitials()}
       </button>
 
-      {/* DROPDOWN MENU */}
       {open && (
-        <div
-          style={{
-            position: "absolute",
-            top: "52px",
-            right: 0,
-            width: 180,
-            padding: 8,
-            background: "#fff",
-            borderRadius: 8,
-            boxShadow: "0 8px 20px rgba(0,0,0,0.15)",
-            zIndex: 1000,
-          }}
-        >
+        <div className="avatar-menu">
           <button
-            onClick={() => {
-              setOpen(false);
-              router.push("/profile/edit");
-            }}
-            style={menuItemStyle}
+            className="menu-btn"
+            onClick={() => router.push("/profile/edit")}
           >
             Edit Profile
           </button>
 
           <button
-            onClick={() => {
-              setOpen(false);
-              router.push("/settings");
-            }}
-            style={menuItemStyle}
+            className="menu-btn"
+            onClick={() => router.push("/settings")}
           >
             Settings
           </button>
 
           <button
-            onClick={() => {
-              setOpen(false);
-              router.push("/terms");
-            }}
-            style={menuItemStyle}
+            className="menu-btn"
+            onClick={() => router.push("/terms")}
           >
             Terms & Conditions
           </button>
 
-          <hr style={{ margin: "8px 0", borderColor: "#eee" }} />
+          <hr />
 
-          <button
-            onClick={signOut}
-            style={{ ...menuItemStyle, color: "#c00" }}
-          >
+          <button className="menu-btn" style={{ color: "red" }} onClick={logout}>
             Log Out
           </button>
         </div>
@@ -142,15 +94,3 @@ export default function ProfileAvatar({ user: passedUser }) {
     </div>
   );
 }
-
-// Shared style for dropdown items
-const menuItemStyle = {
-  display: "block",
-  width: "100%",
-  textAlign: "left",
-  padding: "8px 10px",
-  background: "transparent",
-  border: "none",
-  cursor: "pointer",
-  fontSize: "15px",
-};
