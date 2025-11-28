@@ -1,15 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
-export default function EditProfilePage({ params }) {
+export default function EditProfilePage() {
   const router = useRouter();
-  const userId = params.id;
+  const fileInputRef = useRef(null);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
   const [profile, setProfile] = useState({
     full_name: "",
     dob: "",
@@ -17,197 +18,241 @@ export default function EditProfilePage({ params }) {
     church: "",
     about: "",
     faith_journey: "",
-    avatar_url: "",
+    avatar_url: ""
   });
 
-  // -------------------------------------------------------
-  // LOAD USER PROFILE
-  // -------------------------------------------------------
+  /** LOAD USER + PROFILE **/
   useEffect(() => {
     async function load() {
-      const { data, error } = await supabase
+      const { data: userRes } = await supabase.auth.getUser();
+      const user = userRes?.user;
+
+      if (!user) {
+        router.push("/");
+        return;
+      }
+
+      const { data } = await supabase
         .from("profiles")
         .select("*")
-        .eq("id", userId)
+        .eq("id", user.id)
         .single();
 
-      if (!error && data) setProfile(data);
+      if (data) setProfile(data);
       setLoading(false);
     }
 
     load();
-  }, [userId]);
+  }, []);
 
-  // -------------------------------------------------------
-  // HANDLE FIELD CHANGE
-  // -------------------------------------------------------
-  function handleChange(field, value) {
-    setProfile((prev) => ({ ...prev, [field]: value }));
-  }
+  /** FILE UPLOAD **/
+  async function uploadAvatar(file) {
+    const { data: userRes } = await supabase.auth.getUser();
+    const user = userRes.user;
 
-  // -------------------------------------------------------
-  // AVATAR UPLOAD
-  // -------------------------------------------------------
-  async function handleAvatarUpload(e) {
-    const file = e.target.files[0];
-    if (!file) return;
+    const fileName = `${user.id}-${Date.now()}.png`;
+    const path = `avatars/${fileName}`;
 
-    const filename = `${userId}-${Date.now()}.${file.name.split('.').pop()}`;
-
-    const { error: uploadError } = await supabase.storage
+    const { error: uploadErr } = await supabase.storage
       .from("avatars")
-      .upload(filename, file);
+      .upload(path, file, { upsert: true });
 
-    if (uploadError) {
-      alert("Failed to upload avatar");
+    if (uploadErr) {
+      alert("Failed to upload image");
       return;
     }
 
-    const { data: publicUrl } = supabase.storage
+    const { data: urlData } = supabase.storage
       .from("avatars")
-      .getPublicUrl(filename);
+      .getPublicUrl(path);
 
-    // Update profile state
-    setProfile((prev) => ({ ...prev, avatar_url: publicUrl.publicUrl }));
+    const avatarUrl = urlData.publicUrl;
+
+    setProfile(p => ({ ...p, avatar_url: avatarUrl }));
   }
 
-  // -------------------------------------------------------
-  // SAVE PROFILE
-  // -------------------------------------------------------
+  function handleFile(e) {
+    const file = e.target.files?.[0];
+    if (file) uploadAvatar(file);
+  }
+
+  /** SAVE PROFILE **/
   async function saveProfile() {
     setSaving(true);
 
-    const updates = {
-      id: userId,
-      full_name: profile.full_name,
-      dob: profile.dob,
-      gender: profile.gender,
-      church: profile.church,
-      about: profile.about,
-      faith_journey: profile.faith_journey,
-      avatar_url: profile.avatar_url,
-      updated_at: new Date(),
-    };
-
-    const { error } = await supabase.from("profiles").upsert(updates);
+    const { error } = await supabase.from("profiles").upsert(profile);
 
     setSaving(false);
 
     if (error) {
-      alert("Error saving profile.");
-      return;
+      alert("Failed to save profile.");
+    } else {
+      router.push("/dashboard");
     }
-
-    router.push("/dashboard");
   }
 
-  if (loading) return <p style={{ padding: 20 }}>Loading Profile...</p>;
+  if (loading)
+    return (
+      <div style={{ padding: 40 }}>
+        <h2>Loading profile...</h2>
+      </div>
+    );
 
-  // -------------------------------------------------------
-  // RENDER
-  // -------------------------------------------------------
   return (
     <div style={{ padding: 24 }}>
-      <h1 style={{ marginBottom: 20 }}>Edit Profile</h1>
+      <h1 style={{ marginBottom: 18 }}>Edit Profile</h1>
 
       <div
         style={{
-          maxWidth: 700,
-          background: "#fff",
-          padding: 20,
+          maxWidth: 720,
+          background: "rgba(255,255,255,0.95)",
+          padding: 22,
           borderRadius: 12,
-          boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
+          boxShadow: "0 12px 30px rgba(0,0,0,0.15)"
         }}
       >
-        {/* Avatar */}
-        <div style={{ marginBottom: 20 }}>
-          <img
-            src={profile.avatar_url || "/images/default-avatar.png"}
-            alt="Avatar"
-            style={{
-              width: 120,
-              height: 120,
-              borderRadius: "50%",
-              objectFit: "cover",
-              boxShadow: "0 6px 15px rgba(0,0,0,0.1)",
-            }}
-          />
+        <div style={{ display: "flex", gap: 20 }}>
+          {/* Avatar */}
+          <div style={{ width: 128 }}>
+            <div
+              style={{
+                width: 128,
+                height: 128,
+                borderRadius: "50%",
+                overflow: "hidden",
+                background: "#ddd",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}
+            >
+              {profile.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt="avatar"
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              ) : (
+                <span style={{ fontSize: 40, fontWeight: 700 }}>
+                  {profile.full_name?.charAt(0)?.toUpperCase() || "?"}
+                </span>
+              )}
+            </div>
 
-          <div style={{ marginTop: 10 }}>
-            <input type="file" accept="image/*" onChange={handleAvatarUpload} />
+            <button
+              onClick={() => fileInputRef.current.click()}
+              style={{
+                marginTop: 10,
+                padding: "6px 12px",
+                borderRadius: 6,
+                border: "1px solid #aaa",
+                cursor: "pointer"
+              }}
+            >
+              Change Photo
+            </button>
+
+            <input
+              type="file"
+              accept="image/*"
+              ref={fileInputRef}
+              style={{ display: "none" }}
+              onChange={handleFile}
+            />
           </div>
-        </div>
 
-        {/* FULL NAME */}
-        <label>Full Name</label>
-        <input
-          value={profile.full_name || ""}
-          onChange={(e) => handleChange("full_name", e.target.value)}
-          className="profile-input"
-        />
+          {/* Form */}
+          <div style={{ flex: 1 }}>
+            <label>Full Name</label>
+            <input
+              type="text"
+              value={profile.full_name || ""}
+              onChange={e =>
+                setProfile(p => ({ ...p, full_name: e.target.value }))
+              }
+              className="input"
+            />
 
-        {/* DOB */}
-        <label>Date of Birth</label>
-        <input
-          type="date"
-          value={profile.dob || ""}
-          onChange={(e) => handleChange("dob", e.target.value)}
-          className="profile-input"
-        />
+            <label>Date of Birth</label>
+            <input
+              type="date"
+              value={profile.dob || ""}
+              onChange={e => setProfile(p => ({ ...p, dob: e.target.value }))}
+              className="input"
+            />
 
-        {/* GENDER */}
-        <label>Gender</label>
-        <select
-          value={profile.gender || ""}
-          onChange={(e) => handleChange("gender", e.target.value)}
-          className="profile-input"
-        >
-          <option value="">Select</option>
-          <option value="Male">Male</option>
-          <option value="Female">Female</option>
-          <option value="Other">Other</option>
-        </select>
+            <label>Gender</label>
+            <select
+              value={profile.gender || ""}
+              onChange={e => setProfile(p => ({ ...p, gender: e.target.value }))}
+              className="input"
+            >
+              <option value="">Select</option>
+              <option>Male</option>
+              <option>Female</option>
+              <option>Other</option>
+              <option>Prefer not to say</option>
+            </select>
 
-        {/* CHURCH */}
-        <label>Church / Ministry</label>
-        <input
-          value={profile.church || ""}
-          onChange={(e) => handleChange("church", e.target.value)}
-          className="profile-input"
-        />
+            <label>Church / Ministry</label>
+            <input
+              type="text"
+              value={profile.church || ""}
+              onChange={e =>
+                setProfile(p => ({ ...p, church: e.target.value }))
+              }
+              className="input"
+            />
 
-        {/* ABOUT */}
-        <label>About</label>
-        <textarea
-          value={profile.about || ""}
-          onChange={(e) => handleChange("about", e.target.value)}
-          className="profile-input"
-        />
+            <label>About</label>
+            <textarea
+              rows={3}
+              value={profile.about || ""}
+              onChange={e =>
+                setProfile(p => ({ ...p, about: e.target.value }))
+              }
+              className="input"
+            />
 
-        {/* FAITH JOURNEY */}
-        <label>Faith Journey</label>
-        <textarea
-          value={profile.faith_journey || ""}
-          onChange={(e) => handleChange("faith_journey", e.target.value)}
-          className="profile-input"
-        />
+            <label>Faith Journey</label>
+            <textarea
+              rows={4}
+              value={profile.faith_journey || ""}
+              onChange={e =>
+                setProfile(p => ({ ...p, faith_journey: e.target.value }))
+              }
+              className="input"
+            />
 
-        {/* BUTTONS */}
-        <div style={{ marginTop: 20, display: "flex", gap: 10 }}>
-          <button
-            onClick={() => router.push("/dashboard")}
-            className="btn-cancel"
-          >
-            Cancel
-          </button>
+            {/* Buttons */}
+            <div style={{ marginTop: 18, display: "flex", gap: 10 }}>
+              <button
+                onClick={() => router.push("/dashboard")}
+                style={{
+                  padding: "10px 18px",
+                  borderRadius: 8,
+                  background: "#eee",
+                  border: "1px solid #ddd"
+                }}
+              >
+                Cancel
+              </button>
 
-          <button
-            onClick={saveProfile}
-            className="btn-save"
-            disabled={saving}
-          >
-            {saving ? "Saving..." : "Save"}
-          </button>
+              <button
+                onClick={saveProfile}
+                disabled={saving}
+                style={{
+                  padding: "10px 18px",
+                  borderRadius: 8,
+                  background: "#2e8b57",
+                  border: "none",
+                  color: "#fff"
+                }}
+              >
+                {saving ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
