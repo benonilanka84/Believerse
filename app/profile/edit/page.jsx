@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import supabase from "@/supabase";   // ✅ FIXED IMPORT
+import supabase from "@/lib/supabase";
 
 export default function EditProfile() {
   const router = useRouter();

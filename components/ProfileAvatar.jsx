@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import supabase from "@/lib/supabase";
 
 export default function ProfileAvatar({ user: passedUser }) {
   const router = useRouter();
