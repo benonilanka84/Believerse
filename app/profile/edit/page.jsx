@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";   // ✅ Correct import
+import supabase from "@/supabase";   // ✅ FIXED IMPORT
 
 export default function EditProfile() {
   const router = useRouter();
@@ -36,11 +36,13 @@ export default function EditProfile() {
 
       setUser(auth.user);
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", auth.user.id)
         .single();
+
+      if (error) console.log(error);
 
       if (data) {
         setProfile({
@@ -67,7 +69,7 @@ export default function EditProfile() {
     const file = e.target.files[0];
     if (!file || !user) return;
 
-    const fileName = `avatars/${user.id}-${Date.now()}`;
+    const fileName = `${user.id}-${Date.now()}`;
 
     const { error: uploadError } = await supabase.storage
       .from("avatars")
@@ -86,11 +88,7 @@ export default function EditProfile() {
 
     setProfile((p) => ({ ...p, avatar_url: publicURL }));
 
-    // update DB
-    await supabase
-      .from("profiles")
-      .update({ avatar_url: publicURL })
-      .eq("id", user.id);
+    await supabase.from("profiles").update({ avatar_url: publicURL }).eq("id", user.id);
   }
 
   // -------------------------------------------------------
@@ -174,14 +172,12 @@ export default function EditProfile() {
           />
         </div>
 
-        {/* INPUTS */}
+        {/* INPUT FIELDS */}
         <label className="form-label">Full Name</label>
         <input
           className="form-input"
           value={profile.full_name}
-          onChange={(e) =>
-            setProfile({ ...profile, full_name: e.target.value })
-          }
+          onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
         />
 
         <label className="form-label">Date of Birth</label>
@@ -223,9 +219,7 @@ export default function EditProfile() {
           className="form-textarea"
           rows={4}
           value={profile.faith_journey}
-          onChange={(e) =>
-            setProfile({ ...profile, faith_journey: e.target.value })
-          }
+          onChange={(e) => setProfile({ ...profile, faith_journey: e.target.value })}
         />
 
         {/* BUTTONS */}
