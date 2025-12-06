@@ -1,0 +1,117 @@
+.profile-wrap { min-height:100vh; padding:28px; }
+.profile-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+.header-actions { display:flex; gap:8px; align-items:center; }
+
+.profile-main { display:flex; gap:20px; justify-content:flex-end; padding-top:20px; }
+.cover-upload { position:absolute; right:28px; top:18px; color:#fff; }
+
+.profile-card { width:420px; background: rgba(255,255,255,0.06); border-radius:14px; padding:18px; color:#fff; backdrop-filter: blur(6px); box-shadow: 0 8px 30px rgba(0,0,0,0.25); }
+.avatar-block { text-align:center; margin-bottom:12px; }
+.avatar-block img { width:120px; height:120px; border-radius:50%; object-fit:cover; border:6px solid rgba(255,255,255,0.12); }
+.profile-form .field { margin-bottom:10px; }
+.profile-form label { display:block; font-size:0.85rem; margin-bottom:6px; color:#eaeaea; }
+.profile-form input, .profile-form textarea, .profile-form select { width:100%; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); color:#fff; }
+
+.settings-section {
+  margin-top: 20px;
+  padding: 15px;
+  background: #f7faff;
+  border-radius: 10px;
+  border-left: 4px solid #2d6be3;
+}
+
+.settings-field {
+  margin-bottom: 15px;
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-field label {
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+
+.settings-field input,
+.settings-field select {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+.btn-primary {
+  display: inline-block;
+  background: #2d6be3;
+  color: white;
+  padding: 10px 16px;
+  border-radius: 8px;
+  margin-top: 10px;
+}
+
+.btn-secondary {
+  display: inline-block;
+  background: #e1e9f6;
+  color: #2d6be3;
+  padding: 10px 16px;
+  border-radius: 8px;
+}
+
+.danger {
+  border-left-color: #d62828 !important;
+}
+
+.btn-danger {
+  background: #d62828;
+  color: white;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: none;
+}
+
+.profile-input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid #ccd4dd;
+  margin-bottom: 15px;
+  font-size: 15px;
+}
+
+.btn-save {
+  padding: 10px 20px;
+  background: #2e8b57;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.btn-cancel {
+  padding: 10px 20px;
+  background: #f1f1f1;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.form-label {
+  color: #333;
+  font-weight: 600;
+  margin-top: 12px;
+  display: block;
+}
+
+.form-input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid #d9dfe6;
+  margin-bottom: 12px;
+}
+
+.form-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid #d9dfe6;
+  margin-bottom: 12px;
+}
