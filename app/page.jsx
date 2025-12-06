@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 export default function Home() {
-  const [identifier, setIdentifier] = useState(""); // Email or Username
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
@@ -27,7 +27,7 @@ export default function Home() {
 
     let emailToUse = identifier;
 
-    // Logic: Check if input is a Username (no '@' symbol)
+    // Check if input is a Username (no '@' symbol)
     if (!identifier.includes("@")) {
       const { data, error } = await supabase
         .from('profiles')
@@ -66,11 +66,20 @@ export default function Home() {
     setMsg("Password reset link sent to your email.");
   };
 
+  // ✅ FIXED: Added Redirect URL logic for Social Login
   const handleSocialLogin = async (provider) => {
+    setLoading(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: provider,
+      options: {
+        redirectTo: `${window.location.origin}/dashboard`,
+      },
     });
-    if (error) setMsg(error.message);
+    
+    if (error) {
+      setMsg(error.message);
+      setLoading(false);
+    }
   };
 
   if (!mounted) return null;
@@ -83,7 +92,6 @@ export default function Home() {
       position: "relative"
     }}>
       
-      {/* Overlay */}
       <div style={{
         position: "absolute",
         inset: 0,
@@ -101,12 +109,11 @@ export default function Home() {
         display: "grid",
         gridTemplateColumns: "1fr 480px",
         gap: "60px",
-        // Removed 'alignItems: center' to allow content to move up
         alignItems: "start", 
-        paddingTop: "80px" // Pushes content down slightly from very top
+        paddingTop: "80px"
       }}>
 
-        {/* LEFT PANEL - Moved Up */}
+        {/* LEFT PANEL */}
         <div style={{ color: "white", padding: "20px", textAlign: "center" }}>
           <div style={{
             fontSize: "20px",
@@ -167,7 +174,7 @@ export default function Home() {
             </p>
           </div>
 
-          {/* Social Login Buttons */}
+          {/* Social Login Buttons - Fixed */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", marginBottom: "25px" }}>
             <button 
               onClick={() => handleSocialLogin('google')}
