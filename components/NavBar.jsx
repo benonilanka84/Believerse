@@ -31,11 +31,9 @@ export default function NavBar() {
 
   useEffect(() => {
     loadUserProfile();
-
     const { data: authListener } = supabase.auth.onAuthStateChange(() => {
       loadUserProfile();
     });
-
     return () => {
       authListener?.subscription?.unsubscribe();
     };
@@ -67,9 +65,7 @@ export default function NavBar() {
             src="/images/final-logo.png"
             alt="The Believerse Logo"
             style={{ height: "40px", width: "auto" }}
-            onError={(e) => {
-              e.target.style.display = 'none';
-            }}
+            onError={(e) => { e.target.style.display = 'none'; }}
           />
           <span style={{ fontSize: "20px", fontWeight: "bold", color: "#0b2e4a" }}>
             The <span style={{ color: "#d4af37" }}>B</span>elievers<span style={{ color: "#2e8b57" }}>e</span>
@@ -78,53 +74,25 @@ export default function NavBar() {
       </div>
 
       <nav style={{ display: "flex", gap: "20px", alignItems: "center" }}>
-        <Link href="/dashboard" style={{ textDecoration: "none", color: "#0b2e4a", fontWeight: "500" }} title="Your daily walk">
-          🏠 The Walk
-        </Link>
-        <Link href="/glimpses" style={{ textDecoration: "none", color: "#0b2e4a", fontWeight: "500" }} title="Short videos">
-          ⚡ Glimpses
-        </Link>
-        <Link href="/fellowships" style={{ textDecoration: "none", color: "#0b2e4a", fontWeight: "500" }} title="Join groups">
-          👥 Fellowships
-        </Link>
-        <Link href="/believers" style={{ textDecoration: "none", color: "#0b2e4a", fontWeight: "500" }} title="Connect with believers">
-          🤝 Believers
-        </Link>
-        <Link href="/prayer" style={{ textDecoration: "none", color: "#0b2e4a", fontWeight: "500" }} title="Prayer wall">
-          🙏 Prayer
-        </Link>
-        <Link href="/bible" style={{ textDecoration: "none", color: "#0b2e4a", fontWeight: "500" }} title="Read the Bible">
-          📖 Bible
-        </Link>
-        <Link href="/about" style={{ textDecoration: "none", color: "#0b2e4a", fontWeight: "500" }} title="About us">
-          About
-        </Link>
+        <Link href="/dashboard" style={{ textDecoration: "none", color: "#0b2e4a", fontWeight: "500" }}>🏠 The Walk</Link>
+        <Link href="/glimpses" style={{ textDecoration: "none", color: "#0b2e4a", fontWeight: "500" }}>⚡ Glimpses</Link>
+        <Link href="/fellowships" style={{ textDecoration: "none", color: "#0b2e4a", fontWeight: "500" }}>👥 Fellowships</Link>
+        <Link href="/believers" style={{ textDecoration: "none", color: "#0b2e4a", fontWeight: "500" }}>🤝 Believers</Link>
+        <Link href="/prayer" style={{ textDecoration: "none", color: "#0b2e4a", fontWeight: "500" }}>🙏 Prayer</Link>
       </nav>
 
       <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-        <button style={{ background: "transparent", border: "none", fontSize: "20px", cursor: "pointer" }} title="Notifications">
-          🔔
-        </button>
-        <button style={{ background: "transparent", border: "none", fontSize: "20px", cursor: "pointer" }} title="Seek">
-          🔍
-        </button>
+        <button style={{ background: "transparent", border: "none", fontSize: "20px", cursor: "pointer" }} title="Notifications">🔔</button>
+        <button style={{ background: "transparent", border: "none", fontSize: "20px", cursor: "pointer" }} title="Search">🔍</button>
 
         {user ? (
           <div style={{ position: "relative" }}>
             <button
               onClick={() => setDropdownOpen(!dropdownOpen)}
               style={{
-                width: "40px",
-                height: "40px",
-                borderRadius: "50%",
-                border: "2px solid #ddd",
-                cursor: "pointer",
+                width: "40px", height: "40px", borderRadius: "50%", border: "2px solid #ddd", cursor: "pointer",
                 background: avatar ? `url(${avatar}) center/cover` : "#1d3557",
-                color: "white",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                fontWeight: "bold"
+                color: "white", display: "flex", justifyContent: "center", alignItems: "center", fontWeight: "bold"
               }}
             >
               {!avatar && getInitial()}
@@ -132,56 +100,22 @@ export default function NavBar() {
 
             {dropdownOpen && (
               <div style={{
-                position: "absolute",
-                right: 0,
-                marginTop: "8px",
-                width: "200px",
-                background: "#fff",
-                borderRadius: "8px",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                padding: "8px",
-                zIndex: 1000
+                position: "absolute", right: 0, marginTop: "8px", width: "200px", background: "#fff",
+                borderRadius: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.15)", padding: "8px", zIndex: 1000
               }}>
-                <Link href="/profile/edit" style={{ display: "block", padding: "10px", textDecoration: "none", color: "#333", borderRadius: "6px" }}>
-                  Edit Profile
-                </Link>
-                <Link href="/settings" style={{ display: "block", padding: "10px", textDecoration: "none", color: "#333", borderRadius: "6px" }}>
-                  Settings
-                </Link>
-                <Link href="/terms" style={{ display: "block", padding: "10px", textDecoration: "none", color: "#333", borderRadius: "6px" }}>
-                  Terms & Conditions
-                </Link>
+                <Link href="/profile/edit" style={{ display: "block", padding: "10px", textDecoration: "none", color: "#333", borderRadius: "6px" }}>Edit Profile</Link>
+                <Link href="/settings" style={{ display: "block", padding: "10px", textDecoration: "none", color: "#333", borderRadius: "6px" }}>Settings</Link>
+                <Link href="/terms" style={{ display: "block", padding: "10px", textDecoration: "none", color: "#333", borderRadius: "6px" }}>Terms & Conditions</Link>
+                <Link href="/about" style={{ display: "block", padding: "10px", textDecoration: "none", color: "#333", borderRadius: "6px" }}>About</Link>
                 <hr style={{ margin: "8px 0", border: "none", borderTop: "1px solid #eee" }} />
-                <button
-                  onClick={handleLogout}
-                  style={{
-                    width: "100%",
-                    padding: "10px",
-                    background: "transparent",
-                    border: "none",
-                    textAlign: "left",
-                    color: "red",
-                    cursor: "pointer",
-                    borderRadius: "6px"
-                  }}
-                >
-                  Log Out
-                </button>
+                <button onClick={handleLogout} style={{ width: "100%", padding: "10px", background: "transparent", border: "none", textAlign: "left", color: "red", cursor: "pointer", borderRadius: "6px" }}>Log Out</button>
               </div>
             )}
           </div>
         ) : (
           <div style={{ display: "flex", gap: "8px" }}>
             <Link href="/" style={{ textDecoration: "none", color: "#2d6be3" }}>Sign in</Link>
-            <Link href="/signup" style={{
-              padding: "8px 16px",
-              background: "#2e8b57",
-              color: "white",
-              borderRadius: "8px",
-              textDecoration: "none"
-            }}>
-              Join Us
-            </Link>
+            <Link href="/signup" style={{ padding: "8px 16px", background: "#2e8b57", color: "white", borderRadius: "8px", textDecoration: "none" }}>Join Us</Link>
           </div>
         )}
       </div>

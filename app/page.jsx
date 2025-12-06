@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 export default function Home() {
-  const [identifier, setIdentifier] = useState("");
-  const [password, setPassword] = useState("");
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [identifier, setIdentifier] = useState(""); // Email or Username
+  const [password, setPassword] = useState("");
+  
   const router = useRouter();
 
   useEffect(() => {
@@ -23,11 +24,11 @@ export default function Home() {
     }
 
     setLoading(true);
-    setMsg("");
+    setMsg(""); // Clear previous errors
 
-    let emailToUse = identifier;
+    let emailToLogin = identifier;
 
-    // Check if input is a Username (no '@' symbol)
+    // 1. Check if input is a Username (no '@' symbol)
     if (!identifier.includes("@")) {
       const { data, error } = await supabase
         .from('profiles')
@@ -40,20 +41,35 @@ export default function Home() {
         setLoading(false);
         return;
       }
-      emailToUse = data.email;
+      emailToLogin = data.email;
     }
 
+    // 2. Sign in with Email (either direct or fetched from username)
     const { error } = await supabase.auth.signInWithPassword({
-      email: emailToUse,
+      email: emailToLogin,
       password: password,
     });
 
+    setLoading(false);
     if (error) {
       setMsg(error.message);
     } else {
       router.push("/dashboard");
     }
-    setLoading(false);
+  };
+
+  const handleSocialLogin = async (provider) => {
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: provider,
+      options: {
+        redirectTo: `${window.location.origin}/dashboard`,
+      },
+    });
+    if (error) {
+      setMsg(error.message);
+      setLoading(false);
+    }
   };
 
   const handleForgot = async () => {
@@ -64,22 +80,6 @@ export default function Home() {
     const { error } = await supabase.auth.resetPasswordForEmail(identifier);
     if (error) return setMsg(error.message);
     setMsg("Password reset link sent to your email.");
-  };
-
-  // ✅ FIXED: Added Redirect URL logic for Social Login
-  const handleSocialLogin = async (provider) => {
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: provider,
-      options: {
-        redirectTo: `${window.location.origin}/dashboard`,
-      },
-    });
-    
-    if (error) {
-      setMsg(error.message);
-      setLoading(false);
-    }
   };
 
   if (!mounted) return null;
@@ -109,21 +109,21 @@ export default function Home() {
         display: "grid",
         gridTemplateColumns: "1fr 480px",
         gap: "60px",
-        alignItems: "start", 
-        paddingTop: "80px"
+        alignItems: "flex-start", // MOVED UP
+        paddingTop: "80px"        // MOVED UP
       }}>
 
         {/* LEFT PANEL */}
-        <div style={{ color: "white", padding: "20px", textAlign: "center" }}>
+        <div style={{ color: "white", padding: "40px", textAlign: "center" }}>
           <div style={{
             fontSize: "20px",
             fontFamily: "Georgia, serif",
             fontStyle: "italic",
-            marginBottom: "25px",
+            marginBottom: "35px",
             lineHeight: "1.6",
             textShadow: "0 4px 12px rgba(0,0,0,0.5)",
             maxWidth: "700px",
-            margin: "0 auto 25px auto"
+            margin: "0 auto 35px auto"
           }}>
             "I can do all things through Christ who strengthens me."
             <div style={{ fontSize: "17px", marginTop: "12px", fontStyle: "normal", opacity: 0.95 }}>
@@ -134,7 +134,7 @@ export default function Home() {
           <h1 style={{
             fontSize: "72px",
             fontWeight: "800",
-            margin: "0 0 10px 0",
+            margin: "0 0 15px 0",
             letterSpacing: "-1px",
             textShadow: "0 8px 20px rgba(0,0,0,0.6)",
             lineHeight: "1.1"
@@ -147,7 +147,7 @@ export default function Home() {
             fontWeight: "600",
             color: "#e8f5e9",
             textShadow: "0 4px 12px rgba(0,0,0,0.5)",
-            marginTop: "10px",
+            marginTop: "15px",
             letterSpacing: "0.5px"
           }}>
             One Family in Christ.
@@ -161,11 +161,10 @@ export default function Home() {
           padding: "45px 40px",
           boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
           backdropFilter: "blur(10px)",
-          border: "1px solid rgba(255,255,255,0.5)",
-          marginTop: "20px" 
+          border: "1px solid rgba(255,255,255,0.5)"
         }}>
           
-          <div style={{ textAlign: "center", marginBottom: "30px" }}>
+          <div style={{ textAlign: "center", marginBottom: "25px" }}>
             <h2 style={{ margin: "0 0 10px 0", fontSize: "32px", fontWeight: "700", color: "#0b2e4a" }}>
               Welcome Back
             </h2>
@@ -174,31 +173,29 @@ export default function Home() {
             </p>
           </div>
 
-          {/* Social Login Buttons - Fixed */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", marginBottom: "25px" }}>
+          {/* Social Login */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "20px" }}>
             <button 
               onClick={() => handleSocialLogin('google')}
               style={{
-                display: "flex", alignItems: "center", justifyContent: "center", gap: "10px",
-                padding: "10px", background: "white", border: "1px solid #ddd", borderRadius: "8px",
-                cursor: "pointer", fontSize: "14px", color: "#333", fontWeight: "600"
+                display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+                padding: "10px", background: "white", border: "1px solid #ddd", borderRadius: "8px", cursor: "pointer", fontWeight: "600", fontSize: "14px", color: "#333"
               }}>
-              <img src="https://www.svgrepo.com/show/475656/google-color.svg" width="20" alt="G" /> Google
+              <span style={{fontSize: '18px'}}>G</span> Google
             </button>
             <button 
-              onClick={() => handleSocialLogin('azure')} 
+              onClick={() => handleSocialLogin('azure')}
               style={{
-                display: "flex", alignItems: "center", justifyContent: "center", gap: "10px",
-                padding: "10px", background: "white", border: "1px solid #ddd", borderRadius: "8px",
-                cursor: "pointer", fontSize: "14px", color: "#333", fontWeight: "600"
+                display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+                padding: "10px", background: "white", border: "1px solid #ddd", borderRadius: "8px", cursor: "pointer", fontWeight: "600", fontSize: "14px", color: "#333"
               }}>
-              <img src="https://www.svgrepo.com/show/452269/microsoft.svg" width="20" alt="M" /> Microsoft
+              <span style={{fontSize: '18px'}}>M</span> Microsoft
             </button>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "15px", marginBottom: "25px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "15px", marginBottom: "20px" }}>
             <div style={{ flex: 1, height: "1px", background: "#e0e0e0" }} />
-            <span style={{ fontSize: "12px", color: "#999" }}>OR LOGIN WITH EMAIL</span>
+            <span style={{ fontSize: "12px", color: "#999", fontWeight: "500" }}>OR EMAIL</span>
             <div style={{ flex: 1, height: "1px", background: "#e0e0e0" }} />
           </div>
 
@@ -258,17 +255,27 @@ export default function Home() {
             </button>
           </div>
 
-          <div style={{ textAlign: "center", marginTop: "20px" }}>
-            <Link href="/signup" style={{ color: "#2d6be3", fontWeight: "bold", textDecoration: "none" }}>
-              Don't have an account? Sign Up
-            </Link>
+          <div style={{ display: "flex", alignItems: "center", gap: "15px", margin: "30px 0" }}>
+            <div style={{ flex: 1, height: "1px", background: "#e0e0e0" }} />
+            <span style={{ fontSize: "13px", color: "#999", fontWeight: "500" }}>OR</span>
+            <div style={{ flex: 1, height: "1px", background: "#e0e0e0" }} />
           </div>
+
+          <Link href="/signup" style={{ textDecoration: "none" }}>
+            <button style={{
+              width: "100%", padding: "16px", fontSize: "16px", fontWeight: "700", color: "white",
+              background: "linear-gradient(135deg, #2d6be3 0%, #1e4ba8 100%)",
+              border: "none", borderRadius: "12px", cursor: "pointer", boxShadow: "0 8px 20px rgba(45,107,227,0.3)"
+            }}>
+              Create New Account
+            </button>
+          </Link>
 
           {msg && (
             <div style={{
               marginTop: "20px", padding: "12px 16px",
-              background: msg.includes("sent") ? "#e8f5e9" : "#ffebee",
-              color: msg.includes("sent") ? "#2e7d32" : "#c62828",
+              background: msg.includes("reset") ? "#e8f5e9" : "#ffebee",
+              color: msg.includes("reset") ? "#2e7d32" : "#c62828",
               borderRadius: "10px", fontSize: "14px", textAlign: "center"
             }}>
               {msg}
