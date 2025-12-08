@@ -12,8 +12,6 @@ export default function NavBar() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  
-  // Notifications Data
   const [notifications, setNotifications] = useState([]);
   const router = useRouter();
 
@@ -34,14 +32,12 @@ export default function NavBar() {
   }
 
   async function loadNotifications(userId) {
-    // 1. Get Pending Connection Requests
     const { data: reqs } = await supabase
       .from('connections')
       .select('profiles:user_a(full_name)')
       .eq('user_b', userId)
       .eq('status', 'pending');
 
-    // 2. Get Event Invites
     const { data: invites } = await supabase
       .from('event_invites')
       .select('events(title), profiles:sender_id(full_name)')
@@ -62,9 +58,6 @@ export default function NavBar() {
   function handleSearchSubmit(e) {
     e.preventDefault();
     if (searchQuery.trim()) {
-      // Redirect to Believers Seek Tab with query? 
-      // Simplified: Just go to Believers page, user can type there.
-      // Or store in URL params if we wanted to be fancy.
       router.push("/believers"); 
       setSearchOpen(false);
     }
@@ -91,28 +84,22 @@ export default function NavBar() {
         <Link href="/fellowships" style={{ textDecoration: "none", color: "#0b2e4a", fontWeight: "500" }}>👥 Fellowships</Link>
         <Link href="/believers" style={{ textDecoration: "none", color: "#0b2e4a", fontWeight: "500" }}>🤝 Believers</Link>
         <Link href="/prayer" style={{ textDecoration: "none", color: "#0b2e4a", fontWeight: "500" }}>🙏 Prayer</Link>
+        <Link href="/bible" style={{ textDecoration: "none", color: "#0b2e4a", fontWeight: "500" }}>📖 Bible</Link>
       </nav>
 
       <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
         
-        {/* Search Icon */}
+        {/* Search */}
         <div style={{position:'relative'}}>
           <button onClick={() => setSearchOpen(!searchOpen)} style={{ background: "transparent", border: "none", fontSize: "20px", cursor: "pointer" }}>🔍</button>
           {searchOpen && (
             <form onSubmit={handleSearchSubmit} style={{ position:'absolute', right:0, top:'40px', background:'white', padding:'10px', boxShadow:'0 4px 12px rgba(0,0,0,0.1)', borderRadius:'8px', display:'flex', width:'250px' }}>
-              <input 
-                autoFocus
-                type="text" 
-                placeholder="Search..." 
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                style={{flex:1, padding:'8px', border:'1px solid #ddd', borderRadius:'4px'}}
-              />
+              <input autoFocus type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{flex:1, padding:'8px', border:'1px solid #ddd', borderRadius:'4px'}} />
             </form>
           )}
         </div>
 
-        {/* Notifications Icon */}
+        {/* Notifications */}
         <div style={{ position: 'relative' }}>
           <button onClick={() => setNotifOpen(!notifOpen)} style={{ background: "transparent", border: "none", fontSize: "20px", cursor: "pointer" }}>
             🔔
@@ -120,19 +107,10 @@ export default function NavBar() {
               <span style={{ position: 'absolute', top: -5, right: -5, background: 'red', color: 'white', fontSize: '10px', width: '16px', height: '16px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{notifications.length}</span>
             )}
           </button>
-          
           {notifOpen && (
             <div style={{ position: 'absolute', right: 0, top: '40px', width: '280px', background: 'white', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', padding: '10px', zIndex: 1000 }}>
               <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#0b2e4a' }}>Notifications</h4>
-              {notifications.length === 0 ? (
-                <p style={{ fontSize: '12px', color: '#666' }}>No new notifications.</p>
-              ) : (
-                notifications.map((n, i) => (
-                  <div key={i} style={{ padding: '8px', borderBottom: '1px solid #eee', fontSize: '13px' }}>
-                    {n.text}
-                  </div>
-                ))
-              )}
+              {notifications.length === 0 ? <p style={{ fontSize: '12px', color: '#666' }}>No new notifications.</p> : notifications.map((n, i) => (<div key={i} style={{ padding: '8px', borderBottom: '1px solid #eee', fontSize: '13px' }}>{n.text}</div>))}
               <Link href="/believers" style={{ display: 'block', textAlign: 'center', marginTop: '10px', fontSize: '12px', color: '#2e8b57', fontWeight: 'bold', textDecoration:'none' }}>View All Requests</Link>
             </div>
           )}
@@ -144,7 +122,6 @@ export default function NavBar() {
             <button onClick={() => setDropdownOpen(!dropdownOpen)} style={{ width: "40px", height: "40px", borderRadius: "50%", border: "2px solid #ddd", cursor: "pointer", background: avatar ? `url(${avatar}) center/cover` : "#1d3557", color: "white", display: "flex", justifyContent: "center", alignItems: "center", fontWeight: "bold" }}>
               {!avatar && user.email?.[0]?.toUpperCase()}
             </button>
-
             {dropdownOpen && (
               <div style={{ position: "absolute", right: 0, marginTop: "8px", width: "200px", background: "#fff", borderRadius: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.15)", padding: "8px", zIndex: 1000 }}>
                 <Link href="/profile/edit" style={{ display: "block", padding: "10px", textDecoration: "none", color: "#333", borderRadius: "6px" }}>Edit Profile</Link>

@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 
 export default function CreatePost({ user, onPostCreated }) {
@@ -8,34 +8,57 @@ export default function CreatePost({ user, onPostCreated }) {
   const [title, setTitle] = useState("");
   const [type, setType] = useState("Testimony");
   const [loading, setLoading] = useState(false);
-  
-  // Future fields for Bunny.net / UPI
   const [mediaFile, setMediaFile] = useState(null);
-  const [upiId, setUpiId] = useState(""); // For "Bless" button
+  const fileInputRef = useRef(null);
 
   const handlePost = async () => {
-    if (!content.trim()) return;
+    if (!content.trim() && !mediaFile) return;
     setLoading(true);
 
-    // TODO: Upload mediaFile to Bunny.net here in Phase 2
-    // For now, we simulate a post creation
+    let mediaUrl = null;
+    let mediaType = null;
+
+    // 1. Upload Media if present
+    if (mediaFile) {
+      const fileExt = mediaFile.name.split('.').pop();
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      const bucket = "posts"; // Ensure this bucket exists in Supabase Storage
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from(bucket)
+        .upload(fileName, mediaFile);
+
+      if (uploadError) {
+        alert("Upload Error: " + uploadError.message);
+        setLoading(false);
+        return;
+      }
+
+      const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(fileName);
+      mediaUrl = urlData.publicUrl;
+      mediaType = mediaFile.type.startsWith('image') ? 'image' : 'video';
+    }
+
+    // 2. Insert Post
     const { error } = await supabase.from('posts').insert({
       user_id: user.id,
       title: title,
       content: content,
       type: type,
-      // We will save 'upi_id' to profiles table usually, but for now specific to post context? 
-      // Better: Save UPI to profile, but here implies enabling it.
+      media_url: mediaUrl,
+      // You might need to add a 'media_type' column to your posts table if not present:
+      // alter table posts add column media_type text;
     });
 
     setLoading(false);
     if (error) {
-      alert("Error: " + error.message);
+      alert("Error creating post: " + error.message);
     } else {
       setContent("");
       setTitle("");
+      setMediaFile(null);
       setIsOpen(false);
-      if (onPostCreated) onPostCreated();
+      if (onPostCreated) onPostCreated(); // Refresh feed
     }
   };
 
@@ -72,7 +95,8 @@ export default function CreatePost({ user, onPostCreated }) {
         <option value="Testimony">💬 Testimony</option>
         <option value="Prayer">🙏 Prayer Request</option>
         <option value="Scripture">📖 Scripture</option>
-        <option value="Sermon">🎥 Sermon (Video)</option>
+        <option value="Sermon">🎥 Sermon</option>
+        <option value="Others">📝 Others</option>
       </select>
 
       <input 
@@ -90,30 +114,33 @@ export default function CreatePost({ user, onPostCreated }) {
         style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #ddd", minHeight: "100px", fontFamily: "inherit", resize: "vertical", marginBottom: "15px" }}
       />
 
-      {/* Media & UPI Placeholders */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "15px" }}>
-        <div style={{ padding: "10px", border: "1px dashed #ccc", borderRadius: "8px", textAlign: "center", color: "#666", fontSize: "13px", cursor: "pointer" }}>
-          📷 Add Image/Video
-        </div>
+      {/* Media Upload */}
+      <div style={{ marginBottom: "15px" }}>
         <input 
-          type="text" 
-          placeholder="Your UPI ID (e.g. name@okhdfcbank)" 
-          value={upiId} 
-          onChange={e => setUpiId(e.target.value)}
-          style={{ padding: "10px", borderRadius: "8px", border: "1px solid #ddd", fontSize: "13px" }}
+          type="file" 
+          accept="image/*,video/*" 
+          ref={fileInputRef} 
+          style={{ display: 'none' }}
+          onChange={(e) => setMediaFile(e.target.files[0])}
         />
+        <div 
+          onClick={() => fileInputRef.current.click()}
+          style={{ padding: "10px", border: "1px dashed #ccc", borderRadius: "8px", textAlign: "center", color: "#666", fontSize: "13px", cursor: "pointer", background: mediaFile ? "#e8f5e9" : "transparent" }}
+        >
+          {mediaFile ? `✅ ${mediaFile.name}` : "📷 Add Image/Video"}
+        </div>
       </div>
 
       <div style={{ textAlign: "right" }}>
         <button
           onClick={handlePost}
-          disabled={loading || !content.trim()}
+          disabled={loading || (!content.trim() && !mediaFile)}
           style={{
             background: "#2e8b57", color: "white", padding: "10px 25px", borderRadius: "8px", border: "none", fontWeight: "bold",
             cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1
           }}
         >
-          {loading ? "Posting..." : "Spread 📢"}
+          {loading ? "Posting..." : "Post"}
         </button>
       </div>
     </div>
