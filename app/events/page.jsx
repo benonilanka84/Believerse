@@ -8,12 +8,17 @@ export default function EventsPage() {
   const [user, setUser] = useState(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   
-  // Event Data
+  // Data
   const [allEvents, setAllEvents] = useState([]);
-  const [viewMode, setViewMode] = useState("all"); // 'all' or 'my'
+  const [myConnections, setMyConnections] = useState([]); // For Invite list
+  const [viewMode, setViewMode] = useState("all"); 
   const [selectedDate, setSelectedDate] = useState(new Date());
   
-  // Create Event State
+  // Invite Modal State
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [selectedEventForInvite, setSelectedEventForInvite] = useState(null);
+
+  // Create Form State
   const [newEvent, setNewEvent] = useState({
     title: "", description: "", date: "", time: "", location: "",
     type: "Fellowship", isOnline: false, meetingLink: ""
@@ -35,24 +40,48 @@ export default function EventsPage() {
     if (data?.user) {
       setUser(data.user);
       loadEvents();
+      loadConnections(data.user.id);
     }
   }
 
   async function loadEvents() {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('events')
       .select('*')
       .order('event_date', { ascending: true });
-    
     if (data) setAllEvents(data);
+  }
+
+  async function loadConnections(userId) {
+    // Fetch people I am connected with to invite them
+    const { data } = await supabase
+      .from('connections')
+      .select('user_b, profiles:user_b(*)') // Assuming I am user_a
+      .eq('user_a', userId)
+      .eq('status', 'connected'); // Only show accepted friends if you have that status, else remove .eq('status')
+    
+    // Also fetch where I am user_b
+    const { data: data2 } = await supabase
+      .from('connections')
+      .select('user_a, profiles:user_a(*)')
+      .eq('user_b', userId)
+      .eq('status', 'connected');
+
+    const friends = [];
+    if (data) data.forEach(d => friends.push(d.profiles));
+    if (data2) data2.forEach(d => friends.push(d.profiles));
+    
+    // Remove duplicates and nulls
+    const uniqueFriends = friends.filter((v,i,a)=>a.findIndex(v2=>(v2?.id===v?.id))===i && v);
+    setMyConnections(uniqueFriends);
   }
 
   async function handleCreateEvent(e) {
     e.preventDefault();
     if (!user) return;
 
-    // 1. Insert Event into DB
-    const { data: eventData, error } = await supabase.from('events').insert({
+    // 1. Create Event
+    const { error } = await supabase.from('events').insert({
       user_id: user.id,
       title: newEvent.title,
       description: newEvent.description,
@@ -61,33 +90,43 @@ export default function EventsPage() {
       location: newEvent.isOnline ? "Online" : newEvent.location,
       is_online: newEvent.isOnline,
       meeting_link: newEvent.meetingLink
-    }).select().single();
+    });
 
     if (error) {
-      alert("Error creating event: " + error.message);
+      alert("Error: " + error.message);
       return;
     }
 
-    // 2. Auto-Share to The Walk (Feed) so friends see it
-    const postContent = `📅 New Event: ${newEvent.title}\n\n${newEvent.description}\n\nJoin us on ${newEvent.date} at ${newEvent.time}!`;
-    await supabase.from('posts').insert({
-      user_id: user.id,
-      content: postContent,
-      type: "Event",
-      title: "📅 Upcoming Event"
+    alert("✅ Event Created!");
+    setShowCreateForm(false);
+    loadEvents();
+  }
+
+  async function sendInvite(friendId) {
+    if (!selectedEventForInvite) return;
+
+    // 1. Record Invite
+    await supabase.from('event_invites').insert({
+      event_id: selectedEventForInvite.id,
+      sender_id: user.id,
+      receiver_id: friendId
     });
 
-    alert("✅ Event Created & Shared to The Walk!");
-    setShowCreateForm(false);
-    loadEvents(); // Refresh list
+    // 2. Send Chat Message (So they see it properly)
+    const msg = `📅 I invited you to: ${selectedEventForInvite.title}\n${selectedEventForInvite.event_date} @ ${selectedEventForInvite.event_time}`;
+    await supabase.from('messages').insert({
+      sender_id: user.id,
+      receiver_id: friendId,
+      content: msg
+    });
+
+    alert("Invite sent!");
   }
 
   // Filter Logic
   const visibleEvents = viewMode === "my" 
     ? allEvents.filter(e => e.user_id === user?.id)
     : allEvents;
-
-  const eventsOnSelectedDate = visibleEvents.filter(e => e.event_date === selectedDate.toISOString().split('T')[0]);
 
   if (!mounted) return null;
 
@@ -137,45 +176,67 @@ export default function EventsPage() {
               <input type="text" placeholder="Location Address" value={newEvent.location} onChange={e => setNewEvent({...newEvent, location: e.target.value})} style={{ padding: "10px", borderRadius: "8px", border: "1px solid #ddd" }} />
             )}
 
-            <button type="submit" style={{ padding: "12px", background: "#2e8b57", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}>Publish & Share</button>
+            <button type="submit" style={{ padding: "12px", background: "#2e8b57", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}>Publish Event</button>
           </form>
         </div>
       )}
 
       {/* Events List */}
       <div>
-        <h3 style={{ color: "#0b2e4a", borderBottom: "2px solid #eee", paddingBottom: "10px" }}>
-          {viewMode === 'my' ? 'My Events' : 'Upcoming Events'}
-        </h3>
-        
-        {visibleEvents.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "40px", color: "#999", background: "white", borderRadius: "12px" }}>
-            No events found.
-          </div>
-        ) : (
-          visibleEvents.map(event => (
-            <div key={event.id} style={{ background: "white", padding: "20px", borderRadius: "12px", marginBottom: "15px", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", borderLeft: "4px solid #2e8b57" }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <h3 style={{ margin: "0 0 5px 0", color: "#0b2e4a" }}>{event.title}</h3>
-                <span style={{ fontSize: "12px", background: "#f0f0f0", padding: "4px 8px", borderRadius: "4px" }}>{event.event_date}</span>
-              </div>
-              <p style={{color:'#555', margin:'5px 0 10px 0'}}>{event.description}</p>
-              <div style={{ color: "#666", fontSize: "14px", marginBottom: "10px" }}>
-                🕒 {event.event_time} • {event.is_online ? "🌐 Online" : `📍 ${event.location}`}
-              </div>
-              
-              <div style={{display:'flex', gap:'10px'}}>
-                <button onClick={() => {
-                   if(navigator.share) navigator.share({title: event.title, text: event.description});
-                   else alert("Link copied!");
-                }} style={{ padding: "6px 12px", background: "#e8f5e9", color: "#2e8b57", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold", fontSize:'13px' }}>
-                  📢 Spread
-                </button>
-              </div>
+        {visibleEvents.map(event => (
+          <div key={event.id} style={{ background: "white", padding: "20px", borderRadius: "12px", marginBottom: "15px", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", borderLeft: "4px solid #2e8b57" }}>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <h3 style={{ margin: "0 0 5px 0", color: "#0b2e4a" }}>{event.title}</h3>
+              <span style={{ fontSize: "12px", background: "#f0f0f0", padding: "4px 8px", borderRadius: "4px" }}>{event.event_date}</span>
             </div>
-          ))
-        )}
+            <p style={{color:'#555', margin:'5px 0 10px 0'}}>{event.description}</p>
+            <div style={{ color: "#666", fontSize: "14px", marginBottom: "10px" }}>
+              🕒 {event.event_time} • {event.is_online ? "🌐 Online" : `📍 ${event.location}`}
+            </div>
+            
+            <div style={{display:'flex', gap:'10px'}}>
+              {/* Invite Believers Button */}
+              {user && (
+                <button 
+                  onClick={() => { setSelectedEventForInvite(event); setInviteModalOpen(true); }}
+                  style={{ padding: "6px 12px", background: "#0b2e4a", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold", fontSize:'13px' }}
+                >
+                  📩 Invite Believers
+                </button>
+              )}
+              {event.is_online && event.meeting_link && (
+                <a href={event.meeting_link} target="_blank" style={{ padding: "6px 12px", background: "#e8f5e9", color: "#2e8b57", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold", fontSize:'13px', textDecoration:'none' }}>
+                  Join Link
+                </a>
+              )}
+            </div>
+          </div>
+        ))}
       </div>
+
+      {/* Invite Modal */}
+      {inviteModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: 'white', padding: '20px', borderRadius: '12px', width: '90%', maxWidth: '400px' }}>
+            <h3 style={{ marginTop: 0 }}>Invite to {selectedEventForInvite?.title}</h3>
+            <p style={{ fontSize: '13px', color: '#666' }}>Select a believer to invite:</p>
+            
+            <div style={{ maxHeight: '200px', overflowY: 'auto', marginBottom: '15px' }}>
+              {myConnections.length === 0 ? (
+                <p>You have no connected believers yet.</p>
+              ) : (
+                myConnections.map(friend => (
+                  <div key={friend.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px', borderBottom: '1px solid #eee', alignItems:'center' }}>
+                    <span>{friend.full_name}</span>
+                    <button onClick={() => sendInvite(friend.id)} style={{ padding: '4px 8px', background: '#2e8b57', color: 'white', borderRadius: '4px', border: 'none', cursor: 'pointer' }}>Send</button>
+                  </div>
+                ))
+              )}
+            </div>
+            <button onClick={() => setInviteModalOpen(false)} style={{ width: '100%', padding: '10px', background: '#f0f0f0', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Close</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

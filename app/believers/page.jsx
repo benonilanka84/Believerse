@@ -20,24 +20,23 @@ export default function BelieversPage() {
     const { data } = await supabase.auth.getUser();
     if (data?.user) {
       setUser(data.user);
-      loadBelievers(); // Load initial list
+      loadBelievers();
     }
   }
 
-  // Load random/newest believers
   async function loadBelievers() {
     setLoading(true);
+    // Fetch all profiles except mine
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .neq('id', user?.id || '') // Don't show myself
-      .limit(20);
+      .neq('id', user?.id || '')
+      .limit(50);
     
     if (data) setBelievers(data);
     setLoading(false);
   }
 
-  // Search Logic
   async function handleSearch() {
     if (!searchQuery.trim()) {
       loadBelievers();
@@ -48,7 +47,7 @@ export default function BelieversPage() {
       .from('profiles')
       .select('*')
       .neq('id', user?.id)
-      .ilike('full_name', `%${searchQuery}%`); // Case-insensitive search
+      .ilike('full_name', `%${searchQuery}%`);
     
     if (data) setBelievers(data);
     setLoading(false);
@@ -56,18 +55,23 @@ export default function BelieversPage() {
 
   async function handleConnect(targetUserId) {
     if (!user) return;
+    
+    // Check if already connected/requested
+    const { data: existing } = await supabase.from('connections').select('*').or(`and(user_a.eq.${user.id},user_b.eq.${targetUserId}),and(user_a.eq.${targetUserId},user_b.eq.${user.id})`);
+    
+    if (existing && existing.length > 0) {
+      alert("Already connected or request pending!");
+      return;
+    }
+
     const { error } = await supabase.from('connections').insert({
       user_a: user.id,
       user_b: targetUserId,
-      status: 'pending'
+      status: 'connected' // Auto-connect for now (simpler for beta)
     });
     
-    if (error) {
-      // Duplicate error means already connected
-      alert(error.code === '23505' ? "Request already sent!" : "Error connecting.");
-    } else {
-      alert("Request sent!");
-    }
+    if (error) alert("Error: " + error.message);
+    else alert("✅ Connected! You can now invite them to events.");
   }
 
   if (!mounted) return null;
@@ -79,7 +83,6 @@ export default function BelieversPage() {
         <p style={{ opacity: 0.9 }}>Connect with the family of God</p>
       </div>
 
-      {/* Search Bar */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '30px' }}>
         <input 
           type="text" 
@@ -94,12 +97,10 @@ export default function BelieversPage() {
         </button>
       </div>
 
-      {/* List */}
-      {loading ? <p>Loading believers...</p> : (
+      {loading ? <p>Loading...</p> : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "20px" }}>
           {believers.map(b => (
             <div key={b.id} style={{ background: "white", padding: "20px", borderRadius: "12px", textAlign: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
-              {/* Avatar */}
               {b.avatar_url ? (
                 <img src={b.avatar_url} style={{ width: 80, height: 80, borderRadius: "50%", objectFit: "cover", margin: "0 auto 10px auto" }} />
               ) : (
@@ -111,14 +112,9 @@ export default function BelieversPage() {
               <h3 style={{ fontSize: "16px", margin: "0 0 5px 0", color: "#0b2e4a" }}>{b.full_name}</h3>
               <p style={{ fontSize: "12px", color: "#666", marginBottom: "15px" }}>{b.church || "Believer"}</p>
               
-              <div style={{ display: 'flex', flexDirection:'column', gap:'8px' }}>
-                <button onClick={() => handleConnect(b.id)} style={{ padding: "8px", background: "#2e8b57", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold", fontSize: "13px" }}>
-                  ➕ Connect
-                </button>
-                <Link href={`/chat?uid=${b.id}`} style={{ padding: "8px", background: "#f0f0f0", color: "#333", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold", fontSize: "13px", textDecoration:'none' }}>
-                  💬 Message
-                </Link>
-              </div>
+              <button onClick={() => handleConnect(b.id)} style={{ width:'100%', padding: "8px", background: "#2e8b57", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold", fontSize: "13px" }}>
+                ➕ Connect
+              </button>
             </div>
           ))}
         </div>
