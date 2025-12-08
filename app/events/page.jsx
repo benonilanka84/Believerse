@@ -52,30 +52,29 @@ export default function EventsPage() {
     if (data) setAllEvents(data);
   }
 
-  // FIXED: Two-Step Connection Loader (More Reliable)
   async function loadConnections(userId) {
-    // 1. Get all connection rows where I am involved
     const { data: conns } = await supabase
       .from('connections')
       .select('*')
       .or(`user_a.eq.${userId},user_b.eq.${userId}`)
-      .eq('status', 'connected');
+      .eq('status', 'connected'); // Only showing accepted friends
 
     if (!conns || conns.length === 0) {
       setMyConnections([]);
       return;
     }
 
-    // 2. Extract the OTHER person's ID
     const friendIds = conns.map(c => c.user_a === userId ? c.user_b : c.user_a);
-
-    // 3. Fetch their profiles
-    const { data: friends } = await supabase
-      .from('profiles')
-      .select('*')
-      .in('id', friendIds);
-
+    const { data: friends } = await supabase.from('profiles').select('*').in('id', friendIds);
     setMyConnections(friends || []);
+  }
+
+  // --- FIXED DATE UTILS (Prevents Timezone Shifts) ---
+  function toLocalISODate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   async function handleCreateEvent(e) {
@@ -105,13 +104,11 @@ export default function EventsPage() {
 
   async function sendInvite(friendId) {
     if (!selectedEventForInvite) return;
-
     await supabase.from('event_invites').insert({
       event_id: selectedEventForInvite.id,
       sender_id: user.id,
       receiver_id: friendId
     });
-
     alert("Invite sent!");
     setInviteModalOpen(false);
   }
@@ -120,8 +117,9 @@ export default function EventsPage() {
     ? allEvents.filter(e => e.user_id === user?.id)
     : allEvents;
 
-  // Filter events for the selected date
-  const eventsOnDate = visibleEvents.filter(e => e.event_date === selectedDate.toISOString().split('T')[0]);
+  // Filter Logic: Compare strict YYYY-MM-DD strings
+  const selectedDateStr = toLocalISODate(selectedDate);
+  const eventsOnDate = visibleEvents.filter(e => e.event_date === selectedDateStr);
 
   if (!mounted) return null;
 
@@ -135,21 +133,15 @@ export default function EventsPage() {
         <h1 style={{ margin: 0 }}>📅 Events</h1>
       </div>
 
-      {/* Tabs */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-        <button onClick={() => setViewMode("all")} style={{ flex: 1, padding: "12px", borderRadius: "8px", border: "none", background: viewMode === "all" ? "#0b2e4a" : "white", color: viewMode === "all" ? "white" : "#333", fontWeight: "bold" }}>
-          🌐 All Events
-        </button>
-        <button onClick={() => setViewMode("my")} style={{ flex: 1, padding: "12px", borderRadius: "8px", border: "none", background: viewMode === "my" ? "#0b2e4a" : "white", color: viewMode === "my" ? "white" : "#333", fontWeight: "bold" }}>
-          👤 My Events
-        </button>
+        <button onClick={() => setViewMode("all")} style={{ flex: 1, padding: "12px", borderRadius: "8px", border: "none", background: viewMode === "all" ? "#0b2e4a" : "white", color: viewMode === "all" ? "white" : "#333", fontWeight: "bold" }}>🌐 All Events</button>
+        <button onClick={() => setViewMode("my")} style={{ flex: 1, padding: "12px", borderRadius: "8px", border: "none", background: viewMode === "my" ? "#0b2e4a" : "white", color: viewMode === "my" ? "white" : "#333", fontWeight: "bold" }}>👤 My Events</button>
       </div>
 
       <button onClick={() => setShowCreateForm(!showCreateForm)} style={{ width: "100%", padding: "15px", background: "#f0fff4", color: "#2e8b57", border: "2px dashed #2e8b57", borderRadius: "12px", fontSize: "16px", fontWeight: "bold", marginBottom: "20px" }}>
         {showCreateForm ? "Cancel Creation" : "➕ Create New Event"}
       </button>
 
-      {/* Create Form */}
       {showCreateForm && (
         <div style={{ background: "white", padding: "25px", borderRadius: "12px", marginBottom: "20px", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
           <form onSubmit={handleCreateEvent} style={{ display: "grid", gap: "15px" }}>
@@ -173,26 +165,21 @@ export default function EventsPage() {
         </div>
       )}
 
-      {/* Calendar & List */}
       <div style={{ display: "grid", gridTemplateColumns: "350px 1fr", gap: "20px" }}>
-        
         {/* Calendar */}
         <div style={{ background: "white", padding: "20px", borderRadius: "12px", height: "fit-content" }}>
           <div style={{ textAlign: "center", marginBottom: "15px", fontWeight: "bold", color: "#0b2e4a" }}>
             {monthNames[selectedDate.getMonth()]} {selectedDate.getFullYear()}
           </div>
-          
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "5px" }}>
             {["S","M","T","W","T","F","S"].map(d => <div key={d} style={{ fontSize: "12px", textAlign: "center", color: "#888" }}>{d}</div>)}
             {Array.from({ length: startingDayOfWeek }).map((_, i) => <div key={`empty-${i}`} />)}
             {Array.from({ length: daysInMonth }).map((_, i) => {
               const day = i + 1;
               const dateCheck = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day);
-              const year = dateCheck.getFullYear();
-              const month = String(dateCheck.getMonth() + 1).padStart(2, '0');
-              const d = String(dateCheck.getDate()).padStart(2, '0');
-              const checkDate = `${year}-${month}-${d}`;
-              const hasEvent = visibleEvents.some(e => e.event_date === checkDate);
+              const checkDateStr = toLocalISODate(dateCheck); // Use local string
+              
+              const hasEvent = visibleEvents.some(e => e.event_date === checkDateStr);
               const isSelected = day === selectedDate.getDate();
 
               return (
@@ -200,7 +187,6 @@ export default function EventsPage() {
                   style={{ 
                     textAlign: "center", padding: "8px", borderRadius: "8px", cursor: "pointer", fontSize: "14px",
                     background: isSelected ? "#2e8b57" : (hasEvent ? "#e8f5e9" : "transparent"),
-                    // FIXED: Force text color to dark grey if not selected, White if selected
                     color: isSelected ? "white" : "#333",
                     fontWeight: isSelected || hasEvent ? "bold" : "normal"
                   }}
@@ -217,7 +203,6 @@ export default function EventsPage() {
           <h3 style={{ marginTop: 0, color: "#0b2e4a", borderBottom: "2px solid #eee", paddingBottom: "10px" }}>
             Events for {selectedDate.toDateString()}
           </h3>
-          
           {eventsOnDate.length === 0 ? (
             <div style={{ textAlign: "center", padding: "40px", color: "#999", background: "white", borderRadius: "12px" }}>No events.</div>
           ) : (
@@ -228,20 +213,15 @@ export default function EventsPage() {
                 <div style={{ color: "#666", fontSize: "14px", marginBottom: "10px" }}>
                   🕒 {event.event_time} • {event.is_online ? "🌐 Online" : `📍 ${event.location}`}
                 </div>
-                {/* Invite Button */}
-                <button 
-                  onClick={() => { setSelectedEventForInvite(event); setInviteModalOpen(true); }}
-                  style={{ padding: "6px 12px", background: "#0b2e4a", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold", fontSize:'13px' }}
-                >
-                  📩 Invite Believers
-                </button>
+                {user && (
+                  <button onClick={() => { setSelectedEventForInvite(event); setInviteModalOpen(true); }} style={{ padding: "6px 12px", background: "#0b2e4a", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold", fontSize:'13px' }}>📩 Invite Believers</button>
+                )}
               </div>
             ))
           )}
         </div>
       </div>
 
-      {/* Invite Modal */}
       {inviteModalOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
           <div style={{ background: 'white', padding: '20px', borderRadius: '12px', width: '90%', maxWidth: '400px' }}>
