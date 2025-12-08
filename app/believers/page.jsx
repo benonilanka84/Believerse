@@ -20,17 +20,17 @@ export default function BelieversPage() {
     const { data } = await supabase.auth.getUser();
     if (data?.user) {
       setUser(data.user);
-      loadBelievers();
+      loadBelievers(data.user.id);
     }
   }
 
-  async function loadBelievers() {
+  async function loadBelievers(userId) {
     setLoading(true);
-    // Fetch all profiles except mine
+    // Fetch all profiles that are NOT me
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .neq('id', user?.id || '')
+      .neq('id', userId || '')
       .limit(50);
     
     if (data) setBelievers(data);
@@ -39,11 +39,11 @@ export default function BelieversPage() {
 
   async function handleSearch() {
     if (!searchQuery.trim()) {
-      loadBelievers();
+      loadBelievers(user?.id);
       return;
     }
     setLoading(true);
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('profiles')
       .select('*')
       .neq('id', user?.id)
@@ -56,22 +56,23 @@ export default function BelieversPage() {
   async function handleConnect(targetUserId) {
     if (!user) return;
     
-    // Check if already connected/requested
-    const { data: existing } = await supabase.from('connections').select('*').or(`and(user_a.eq.${user.id},user_b.eq.${targetUserId}),and(user_a.eq.${targetUserId},user_b.eq.${user.id})`);
+    // Check existing
+    const { data: existing } = await supabase.from('connections').select('*')
+      .or(`and(user_a.eq.${user.id},user_b.eq.${targetUserId}),and(user_a.eq.${targetUserId},user_b.eq.${user.id})`);
     
     if (existing && existing.length > 0) {
-      alert("Already connected or request pending!");
+      alert("Already connected or pending!");
       return;
     }
 
     const { error } = await supabase.from('connections').insert({
       user_a: user.id,
       user_b: targetUserId,
-      status: 'connected' // Auto-connect for now (simpler for beta)
+      status: 'connected'
     });
     
     if (error) alert("Error: " + error.message);
-    else alert("✅ Connected! You can now invite them to events.");
+    else alert("✅ Connected!");
   }
 
   if (!mounted) return null;
@@ -84,17 +85,8 @@ export default function BelieversPage() {
       </div>
 
       <div style={{ display: 'flex', gap: '10px', marginBottom: '30px' }}>
-        <input 
-          type="text" 
-          placeholder="Search by name..." 
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-          style={{ flex: 1, padding: "15px", borderRadius: "12px", border: "1px solid #ddd", fontSize: "16px" }}
-        />
-        <button onClick={handleSearch} style={{ padding: "0 25px", background: "#0b2e4a", color: "white", borderRadius: "12px", border: "none", cursor: "pointer", fontWeight: "bold" }}>
-          🔍 Seek
-        </button>
+        <input type="text" placeholder="Search by name..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ flex: 1, padding: "15px", borderRadius: "12px", border: "1px solid #ddd", fontSize: "16px" }} />
+        <button onClick={handleSearch} style={{ padding: "0 25px", background: "#0b2e4a", color: "white", borderRadius: "12px", border: "none", cursor: "pointer", fontWeight: "bold" }}>🔍 Seek</button>
       </div>
 
       {loading ? <p>Loading...</p> : (
@@ -104,17 +96,11 @@ export default function BelieversPage() {
               {b.avatar_url ? (
                 <img src={b.avatar_url} style={{ width: 80, height: 80, borderRadius: "50%", objectFit: "cover", margin: "0 auto 10px auto" }} />
               ) : (
-                <div style={{ width: 80, height: 80, borderRadius: "50%", background: "#e8f5e9", color: "#2e8b57", fontSize: "30px", fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 10px auto" }}>
-                  {b.full_name?.[0] || "B"}
-                </div>
+                <div style={{ width: 80, height: 80, borderRadius: "50%", background: "#e8f5e9", color: "#2e8b57", fontSize: "30px", fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 10px auto" }}>{b.full_name?.[0] || "B"}</div>
               )}
-              
               <h3 style={{ fontSize: "16px", margin: "0 0 5px 0", color: "#0b2e4a" }}>{b.full_name}</h3>
-              <p style={{ fontSize: "12px", color: "#666", marginBottom: "15px" }}>{b.church || "Believer"}</p>
-              
-              <button onClick={() => handleConnect(b.id)} style={{ width:'100%', padding: "8px", background: "#2e8b57", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold", fontSize: "13px" }}>
-                ➕ Connect
-              </button>
+              <button onClick={() => handleConnect(b.id)} style={{ width:'100%', padding: "8px", background: "#2e8b57", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }}>➕ Connect</button>
+              <Link href={`/chat?uid=${b.id}`} style={{ display:'block', marginTop:'10px', color:'#555', fontSize:'13px', textDecoration:'none' }}>💬 Message</Link>
             </div>
           ))}
         </div>
