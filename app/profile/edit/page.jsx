@@ -12,7 +12,7 @@ export default function EditProfile() {
   
   const [profile, setProfile] = useState({
     full_name: "", dob: "", gender: "", church: "", about: "", faith_journey: "", avatar_url: "",
-    upi_id: "" // NEW FIELD
+    upi_id: "" 
   });
 
   useEffect(() => {
@@ -32,7 +32,7 @@ export default function EditProfile() {
             about: data.about || "",
             faith_journey: data.faith_journey || "",
             avatar_url: data.avatar_url || "",
-            upi_id: data.upi_id || "" // Load existing UPI
+            upi_id: data.upi_id || "" 
           });
         }
       } finally { setLoading(false); }
@@ -63,17 +63,32 @@ export default function EditProfile() {
     await supabase.from("profiles").update({ avatar_url: url }).eq("id", user.id);
   }
 
+  // --- FIXED SAVE FUNCTION ---
   async function saveProfile() {
     try {
-      const { error } = await supabase.from("profiles").upsert({
+      // Prepare data: Convert empty strings to NULL for database compatibility
+      const updates = {
         id: user.id,
         updated_at: new Date().toISOString(),
-        ...profile
-      });
+        full_name: profile.full_name,
+        dob: profile.dob === "" ? null : profile.dob, // FIX: Send null if empty
+        gender: profile.gender === "" ? null : profile.gender,
+        church: profile.church,
+        about: profile.about,
+        faith_journey: profile.faith_journey,
+        upi_id: profile.upi_id, // Save UPI
+        avatar_url: profile.avatar_url
+      };
+
+      const { error } = await supabase.from("profiles").upsert(updates);
       if (error) throw error;
-      alert("✅ Profile saved!");
+      
+      alert("✅ Profile saved successfully!");
       router.push("/dashboard");
-    } catch (err) { alert("Save failed: " + err.message); }
+    } catch (err) { 
+      console.error(err);
+      alert("Save failed: " + err.message); 
+    }
   }
 
   if (loading) return <p style={{padding:40, textAlign:'center'}}>Loading...</p>;
@@ -136,6 +151,10 @@ export default function EditProfile() {
           <div>
             <label style={{ display: "block", marginBottom: "8px", fontWeight: "600", color: "#333" }}>About Me</label>
             <textarea value={profile.about} onChange={e => setProfile({...profile, about: e.target.value})} style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #ddd", minHeight: "80px" }} />
+          </div>
+          <div>
+            <label style={{ display: "block", marginBottom: "8px", fontWeight: "600", color: "#333" }}>Faith Journey</label>
+            <textarea value={profile.faith_journey} onChange={e => setProfile({...profile, faith_journey: e.target.value})} style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #ddd", minHeight: "100px" }} />
           </div>
         </div>
 

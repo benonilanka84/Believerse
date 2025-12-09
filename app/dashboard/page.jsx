@@ -35,6 +35,9 @@ export default function Dashboard() {
   const [editingPost, setEditingPost] = useState(null);
   const [editContent, setEditContent] = useState("");
 
+  // BLESS MODAL STATE
+  const [blessModalUser, setBlessModalUser] = useState(null);
+
   const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
   useEffect(() => {
@@ -48,12 +51,9 @@ export default function Dashboard() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUser(user);
-        
-        // Load User Profile
         const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
         setProfile(data);
         
-        // Load All Data
         loadAllData(user.id);
       }
     };
@@ -91,42 +91,21 @@ export default function Dashboard() {
   }
 
   async function loadPrayerWall(userId) {
-    // 1. Get Friend IDs
-    const { data: conns } = await supabase
-      .from('connections')
-      .select('user_a, user_b')
-      .or(`user_a.eq.${userId},user_b.eq.${userId}`)
-      .eq('status', 'connected');
-
+    const { data: conns } = await supabase.from('connections').select('user_a, user_b').or(`user_a.eq.${userId},user_b.eq.${userId}`).eq('status', 'connected');
     let friendIds = [userId]; 
-    if (conns) {
-      conns.forEach(c => {
-        friendIds.push(c.user_a === userId ? c.user_b : c.user_a);
-      });
-    }
-
-    // 2. Fetch Prayers
-    const { data } = await supabase
-      .from('posts')
-      .select('id, content, profiles(full_name)')
-      .eq('type', 'Prayer')
-      .in('user_id', friendIds)
-      .order('created_at', { ascending: false })
-      .limit(5);
-    
+    if (conns) conns.forEach(c => friendIds.push(c.user_a === userId ? c.user_b : c.user_a));
+    const { data } = await supabase.from('posts').select('id, content, profiles(full_name)').eq('type', 'Prayer').in('user_id', friendIds).order('created_at', { ascending: false }).limit(5);
     setPrayerRequests(data || []);
   }
 
   async function loadRecentChats(userId) {
     const { data: msgs } = await supabase.from('messages').select('sender_id, receiver_id').or(`sender_id.eq.${userId},receiver_id.eq.${userId}`).order('created_at', { ascending: false }).limit(20);
     if (!msgs) return;
-    
     const partnerIds = new Set();
     msgs.forEach(m => {
       if (m.sender_id !== userId) partnerIds.add(m.sender_id);
       if (m.receiver_id !== userId) partnerIds.add(m.receiver_id);
     });
-    
     if (partnerIds.size > 0) {
       const { data: profiles } = await supabase.from('profiles').select('*').in('id', Array.from(partnerIds)).limit(3);
       setRecentChats(profiles || []);
@@ -143,9 +122,7 @@ export default function Dashboard() {
   }
 
   function filterEventsByDate(date, allEvents) {
-    const year = date.getFullYear(); 
-    const month = String(date.getMonth() + 1).padStart(2, '0'); 
-    const day = String(date.getDate()).padStart(2, '0');
+    const year = date.getFullYear(); const month = String(date.getMonth() + 1).padStart(2, '0'); const day = String(date.getDate()).padStart(2, '0');
     const dateStr = `${year}-${month}-${day}`;
     setFilteredEvents(allEvents.filter(e => e.event_date === dateStr));
   }
@@ -156,13 +133,12 @@ export default function Dashboard() {
     filterEventsByDate(newDate, events);
   }
 
-  // --- 4. FEED LOGIC (With UPI ID Fetch) ---
+  // --- 4. FEED ---
   async function loadPosts(currentUserId, isRefresh = false) {
     if (!isRefresh) setLoadingPosts(true);
-    
     const { data, error } = await supabase
       .from('posts')
-      .select(`*, profiles (username, full_name, avatar_url, upi_id), amens (user_id)`) // Fetching UPI ID here
+      .select(`*, profiles (username, full_name, avatar_url, upi_id), amens (user_id)`)
       .order('created_at', { ascending: false });
 
     if (!error && data) {
@@ -177,17 +153,13 @@ export default function Dashboard() {
     setLoadingPosts(false);
   }
 
-  // --- 5. ACTIONS (Bless, Amen, Etc) ---
-  function handleBless(author) {
+  // --- 5. ACTIONS ---
+  function handleBlessClick(author) {
     if (!author?.upi_id) {
       alert(`God bless! ${author.full_name} has not set up their UPI ID yet.`);
       return;
     }
-    // Deep Link for Mobile UPI Apps
-    const upiUrl = `upi://pay?pa=${author.upi_id}&pn=${encodeURIComponent(author.full_name)}&cu=INR`;
-    
-    // On Desktop this does nothing, but on Mobile it opens GPay/PhonePe
-    window.open(upiUrl, '_blank');
+    setBlessModalUser(author); // Open Modal
   }
 
   async function handleAmen(postId, currentlyAmened) {
@@ -305,10 +277,7 @@ export default function Dashboard() {
                  )}
                  <div style={{display:'flex', justifyContent:'space-between', marginTop:'15px', borderTop:'1px solid #eee', paddingTop:'10px'}}>
                    <button onClick={() => handleAmen(post.id, post.hasAmened)} style={{background:'none', border:'none', color: post.hasAmened ? '#2e8b57' : '#666', fontWeight: post.hasAmened ? 'bold' : 'normal', cursor:'pointer'}}>🙏 Amen ({post.amenCount})</button>
-                   
-                   {/* BLESS BUTTON (Functional) */}
-                   <button onClick={() => handleBless(post.author)} style={{background:'none', border:'none', color:'#d4af37', fontWeight:'bold', cursor:'pointer'}}>✨ Bless</button>
-                   
+                   <button onClick={() => handleBlessClick(post.author)} style={{background:'none', border:'none', color:'#d4af37', fontWeight:'bold', cursor:'pointer'}}>✨ Bless</button>
                    <button onClick={() => handleShare(post.content)} style={{background:'none', border:'none', color:'#666', cursor:'pointer'}}>📢 Spread</button>
                  </div>
                </div>
@@ -333,24 +302,21 @@ export default function Dashboard() {
           </div>
           <div className="panel-card" style={{background:'#fff9e6', borderLeft:'4px solid #d4af37'}}>
             <h3>🙏 Prayer Wall</h3>
-            {prayerRequests.length === 0 ? <p style={{fontSize:'12px', color:'#666'}}>No requests yet.</p> : 
+            {prayerRequests.length === 0 ? <p style={{fontSize:'12px', color:'#666'}}>No requests from friends.</p> : 
               prayerRequests.map(p => (
                 <div key={p.id} style={{marginBottom:'8px', fontSize:'12px'}}>
-                  <div style={{fontWeight:'bold', color:'#0b2e4a'}}>{p.profiles?.full_name}</div>
+                  <div style={{fontWeight:'bold', color:'#000'}}>{p.profiles?.full_name}</div>
                   <div style={{fontStyle:'italic', color:'#555'}}>"{p.content.substring(0, 40)}..."</div>
                 </div>
               ))
             }
             <button style={{width:'100%', padding:'8px', background:'#2e8b57', color:'white', border:'none', borderRadius:'6px', cursor:'pointer', marginTop:'5px'}}>I'll Pray</button>
           </div>
-          
-          {/* Recent Chats (Fixed Visibility) */}
           <div className="panel-card">
             <h3>💬 Recent Chats</h3>
             {recentChats.map(c => (
               <Link key={c.id} href={`/chat?uid=${c.id}`} style={{display:'flex', alignItems:'center', gap:'10px', padding:'8px', background:'#f5f5f5', borderRadius:'8px', marginBottom:'5px', textDecoration:'none'}}>
                 <img src={c.avatar_url || '/images/default-avatar.png'} style={{width:30, height:30, borderRadius:'50%'}} />
-                {/* FORCE DARK COLOR */}
                 <div style={{fontSize:'13px', fontWeight:'bold', color:'#0b2e4a'}}>{c.full_name}</div>
               </Link>
             ))}
@@ -358,6 +324,40 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* BLESS MODAL */}
+      {blessModalUser && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: 'white', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '350px', textAlign: 'center', boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
+            <h3 style={{ margin: '0 0 15px 0', color: '#0b2e4a' }}>Bless {blessModalUser.full_name}</h3>
+            
+            <div style={{ background: '#f9f9f9', padding: '15px', borderRadius: '12px', marginBottom: '20px' }}>
+              <img 
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=${blessModalUser.upi_id}&pn=${encodeURIComponent(blessModalUser.full_name)}&cu=INR`)}`} 
+                alt="Scan to Bless"
+                style={{ width: '100%', height: 'auto', borderRadius: '8px' }}
+              />
+            </div>
+
+            <p style={{ fontSize: '13px', color: '#666', marginBottom: '20px' }}>
+              Scan with <b>GPay</b>, <b>PhonePe</b>, or <b>Paytm</b> to send your offering directly to them.
+            </p>
+
+            {/* Mobile-Only Button */}
+            <a 
+              href={`upi://pay?pa=${blessModalUser.upi_id}&pn=${encodeURIComponent(blessModalUser.full_name)}&cu=INR`}
+              target="_blank"
+              style={{ display: 'block', width: '100%', padding: '12px', background: '#2e8b57', color: 'white', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold', marginBottom: '10px' }}
+            >
+              Open Payment App (Mobile)
+            </a>
+
+            <button onClick={() => setBlessModalUser(null)} style={{ width: '100%', padding: '12px', background: '#f0f0f0', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
