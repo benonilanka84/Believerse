@@ -34,19 +34,30 @@ export default function NavBar() {
   async function loadNotifications(userId) {
     const { data: reqs } = await supabase
       .from('connections')
-      .select('profiles:user_a(full_name)')
+      .select('id, profiles:user_a(full_name)')
       .eq('user_b', userId)
       .eq('status', 'pending');
 
     const { data: invites } = await supabase
       .from('event_invites')
-      .select('events(title), profiles:sender_id(full_name)')
+      .select('id, events(title), profiles:sender_id(full_name)')
       .eq('receiver_id', userId)
       .eq('status', 'pending');
 
     const notifs = [];
-    if (reqs) reqs.forEach(r => notifs.push({ type: 'req', text: `${r.profiles.full_name} wants to connect.` }));
-    if (invites) invites.forEach(i => notifs.push({ type: 'inv', text: `${i.profiles.full_name} invited you to ${i.events.title}` }));
+    // Map to a standard format with 'link'
+    if (reqs) reqs.forEach(r => notifs.push({ 
+        id: r.id, 
+        text: `${r.profiles.full_name} wants to connect.`, 
+        link: '/believers',
+        type: 'req' 
+    }));
+    if (invites) invites.forEach(i => notifs.push({ 
+        id: i.id, 
+        text: `${i.profiles.full_name} invited you to ${i.events.title}`, 
+        link: '/events',
+        type: 'inv' 
+    }));
     
     setNotifications(notifs);
   }
@@ -61,6 +72,11 @@ export default function NavBar() {
       router.push("/believers"); 
       setSearchOpen(false);
     }
+  }
+
+  function handleNotificationClick(n) {
+    setNotifOpen(false);
+    router.push(n.link);
   }
 
   async function handleLogout() {
@@ -94,12 +110,12 @@ export default function NavBar() {
           <button onClick={() => setSearchOpen(!searchOpen)} style={{ background: "transparent", border: "none", fontSize: "20px", cursor: "pointer" }}>🔍</button>
           {searchOpen && (
             <form onSubmit={handleSearchSubmit} style={{ position:'absolute', right:0, top:'40px', background:'white', padding:'10px', boxShadow:'0 4px 12px rgba(0,0,0,0.1)', borderRadius:'8px', display:'flex', width:'250px' }}>
-              <input autoFocus type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{flex:1, padding:'8px', border:'1px solid #ddd', borderRadius:'4px'}} />
+              <input autoFocus type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{flex:1, padding:'8px', border:'1px solid #ddd', borderRadius:'4px', color:'#333'}} />
             </form>
           )}
         </div>
 
-        {/* Notifications */}
+        {/* Notifications - FIXED VISIBILITY */}
         <div style={{ position: 'relative' }}>
           <button onClick={() => setNotifOpen(!notifOpen)} style={{ background: "transparent", border: "none", fontSize: "20px", cursor: "pointer" }}>
             🔔
@@ -108,9 +124,17 @@ export default function NavBar() {
             )}
           </button>
           {notifOpen && (
-            <div style={{ position: 'absolute', right: 0, top: '40px', width: '280px', background: 'white', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', padding: '10px', zIndex: 1000 }}>
-              <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#0b2e4a' }}>Notifications</h4>
-              {notifications.length === 0 ? <p style={{ fontSize: '12px', color: '#666' }}>No new notifications.</p> : notifications.map((n, i) => (<div key={i} style={{ padding: '8px', borderBottom: '1px solid #eee', fontSize: '13px' }}>{n.text}</div>))}
+            <div style={{ position: 'absolute', right: 0, top: '40px', width: '300px', background: 'white', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', padding: '10px', zIndex: 1000, border:'1px solid #ddd' }}>
+              <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#0b2e4a', borderBottom:'1px solid #eee', paddingBottom:'5px' }}>Notifications</h4>
+              {notifications.length === 0 ? <p style={{ fontSize: '12px', color: '#666' }}>No new notifications.</p> : notifications.map((n, i) => (
+                <div 
+                  key={i} 
+                  onClick={() => handleNotificationClick(n)}
+                  style={{ padding: '10px', borderBottom: '1px solid #eee', fontSize: '13px', color: '#333', cursor:'pointer', background: '#f9f9f9', marginBottom:'2px', borderRadius:'4px' }}
+                >
+                  {n.text}
+                </div>
+              ))}
               <Link href="/believers" style={{ display: 'block', textAlign: 'center', marginTop: '10px', fontSize: '12px', color: '#2e8b57', fontWeight: 'bold', textDecoration:'none' }}>View All Requests</Link>
             </div>
           )}
@@ -123,7 +147,7 @@ export default function NavBar() {
               {!avatar && user.email?.[0]?.toUpperCase()}
             </button>
             {dropdownOpen && (
-              <div style={{ position: "absolute", right: 0, marginTop: "8px", width: "200px", background: "#fff", borderRadius: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.15)", padding: "8px", zIndex: 1000 }}>
+              <div style={{ position: "absolute", right: 0, marginTop: "8px", width: "200px", background: "#fff", borderRadius: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.15)", padding: "8px", zIndex: 1000, border:'1px solid #ddd' }}>
                 <Link href="/profile/edit" style={{ display: "block", padding: "10px", textDecoration: "none", color: "#333", borderRadius: "6px" }}>Edit Profile</Link>
                 <Link href="/settings" style={{ display: "block", padding: "10px", textDecoration: "none", color: "#333", borderRadius: "6px" }}>Settings</Link>
                 <Link href="/terms" style={{ display: "block", padding: "10px", textDecoration: "none", color: "#333", borderRadius: "6px" }}>Terms & Conditions</Link>
