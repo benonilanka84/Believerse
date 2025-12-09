@@ -48,9 +48,12 @@ export default function Dashboard() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUser(user);
+        
+        // Load User Profile
         const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
         setProfile(data);
         
+        // Load All Data
         loadAllData(user.id);
       }
     };
@@ -87,7 +90,6 @@ export default function Dashboard() {
     if (data) setSuggestedBelievers(data);
   }
 
-  // FIXED: Prayer Wall Logic
   async function loadPrayerWall(userId) {
     // 1. Get Friend IDs
     const { data: conns } = await supabase
@@ -115,15 +117,16 @@ export default function Dashboard() {
     setPrayerRequests(data || []);
   }
 
-  // FIXED: Chat Logic
   async function loadRecentChats(userId) {
     const { data: msgs } = await supabase.from('messages').select('sender_id, receiver_id').or(`sender_id.eq.${userId},receiver_id.eq.${userId}`).order('created_at', { ascending: false }).limit(20);
     if (!msgs) return;
+    
     const partnerIds = new Set();
     msgs.forEach(m => {
       if (m.sender_id !== userId) partnerIds.add(m.sender_id);
       if (m.receiver_id !== userId) partnerIds.add(m.receiver_id);
     });
+    
     if (partnerIds.size > 0) {
       const { data: profiles } = await supabase.from('profiles').select('*').in('id', Array.from(partnerIds)).limit(3);
       setRecentChats(profiles || []);
@@ -140,7 +143,9 @@ export default function Dashboard() {
   }
 
   function filterEventsByDate(date, allEvents) {
-    const year = date.getFullYear(); const month = String(date.getMonth() + 1).padStart(2, '0'); const day = String(date.getDate()).padStart(2, '0');
+    const year = date.getFullYear(); 
+    const month = String(date.getMonth() + 1).padStart(2, '0'); 
+    const day = String(date.getDate()).padStart(2, '0');
     const dateStr = `${year}-${month}-${day}`;
     setFilteredEvents(allEvents.filter(e => e.event_date === dateStr));
   }
@@ -151,13 +156,13 @@ export default function Dashboard() {
     filterEventsByDate(newDate, events);
   }
 
-  // --- 4. FEED (Fixed Refresh) ---
+  // --- 4. FEED LOGIC (With UPI ID Fetch) ---
   async function loadPosts(currentUserId, isRefresh = false) {
     if (!isRefresh) setLoadingPosts(true);
     
     const { data, error } = await supabase
       .from('posts')
-      .select(`*, profiles (username, full_name, avatar_url), amens (user_id)`)
+      .select(`*, profiles (username, full_name, avatar_url, upi_id), amens (user_id)`) // Fetching UPI ID here
       .order('created_at', { ascending: false });
 
     if (!error && data) {
@@ -172,7 +177,19 @@ export default function Dashboard() {
     setLoadingPosts(false);
   }
 
-  // --- 5. ACTIONS ---
+  // --- 5. ACTIONS (Bless, Amen, Etc) ---
+  function handleBless(author) {
+    if (!author?.upi_id) {
+      alert(`God bless! ${author.full_name} has not set up their UPI ID yet.`);
+      return;
+    }
+    // Deep Link for Mobile UPI Apps
+    const upiUrl = `upi://pay?pa=${author.upi_id}&pn=${encodeURIComponent(author.full_name)}&cu=INR`;
+    
+    // On Desktop this does nothing, but on Mobile it opens GPay/PhonePe
+    window.open(upiUrl, '_blank');
+  }
+
   async function handleAmen(postId, currentlyAmened) {
     setPosts(posts.map(p => p.id === postId ? { ...p, hasAmened: !currentlyAmened, amenCount: currentlyAmened ? p.amenCount - 1 : p.amenCount + 1 } : p));
     if (currentlyAmened) await supabase.from('amens').delete().match({ user_id: user.id, post_id: postId });
@@ -288,7 +305,10 @@ export default function Dashboard() {
                  )}
                  <div style={{display:'flex', justifyContent:'space-between', marginTop:'15px', borderTop:'1px solid #eee', paddingTop:'10px'}}>
                    <button onClick={() => handleAmen(post.id, post.hasAmened)} style={{background:'none', border:'none', color: post.hasAmened ? '#2e8b57' : '#666', fontWeight: post.hasAmened ? 'bold' : 'normal', cursor:'pointer'}}>🙏 Amen ({post.amenCount})</button>
-                   <button style={{background:'none', border:'none', color:'#d4af37', fontWeight:'bold', cursor:'pointer'}}>✨ Bless</button>
+                   
+                   {/* BLESS BUTTON (Functional) */}
+                   <button onClick={() => handleBless(post.author)} style={{background:'none', border:'none', color:'#d4af37', fontWeight:'bold', cursor:'pointer'}}>✨ Bless</button>
+                   
                    <button onClick={() => handleShare(post.content)} style={{background:'none', border:'none', color:'#666', cursor:'pointer'}}>📢 Spread</button>
                  </div>
                </div>
@@ -313,21 +333,24 @@ export default function Dashboard() {
           </div>
           <div className="panel-card" style={{background:'#fff9e6', borderLeft:'4px solid #d4af37'}}>
             <h3>🙏 Prayer Wall</h3>
-            {prayerRequests.length === 0 ? <p style={{fontSize:'12px', color:'#666'}}>No requests from friends.</p> : 
+            {prayerRequests.length === 0 ? <p style={{fontSize:'12px', color:'#666'}}>No requests yet.</p> : 
               prayerRequests.map(p => (
                 <div key={p.id} style={{marginBottom:'8px', fontSize:'12px'}}>
-                  <div style={{fontWeight:'bold', color:'#000'}}>{p.profiles?.full_name}</div>
+                  <div style={{fontWeight:'bold', color:'#0b2e4a'}}>{p.profiles?.full_name}</div>
                   <div style={{fontStyle:'italic', color:'#555'}}>"{p.content.substring(0, 40)}..."</div>
                 </div>
               ))
             }
             <button style={{width:'100%', padding:'8px', background:'#2e8b57', color:'white', border:'none', borderRadius:'6px', cursor:'pointer', marginTop:'5px'}}>I'll Pray</button>
           </div>
+          
+          {/* Recent Chats (Fixed Visibility) */}
           <div className="panel-card">
             <h3>💬 Recent Chats</h3>
             {recentChats.map(c => (
               <Link key={c.id} href={`/chat?uid=${c.id}`} style={{display:'flex', alignItems:'center', gap:'10px', padding:'8px', background:'#f5f5f5', borderRadius:'8px', marginBottom:'5px', textDecoration:'none'}}>
                 <img src={c.avatar_url || '/images/default-avatar.png'} style={{width:30, height:30, borderRadius:'50%'}} />
+                {/* FORCE DARK COLOR */}
                 <div style={{fontSize:'13px', fontWeight:'bold', color:'#0b2e4a'}}>{c.full_name}</div>
               </Link>
             ))}
