@@ -133,25 +133,27 @@ export default function Dashboard() {
     filterEventsByDate(newDate, events);
   }
 
-  // --- 4. FEED ---
-  async function loadPosts(currentUserId, isRefresh = false) {
-    if (!isRefresh) setLoadingPosts(true);
-    const { data, error } = await supabase
-      .from('posts')
-      .select(`*, profiles (username, full_name, avatar_url, upi_id), amens (user_id)`)
-      .order('created_at', { ascending: false });
+  // --- 4. FEED LOGIC (Hide Glimpses) ---
+async function loadPosts(currentUserId, isRefresh = false) {
+  if (!isRefresh) setLoadingPosts(true);
+  
+  const { data, error } = await supabase
+    .from('posts')
+    .select(`*, profiles (username, full_name, avatar_url, upi_id), amens (user_id)`)
+    .neq('type', 'Glimpse') // <--- THIS LINE HIDES GLIMPSES FROM THE WALK
+    .order('created_at', { ascending: false });
 
-    if (!error && data) {
-      const formatted = data.map(p => ({
-        ...p,
-        author: p.profiles,
-        amenCount: p.amens.length,
-        hasAmened: p.amens.some(a => a.user_id === currentUserId)
-      }));
-      setPosts(formatted);
-    }
-    setLoadingPosts(false);
+  if (!error && data) {
+    const formatted = data.map(p => ({
+      ...p,
+      author: p.profiles,
+      amenCount: p.amens.length,
+      hasAmened: p.amens.some(a => a.user_id === currentUserId)
+    }));
+    setPosts(formatted);
   }
+  setLoadingPosts(false);
+}
 
   // --- 5. ACTIONS ---
   function handleBlessClick(author) {
