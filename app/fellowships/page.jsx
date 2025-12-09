@@ -2,371 +2,254 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import CreatePost from "@/components/CreatePost";
+import Link from "next/link";
 
 export default function FellowshipsPage() {
+  const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState(null);
-  const [activeTab, setActiveTab] = useState("discover");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [joinedFellowships, setJoinedFellowships] = useState([]);
+  
+  // Views: 'discover' | 'active_group'
+  const [view, setView] = useState("discover"); 
+  const [activeGroup, setActiveGroup] = useState(null);
 
-  // Sample fellowships data (will be replaced with database later)
-  const allFellowships = [
-    {
-      id: 1,
-      name: "Morning Prayer Warriors",
-      description: "Join us every morning at 6 AM for prayer and devotion",
-      category: "Prayer",
-      members: 1247,
-      image: "🙏",
-      color: "#2e8b57"
-    },
-    {
-      id: 2,
-      name: "Youth Bible Study",
-      description: "Weekly Bible study for young believers (18-30)",
-      category: "Bible Study",
-      members: 856,
-      image: "📖",
-      color: "#2d6be3"
-    },
-    {
-      id: 3,
-      name: "Worship & Praise",
-      description: "Share worship songs and testimonies",
-      category: "Worship",
-      members: 2134,
-      image: "🎵",
-      color: "#d4af37"
-    },
-    {
-      id: 4,
-      name: "Family Ministry",
-      description: "Support and encouragement for Christian families",
-      category: "Family",
-      members: 943,
-      image: "👨‍👩‍👧‍👦",
-      color: "#ff6b6b"
-    },
-    {
-      id: 5,
-      name: "Missionaries Network",
-      description: "Connect with missionaries around the world",
-      category: "Missions",
-      members: 567,
-      image: "🌍",
-      color: "#4ecdc4"
-    },
-    {
-      id: 6,
-      name: "Women of Faith",
-      description: "A community for women to grow in faith together",
-      category: "Women",
-      members: 1523,
-      image: "👩",
-      color: "#ff69b4"
-    },
-    {
-      id: 7,
-      name: "Men's Fellowship",
-      description: "Brotherhood in Christ - Accountability & Growth",
-      category: "Men",
-      members: 1089,
-      image: "👨",
-      color: "#1e3a8a"
-    },
-    {
-      id: 8,
-      name: "Healing & Deliverance",
-      description: "Testimonies of healing and breakthrough",
-      category: "Healing",
-      members: 2341,
-      image: "✨",
-      color: "#8b5cf6"
-    }
-  ];
+  // Data
+  const [allFellowships, setAllFellowships] = useState([]);
+  const [myMemberships, setMyMemberships] = useState([]); // Group IDs I'm in
+  const [groupPosts, setGroupPosts] = useState([]);
+  const [groupMembers, setGroupMembers] = useState([]);
+
+  // Create Modal
+  const [showCreate, setShowCreate] = useState(false);
+  const [newGroup, setNewGroup] = useState({ name: "", description: "" });
 
   useEffect(() => {
-    async function loadUser() {
-      const { data } = await supabase.auth.getUser();
-      if (data?.user) {
-        setUser(data.user);
-        loadJoinedFellowships(data.user.id);
-      }
-    }
-    loadUser();
+    setMounted(true);
+    checkUser();
   }, []);
 
-  function loadJoinedFellowships(userId) {
-    const saved = localStorage.getItem(`fellowships_${userId}`);
-    if (saved) {
-      setJoinedFellowships(JSON.parse(saved));
+  async function checkUser() {
+    const { data } = await supabase.auth.getUser();
+    if (data?.user) {
+      setUser(data.user);
+      loadFellowships(data.user.id);
     }
   }
 
-  function handleJoin(fellowshipId) {
-    if (!user) return;
+  // --- LOADERS ---
+  async function loadFellowships(userId) {
+    // 1. Get All Groups
+    const { data: groups } = await supabase
+      .from('fellowships')
+      .select('*')
+      .order('created_at', { ascending: false });
     
-    const newJoined = [...joinedFellowships, fellowshipId];
-    setJoinedFellowships(newJoined);
-    localStorage.setItem(`fellowships_${user.id}`, JSON.stringify(newJoined));
-    alert("✅ Joined! You're now part of this fellowship.");
-  }
-
-  function handleLeave(fellowshipId) {
-    if (!user) return;
+    // 2. Get My Memberships
+    const { data: members } = await supabase
+      .from('fellowship_members')
+      .select('fellowship_id')
+      .eq('user_id', userId);
     
-    const newJoined = joinedFellowships.filter(id => id !== fellowshipId);
-    setJoinedFellowships(newJoined);
-    localStorage.setItem(`fellowships_${user.id}`, JSON.stringify(newJoined));
-    alert("Left the fellowship.");
+    const myIds = members?.map(m => m.fellowship_id) || [];
+    
+    setAllFellowships(groups || []);
+    setMyMemberships(myIds);
   }
 
-  function isJoined(fellowshipId) {
-    return joinedFellowships.includes(fellowshipId);
+  async function openGroup(group) {
+    setActiveGroup(group);
+    setView("active_group");
+    loadGroupData(group.id);
   }
 
-  const filteredFellowships = allFellowships.filter(f =>
-    f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    f.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    f.category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  async function loadGroupData(groupId) {
+    // Load Posts
+    const { data: posts } = await supabase
+      .from('posts')
+      .select(`*, profiles(full_name, avatar_url), amens(user_id)`)
+      .eq('fellowship_id', groupId)
+      .order('created_at', { ascending: false });
+    
+    const formatted = posts?.map(p => ({
+      ...p,
+      author: p.profiles,
+      amenCount: p.amens.length,
+      hasAmened: p.amens.some(a => a.user_id === user.id)
+    })) || [];
+    setGroupPosts(formatted);
 
-  const myFellowships = allFellowships.filter(f => joinedFellowships.includes(f.id));
-  const discoverFellowships = filteredFellowships.filter(f => !joinedFellowships.includes(f.id));
+    // Load Members
+    const { data: mems } = await supabase
+      .from('fellowship_members')
+      .select('profiles(full_name, avatar_url, church)')
+      .eq('fellowship_id', groupId)
+      .limit(10);
+    setGroupMembers(mems?.map(m => m.profiles) || []);
+  }
+
+  // --- ACTIONS ---
+  async function handleCreateGroup(e) {
+    e.preventDefault();
+    const { data, error } = await supabase.from('fellowships').insert({
+      created_by: user.id,
+      name: newGroup.name,
+      description: newGroup.description
+    }).select().single();
+
+    if (error) alert("Error: " + error.message);
+    else {
+      // Auto-join creator
+      await supabase.from('fellowship_members').insert({ fellowship_id: data.id, user_id: user.id, role: 'admin' });
+      alert("✅ Fellowship Created!");
+      setShowCreate(false);
+      loadFellowships(user.id);
+    }
+  }
+
+  async function toggleJoin(groupId) {
+    const isMember = myMemberships.includes(groupId);
+    if (isMember) {
+      // Leave
+      if(!confirm("Leave this fellowship?")) return;
+      await supabase.from('fellowship_members').delete().match({ fellowship_id: groupId, user_id: user.id });
+      setMyMemberships(myMemberships.filter(id => id !== groupId));
+      if(activeGroup?.id === groupId) setView("discover");
+    } else {
+      // Join
+      await supabase.from('fellowship_members').insert({ fellowship_id: groupId, user_id: user.id });
+      setMyMemberships([...myMemberships, groupId]);
+      alert("You have joined!");
+    }
+  }
+
+  if (!mounted) return null;
 
   return (
-    <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
+    <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto", display: "grid", gridTemplateColumns: "300px 1fr", gap: "20px", alignItems:'start' }}>
       
-      {/* Header */}
-      <div style={{
-        background: "linear-gradient(135deg, #2e8b57 0%, #1d5d3a 100%)",
-        padding: "30px",
-        borderRadius: "16px",
-        color: "white",
-        marginBottom: "30px",
-        boxShadow: "0 4px 15px rgba(0,0,0,0.1)"
-      }}>
-        <h1 style={{ margin: 0, fontSize: "2.2rem" }}>👥 Fellowships</h1>
-        <p style={{ margin: "8px 0 0 0", opacity: 0.9, fontSize: "1.1rem" }}>
-          Join groups for Bible study, prayer, and spiritual growth
-        </p>
-      </div>
-
-      {/* Search & Create */}
-      <div style={{
-        background: "white",
-        padding: "20px",
-        borderRadius: "12px",
-        marginBottom: "20px",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-        display: "flex",
-        gap: "15px",
-        alignItems: "center"
-      }}>
-        <input
-          type="text"
-          placeholder="🔍 Seek fellowships..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          style={{
-            flex: 1,
-            padding: "12px 20px",
-            borderRadius: "10px",
-            border: "2px solid #e0e0e0",
-            fontSize: "16px",
-            outline: "none"
-          }}
-        />
-        <button
-          style={{
-            padding: "12px 24px",
-            background: "#2e8b57",
-            color: "white",
-            border: "none",
-            borderRadius: "10px",
-            fontWeight: "600",
-            cursor: "pointer",
-            whiteSpace: "nowrap"
-          }}
-          onClick={() => alert("Create Fellowship feature coming soon!")}
-        >
-          ➕ Create Fellowship
+      {/* LEFT SIDEBAR: MY GROUPS */}
+      <div style={{ background: "white", padding: "20px", borderRadius: "12px", height: 'fit-content', boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+        <h2 style={{ margin: "0 0 15px 0", color: "#0b2e4a", fontSize: "18px" }}>👥 Fellowships</h2>
+        
+        <button onClick={() => setView("discover")} style={{ width: '100%', padding: '10px', textAlign: 'left', background: view === 'discover' ? '#e8f5e9' : 'transparent', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', color: '#2e8b57', marginBottom: '5px' }}>
+          🔍 Discover All
         </button>
-      </div>
 
-      {/* Tabs */}
-      <div style={{
-        background: "white",
-        borderRadius: "12px",
-        padding: "10px",
-        marginBottom: "20px",
-        display: "flex",
-        gap: "10px",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
-      }}>
-        <button
-          onClick={() => setActiveTab("discover")}
-          style={{
-            flex: 1,
-            padding: "12px 20px",
-            border: "none",
-            borderRadius: "8px",
-            background: activeTab === "discover" ? "#2e8b57" : "transparent",
-            color: activeTab === "discover" ? "white" : "#666",
-            fontWeight: "600",
-            cursor: "pointer"
-          }}
-        >
-          🌟 Discover ({discoverFellowships.length})
-        </button>
-        <button
-          onClick={() => setActiveTab("joined")}
-          style={{
-            flex: 1,
-            padding: "12px 20px",
-            border: "none",
-            borderRadius: "8px",
-            background: activeTab === "joined" ? "#2e8b57" : "transparent",
-            color: activeTab === "joined" ? "white" : "#666",
-            fontWeight: "600",
-            cursor: "pointer"
-          }}
-        >
-          ✓ My Fellowships ({myFellowships.length})
-        </button>
-      </div>
-
-      {/* Fellowships Grid */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-        gap: "20px"
-      }}>
-        {(activeTab === "discover" ? discoverFellowships : myFellowships).map((fellowship) => (
-          <div
-            key={fellowship.id}
-            style={{
-              background: "white",
-              borderRadius: "16px",
-              overflow: "hidden",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-              transition: "transform 0.2s, box-shadow 0.2s",
-              cursor: "pointer"
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = "translateY(-4px)";
-              e.currentTarget.style.boxShadow = "0 8px 20px rgba(0,0,0,0.12)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.08)";
-            }}
-          >
-            {/* Header with Icon */}
-            <div style={{
-              background: fellowship.color,
-              padding: "30px",
-              textAlign: "center"
-            }}>
-              <div style={{ fontSize: "4rem", marginBottom: "10px" }}>
-                {fellowship.image}
-              </div>
-              <div style={{
-                display: "inline-block",
-                background: "rgba(255,255,255,0.2)",
-                padding: "4px 12px",
-                borderRadius: "12px",
-                color: "white",
-                fontSize: "12px",
-                fontWeight: "600"
-              }}>
-                {fellowship.category}
-              </div>
-            </div>
-
-            {/* Content */}
-            <div style={{ padding: "20px" }}>
-              <h3 style={{
-                margin: "0 0 10px 0",
-                color: "#0b2e4a",
-                fontSize: "1.3rem"
-              }}>
-                {fellowship.name}
-              </h3>
-              
-              <p style={{
-                margin: "0 0 15px 0",
-                color: "#666",
-                fontSize: "14px",
-                lineHeight: "1.5"
-              }}>
-                {fellowship.description}
-              </p>
-
-              <div style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginBottom: "15px",
-                paddingTop: "15px",
-                borderTop: "1px solid #eee"
-              }}>
-                <span style={{ color: "#666", fontSize: "14px" }}>
-                  👥 {fellowship.members.toLocaleString()} members
-                </span>
-              </div>
-
-              {/* Action Button */}
-              <button
-                onClick={() => {
-                  if (isJoined(fellowship.id)) {
-                    handleLeave(fellowship.id);
-                  } else {
-                    handleJoin(fellowship.id);
-                  }
-                }}
-                style={{
-                  width: "100%",
-                  padding: "12px",
-                  border: "none",
-                  borderRadius: "8px",
-                  background: isJoined(fellowship.id) ? "#f0f0f0" : fellowship.color,
-                  color: isJoined(fellowship.id) ? "#666" : "white",
-                  fontWeight: "600",
-                  cursor: "pointer",
-                  transition: "all 0.2s"
-                }}
-              >
-                {isJoined(fellowship.id) ? "✓ Joined" : "➕ Join Fellowship"}
-              </button>
-            </div>
+        <h3 style={{ fontSize: "14px", color: "#666", marginTop: "20px", marginBottom: "10px" }}>My Groups</h3>
+        {allFellowships.filter(g => myMemberships.includes(g.id)).map(g => (
+          <div key={g.id} onClick={() => openGroup(g)} style={{ padding: '10px', cursor: 'pointer', background: activeGroup?.id === g.id ? '#f0f0f0' : 'transparent', borderRadius: '8px', marginBottom: '5px' }}>
+            <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#333' }}>{g.name}</div>
           </div>
         ))}
 
-        {/* Empty State */}
-        {(activeTab === "discover" ? discoverFellowships : myFellowships).length === 0 && (
-          <div style={{
-            gridColumn: "1 / -1",
-            textAlign: "center",
-            padding: "60px 20px",
-            color: "#666"
-          }}>
-            <div style={{ fontSize: "4rem", marginBottom: "20px" }}>
-              {activeTab === "discover" ? "🔍" : "👥"}
+        <button onClick={() => setShowCreate(true)} style={{ width: "100%", padding: "10px", marginTop: "20px", background: "#0b2e4a", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "bold" }}>
+          + Create New
+        </button>
+      </div>
+
+      {/* CENTER CONTENT */}
+      <div>
+        
+        {/* VIEW: DISCOVER */}
+        {view === "discover" && (
+          <div>
+            <div style={{ background: "linear-gradient(135deg, #2e8b57 0%, #1d5d3a 100%)", padding: "30px", borderRadius: "16px", color: "white", marginBottom: "20px" }}>
+              <h1 style={{ margin: 0 }}>Find Your Tribe</h1>
+              <p style={{ opacity: 0.9 }}>Join a fellowship to grow together in Christ.</p>
             </div>
-            <h3 style={{ color: "#0b2e4a", marginBottom: "10px" }}>
-              {activeTab === "discover" 
-                ? "No fellowships found" 
-                : "You haven't joined any fellowships yet"}
-            </h3>
-            <p>
-              {activeTab === "discover"
-                ? "Try a different search"
-                : "Discover and join fellowships to grow with other believers"}
-            </p>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: "15px" }}>
+              {allFellowships.map(g => {
+                const isMember = myMemberships.includes(g.id);
+                return (
+                  <div key={g.id} style={{ background: "white", padding: "20px", borderRadius: "12px", border: "1px solid #eee" }}>
+                    <div style={{width:50, height:50, borderRadius:'8px', background:'#eee', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'24px', marginBottom:'10px'}}>🏛️</div>
+                    <h3 style={{ margin: "0 0 5px 0", color: "#0b2e4a" }}>{g.name}</h3>
+                    <p style={{ fontSize: "13px", color: "#666", height: "40px", overflow: "hidden" }}>{g.description}</p>
+                    <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
+                      <button onClick={() => openGroup(g)} style={{ flex: 1, padding: "8px", background: "#f0f0f0", border: "none", borderRadius: "6px", cursor: "pointer" }}>View</button>
+                      <button onClick={() => toggleJoin(g.id)} style={{ flex: 1, padding: "8px", background: isMember ? "#fff" : "#2e8b57", color: isMember ? "red" : "white", border: isMember ? "1px solid red" : "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }}>
+                        {isMember ? "Leave" : "Join"}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
+
+        {/* VIEW: ACTIVE GROUP */}
+        {view === "active_group" && activeGroup && (
+          <div>
+            {/* Header */}
+            <div style={{ background: "white", padding: "25px", borderRadius: "16px", marginBottom: "20px", borderLeft: "5px solid #2e8b57" }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                <div>
+                  <h1 style={{ margin: "0 0 5px 0", color: "#0b2e4a" }}>{activeGroup.name}</h1>
+                  <p style={{ color: "#666" }}>{activeGroup.description}</p>
+                </div>
+                {myMemberships.includes(activeGroup.id) ? (
+                  <span style={{ background: '#e8f5e9', color: '#2e8b57', padding: '5px 10px', borderRadius: '15px', fontSize: '12px', fontWeight: 'bold' }}>✓ Member</span>
+                ) : (
+                  <button onClick={() => toggleJoin(activeGroup.id)} style={{ padding: "8px 20px", background: "#2e8b57", color: "white", border: "none", borderRadius: "6px", cursor: "pointer" }}>Join Group</button>
+                )}
+              </div>
+              
+              {/* Members Preview */}
+              <div style={{ marginTop: '20px', display: 'flex', gap: '5px', alignItems: 'center' }}>
+                {groupMembers.map((m, i) => (
+                  <img key={i} src={m.avatar_url || '/images/default-avatar.png'} style={{ width: 30, height: 30, borderRadius: '50%', border: '2px solid white' }} title={m.full_name} />
+                ))}
+                <span style={{ fontSize: '12px', color: '#666', marginLeft: '10px' }}>{groupMembers.length} Members active</span>
+              </div>
+            </div>
+
+            {/* Content Area */}
+            {myMemberships.includes(activeGroup.id) ? (
+              <>
+                <CreatePost user={user} onPostCreated={() => loadGroupData(activeGroup.id)} fellowshipId={activeGroup.id} />
+                
+                {groupPosts.length === 0 ? <p style={{textAlign:'center', padding:20, color:'#666'}}>No posts in this group yet.</p> : 
+                  groupPosts.map(post => (
+                    <div key={post.id} style={{ background: "white", padding: "20px", borderRadius: "12px", marginBottom: "15px", border: "1px solid #eee" }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                        <img src={post.author?.avatar_url || '/images/default-avatar.png'} style={{ width: 40, height: 40, borderRadius: '50%' }} />
+                        <div>
+                          <div style={{ fontWeight: 'bold', color: '#0b2e4a' }}>{post.author?.full_name}</div>
+                          <div style={{ fontSize: '12px', color: '#999' }}>{new Date(post.created_at).toLocaleDateString()}</div>
+                        </div>
+                      </div>
+                      <p>{post.content}</p>
+                      {post.media_url && <img src={post.media_url} style={{ width: '100%', borderRadius: '8px', marginTop: '10px' }} />}
+                    </div>
+                  ))
+                }
+              </>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '50px', background: 'white', borderRadius: '12px' }}>
+                🔒 <h3>Join this Fellowship to see posts and interact.</h3>
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
+
+      {/* CREATE MODAL */}
+      {showCreate && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: 'white', padding: '25px', borderRadius: '12px', width: '400px' }}>
+            <h3 style={{ marginTop: 0 }}>Create Fellowship</h3>
+            <input type="text" placeholder="Group Name" value={newGroup.name} onChange={e => setNewGroup({...newGroup, name: e.target.value})} style={{ width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '6px', border: '1px solid #ddd' }} />
+            <textarea placeholder="Description" value={newGroup.description} onChange={e => setNewGroup({...newGroup, description: e.target.value})} style={{ width: '100%', padding: '10px', marginBottom: '15px', borderRadius: '6px', border: '1px solid #ddd' }} />
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowCreate(false)} style={{ padding: '8px 16px', background: '#f0f0f0', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Cancel</button>
+              <button onClick={handleCreateGroup} style={{ padding: '8px 16px', background: '#2e8b57', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>Create</button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

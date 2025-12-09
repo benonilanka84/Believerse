@@ -2,7 +2,7 @@
 import { useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 
-export default function CreatePost({ user, onPostCreated }) {
+export default function CreatePost({ user, onPostCreated, fellowshipId = null }) {
   const [isOpen, setIsOpen] = useState(false);
   const [content, setContent] = useState("");
   const [title, setTitle] = useState("");
@@ -34,6 +34,7 @@ export default function CreatePost({ user, onPostCreated }) {
         content: content,
         type: type,
         media_url: mediaUrl
+	fellowship_id: fellowshipId
       });
 
       if (error) throw error;
