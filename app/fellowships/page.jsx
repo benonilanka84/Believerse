@@ -106,11 +106,28 @@ export default function FellowshipsPage() {
     }
   }
 
+  // NEW: Delete Fellowship (Creator Only)
+  async function handleDeleteFellowship(groupId) {
+    if (!confirm("Are you sure you want to delete this Fellowship? This cannot be undone and all posts will be lost.")) return;
+
+    const { error } = await supabase.from('fellowships').delete().eq('id', groupId);
+    
+    if (error) {
+      alert("Error deleting: " + error.message);
+    } else {
+      alert("Fellowship deleted.");
+      // Refresh local state
+      setAllFellowships(prev => prev.filter(f => f.id !== groupId));
+      setView("discover");
+      setActiveGroup(null);
+    }
+  }
+
   async function toggleJoin(groupId) {
     const isMember = myMemberships.includes(groupId);
     if (isMember) {
       // Leave
-      if(!confirm("Leave this fellowship?")) return;
+      if(!confirm("Leave this Fellowship?")) return;
       await supabase.from('fellowship_members').delete().match({ fellowship_id: groupId, user_id: user.id });
       setMyMemberships(myMemberships.filter(id => id !== groupId));
       if(activeGroup?.id === groupId) setView("discover");
@@ -118,7 +135,7 @@ export default function FellowshipsPage() {
       // Join
       await supabase.from('fellowship_members').insert({ fellowship_id: groupId, user_id: user.id });
       setMyMemberships([...myMemberships, groupId]);
-      alert("You have joined!");
+      alert("You have joined the Fellowship!");
     }
   }
 
@@ -135,7 +152,7 @@ export default function FellowshipsPage() {
           🔍 Discover All
         </button>
 
-        <h3 style={{ fontSize: "14px", color: "#666", marginTop: "20px", marginBottom: "10px" }}>My Groups</h3>
+        <h3 style={{ fontSize: "14px", color: "#666", marginTop: "20px", marginBottom: "10px" }}>My Fellowships</h3>
         {allFellowships.filter(g => myMemberships.includes(g.id)).map(g => (
           <div key={g.id} onClick={() => openGroup(g)} style={{ padding: '10px', cursor: 'pointer', background: activeGroup?.id === g.id ? '#f0f0f0' : 'transparent', borderRadius: '8px', marginBottom: '5px' }}>
             <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#333' }}>{g.name}</div>
@@ -189,11 +206,25 @@ export default function FellowshipsPage() {
                   <h1 style={{ margin: "0 0 5px 0", color: "#0b2e4a" }}>{activeGroup.name}</h1>
                   <p style={{ color: "#666" }}>{activeGroup.description}</p>
                 </div>
-                {myMemberships.includes(activeGroup.id) ? (
-                  <span style={{ background: '#e8f5e9', color: '#2e8b57', padding: '5px 10px', borderRadius: '15px', fontSize: '12px', fontWeight: 'bold' }}>✓ Member</span>
-                ) : (
-                  <button onClick={() => toggleJoin(activeGroup.id)} style={{ padding: "8px 20px", background: "#2e8b57", color: "white", border: "none", borderRadius: "6px", cursor: "pointer" }}>Join Group</button>
-                )}
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  {/* Join/Leave Button */}
+                  {myMemberships.includes(activeGroup.id) ? (
+                    <button onClick={() => toggleJoin(activeGroup.id)} style={{ padding: "8px 20px", background: "white", color: "red", border: "1px solid red", borderRadius: "6px", cursor: "pointer", fontWeight: 'bold' }}>
+                      Leave Fellowship
+                    </button>
+                  ) : (
+                    <button onClick={() => toggleJoin(activeGroup.id)} style={{ padding: "8px 20px", background: "#2e8b57", color: "white", border: "none", borderRadius: "6px", cursor: "pointer" }}>
+                      Join Fellowship
+                    </button>
+                  )}
+
+                  {/* Creator Delete Button */}
+                  {user?.id === activeGroup.created_by && (
+                    <button onClick={() => handleDeleteFellowship(activeGroup.id)} style={{ padding: "8px 20px", background: "#d32f2f", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight:'bold' }}>
+                      Delete
+                    </button>
+                  )}
+                </div>
               </div>
               
               {/* Members Preview */}
@@ -210,7 +241,7 @@ export default function FellowshipsPage() {
               <>
                 <CreatePost user={user} onPostCreated={() => loadGroupData(activeGroup.id)} fellowshipId={activeGroup.id} />
                 
-                {groupPosts.length === 0 ? <p style={{textAlign:'center', padding:20, color:'#666'}}>No posts in this group yet.</p> : 
+                {groupPosts.length === 0 ? <p style={{textAlign:'center', padding:20, color:'#666'}}>No posts in this fellowship yet.</p> : 
                   groupPosts.map(post => (
                     <div key={post.id} style={{ background: "white", padding: "20px", borderRadius: "12px", marginBottom: "15px", border: "1px solid #eee" }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
@@ -241,7 +272,7 @@ export default function FellowshipsPage() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: 'white', padding: '25px', borderRadius: '12px', width: '400px' }}>
             <h3 style={{ marginTop: 0 }}>Create Fellowship</h3>
-            <input type="text" placeholder="Group Name" value={newGroup.name} onChange={e => setNewGroup({...newGroup, name: e.target.value})} style={{ width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '6px', border: '1px solid #ddd' }} />
+            <input type="text" placeholder="Fellowship Name" value={newGroup.name} onChange={e => setNewGroup({...newGroup, name: e.target.value})} style={{ width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '6px', border: '1px solid #ddd' }} />
             <textarea placeholder="Description" value={newGroup.description} onChange={e => setNewGroup({...newGroup, description: e.target.value})} style={{ width: '100%', padding: '10px', marginBottom: '15px', borderRadius: '6px', border: '1px solid #ddd' }} />
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
               <button onClick={() => setShowCreate(false)} style={{ padding: '8px 16px', background: '#f0f0f0', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Cancel</button>
