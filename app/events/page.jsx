@@ -18,11 +18,15 @@ export default function EventsPage() {
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [selectedEventForInvite, setSelectedEventForInvite] = useState(null);
   const [editingEvent, setEditingEvent] = useState(null);
+  
+  // Bulk Invite State
+  const [selectedFriends, setSelectedFriends] = useState([]);
 
   // Create Form
   const [newEvent, setNewEvent] = useState({
     title: "", description: "", date: "", time: "", location: "",
-    type: "Fellowship", isOnline: false, meetingLink: ""
+    type: "Fellowship", isOnline: false, meetingLink: "",
+    shareToFeed: false // NEW OPTION
   });
 
   const eventTypes = [{ value: "Fellowship" }, { value: "Prayer" }, { value: "Bible Study" }, { value: "Worship" }];
@@ -42,14 +46,12 @@ export default function EventsPage() {
   }
 
   async function loadEvents() {
-    // Load events AND their RSVPs
     const { data } = await supabase
       .from('events')
       .select(`*, event_rsvps(status)`)
       .order('event_date', { ascending: true });
     
     if (data) {
-      // Calculate Counts
       const processed = data.map(e => ({
         ...e,
         attending: e.event_rsvps.filter(r => r.status === 'attending').length,
@@ -70,9 +72,7 @@ export default function EventsPage() {
 
   async function handleRSVP(eventId, status) {
     const { error } = await supabase.from('event_rsvps').upsert({
-      event_id: eventId,
-      user_id: user.id,
-      status: status
+      event_id: eventId, user_id: user.id, status: status
     }, { onConflict: 'event_id, user_id' }); 
 
     if (!error) {
@@ -81,6 +81,7 @@ export default function EventsPage() {
     }
   }
 
+  // --- CREATE / EDIT EVENT ---
   async function handleCreateEvent(e) {
     e.preventDefault();
     if (!user) return;
@@ -97,6 +98,17 @@ export default function EventsPage() {
       ({ error } = await supabase.from('events').update(payload).eq('id', editingEvent.id));
     } else {
       ({ error } = await supabase.from('events').insert(payload));
+      
+      // CONDITIONAL POST TO FEED
+      if (!error && newEvent.shareToFeed) {
+        const postContent = `📅 New Event: ${newEvent.title}\n\n${newEvent.description}\n\nJoin us on ${newEvent.date} at ${newEvent.time}!`;
+        await supabase.from('posts').insert({
+          user_id: user.id,
+          content: postContent,
+          type: "Event",
+          title: newEvent.title
+        });
+      }
     }
 
     if (error) alert("Error: " + error.message);
@@ -104,7 +116,8 @@ export default function EventsPage() {
       alert(editingEvent ? "Event Updated!" : "Event Created!");
       setShowCreateForm(false);
       setEditingEvent(null);
-      setNewEvent({ title: "", description: "", date: "", time: "", location: "", type: "Fellowship", isOnline: false, meetingLink: "" });
+      // Reset form
+      setNewEvent({ title: "", description: "", date: "", time: "", location: "", type: "Fellowship", isOnline: false, meetingLink: "", shareToFeed: false });
       loadEvents();
     }
   }
@@ -121,16 +134,47 @@ export default function EventsPage() {
       title: event.title, description: event.description,
       date: event.event_date, time: event.event_time,
       location: event.location, isOnline: event.is_online,
-      meetingLink: event.meeting_link || ""
+      meetingLink: event.meeting_link || "",
+      shareToFeed: false // Usually don't re-share on edit
     });
     setShowCreateForm(true);
   }
 
-  function sendInvite(friendId) {
-    if (!selectedEventForInvite) return;
-    // Basic Invite Logic (Database call hidden for brevity as it works)
-    alert(`Invite sent to user ${friendId} for ${selectedEventForInvite.title}`);
-    setInviteModalOpen(false);
+  // --- BULK INVITE LOGIC ---
+  function toggleFriendSelection(id) {
+    if (selectedFriends.includes(id)) {
+      setSelectedFriends(selectedFriends.filter(fid => fid !== id));
+    } else {
+      setSelectedFriends([...selectedFriends, id]);
+    }
+  }
+
+  function toggleSelectAll() {
+    if (selectedFriends.length === myConnections.length) {
+      setSelectedFriends([]); 
+    } else {
+      setSelectedFriends(myConnections.map(c => c.id));
+    }
+  }
+
+  async function sendBulkInvites() {
+    if (!selectedEventForInvite || selectedFriends.length === 0) return;
+
+    const invites = selectedFriends.map(fid => ({
+      event_id: selectedEventForInvite.id,
+      sender_id: user.id,
+      receiver_id: fid,
+      status: 'pending'
+    }));
+
+    const { error } = await supabase.from('event_invites').insert(invites);
+
+    if (error) alert("Error sending invites: " + error.message);
+    else {
+      alert(`✅ Sent invites to ${selectedFriends.length} believers!`);
+      setInviteModalOpen(false);
+      setSelectedFriends([]);
+    }
   }
 
   function toLocalISODate(date) {
@@ -156,7 +200,7 @@ export default function EventsPage() {
         <button onClick={() => setViewMode("my")} style={{ flex: 1, padding: "12px", borderRadius: "8px", border: "none", background: viewMode === "my" ? "#0b2e4a" : "white", color: viewMode === "my" ? "white" : "#333", fontWeight: "bold" }}>👤 My Events</button>
       </div>
 
-      <button onClick={() => { setShowCreateForm(!showCreateForm); setEditingEvent(null); setNewEvent({ title: "", description: "", date: "", time: "", location: "", type: "Fellowship", isOnline: false, meetingLink: "" }); }} style={{ width: "100%", padding: "15px", background: "#f0fff4", color: "#2e8b57", border: "2px dashed #2e8b57", borderRadius: "12px", fontSize: "16px", fontWeight: "bold", marginBottom: "20px" }}>
+      <button onClick={() => { setShowCreateForm(!showCreateForm); setEditingEvent(null); setNewEvent({ title: "", description: "", date: "", time: "", location: "", type: "Fellowship", isOnline: false, meetingLink: "", shareToFeed: false }); }} style={{ width: "100%", padding: "15px", background: "#f0fff4", color: "#2e8b57", border: "2px dashed #2e8b57", borderRadius: "12px", fontSize: "16px", fontWeight: "bold", marginBottom: "20px" }}>
         {showCreateForm ? "Cancel" : "➕ Create New Event"}
       </button>
 
@@ -170,9 +214,18 @@ export default function EventsPage() {
               <input type="date" value={newEvent.date} onChange={e => setNewEvent({...newEvent, date: e.target.value})} required style={{ padding: "10px", borderRadius: "8px", border: "1px solid #ddd" }} />
               <input type="time" value={newEvent.time} onChange={e => setNewEvent({...newEvent, time: e.target.value})} required style={{ padding: "10px", borderRadius: "8px", border: "1px solid #ddd" }} />
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <input type="checkbox" checked={newEvent.isOnline} onChange={e => setNewEvent({...newEvent, isOnline: e.target.checked})} /> <label style={{color:"#333"}}>Online</label>
+            
+            <div style={{display:'flex', gap:'20px'}}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <input type="checkbox" checked={newEvent.isOnline} onChange={e => setNewEvent({...newEvent, isOnline: e.target.checked})} /> <label style={{color:"#333"}}>Online</label>
+              </div>
+              
+              {/* NEW SHARE OPTION */}
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <input type="checkbox" checked={newEvent.shareToFeed} onChange={e => setNewEvent({...newEvent, shareToFeed: e.target.checked})} /> <label style={{color:"#333", fontWeight:'bold'}}>Share to The Walk (Feed)</label>
+              </div>
             </div>
+
             {newEvent.isOnline ? <input type="text" placeholder="Link" value={newEvent.meetingLink} onChange={e => setNewEvent({...newEvent, meetingLink: e.target.value})} style={{ padding: "10px", borderRadius: "8px", border: "1px solid #ddd" }} /> : <input type="text" placeholder="Location" value={newEvent.location} onChange={e => setNewEvent({...newEvent, location: e.target.value})} style={{ padding: "10px", borderRadius: "8px", border: "1px solid #ddd" }} />}
             <button type="submit" style={{ padding: "12px", background: "#2e8b57", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold" }}>{editingEvent ? "Update" : "Publish"}</button>
           </form>
@@ -180,7 +233,7 @@ export default function EventsPage() {
       )}
 
       <div style={{ display: "grid", gridTemplateColumns: "350px 1fr", gap: "20px" }}>
-        {/* Calendar - UPDATED VISUAL INDICATORS */}
+        {/* Calendar UI */}
         <div style={{ background: "white", padding: "20px", borderRadius: "12px", height: "fit-content" }}>
           <div style={{ textAlign: "center", marginBottom: "15px", fontWeight: "bold", color: "#0b2e4a" }}>{monthNames[selectedDate.getMonth()]} {selectedDate.getFullYear()}</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "5px" }}>
@@ -198,7 +251,6 @@ export default function EventsPage() {
                   <div key={day} onClick={() => setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day))} 
                     style={{ 
                       textAlign: "center", padding: "8px", borderRadius: "8px", cursor: "pointer", fontSize: "14px", 
-                      // Logic: Selected = Dark Green; Has Event = Light Green + Border; None = Transparent
                       background: isSelected ? "#2e8b57" : (hasEvent ? "#e0f2f1" : "transparent"), 
                       color: isSelected ? "white" : (hasEvent ? "#00695c" : "#333"), 
                       fontWeight: isSelected || hasEvent ? "bold" : "normal",
@@ -247,19 +299,48 @@ export default function EventsPage() {
         </div>
       </div>
       
+      {/* BULK INVITE MODAL */}
       {inviteModalOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
-          <div style={{ background: 'white', padding: '20px', borderRadius: '12px', width: '90%', maxWidth: '400px' }}>
-            <h3 style={{ marginTop: 0 }}>Invite Believers</h3>
-            <div style={{ maxHeight: '200px', overflowY: 'auto', marginBottom: '15px' }}>
-              {myConnections.length === 0 ? <p>No connections found.</p> : myConnections.map(friend => (
-                <div key={friend.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px', borderBottom: '1px solid #eee' }}>
-                  <span>{friend.full_name}</span>
-                  <button onClick={() => sendInvite(friend.id)} style={{ padding: '4px 8px', background: '#2e8b57', color: 'white', borderRadius: '4px', border: 'none' }}>Send</button>
-                </div>
-              ))}
+          <div style={{ background: 'white', padding: '20px', borderRadius: '12px', width: '90%', maxWidth: '400px', maxHeight: '80vh', display:'flex', flexDirection:'column' }}>
+            <h3 style={{ marginTop: 0, color:'#0b2e4a' }}>Invite Believers</h3>
+            <p style={{fontSize:'13px', color:'#666', marginBottom:'15px'}}>Inviting to: <b>{selectedEventForInvite?.title}</b></p>
+            
+            <div style={{display:'flex', justifyContent:'space-between', marginBottom:'10px'}}>
+              <button onClick={toggleSelectAll} style={{fontSize:'12px', color:'#2d6be3', background:'none', border:'none', cursor:'pointer', fontWeight:'bold'}}>
+                {selectedFriends.length === myConnections.length ? "Deselect All" : "Select All"}
+              </button>
+              <span style={{fontSize:'12px', color:'#666'}}>{selectedFriends.length} selected</span>
             </div>
-            <button onClick={() => setInviteModalOpen(false)} style={{ width: '100%', padding: '10px', background: '#f0f0f0', border: 'none', borderRadius: '8px' }}>Close</button>
+
+            <div style={{ overflowY: 'auto', marginBottom: '15px', flex:1, border:'1px solid #eee', borderRadius:'8px', padding:'5px' }}>
+              {myConnections.length === 0 ? (
+                <p style={{padding:'20px', textAlign:'center', color:'#666'}}>No connections yet. Connect with believers first!</p>
+              ) : (
+                myConnections.map(friend => (
+                  <div key={friend.id} onClick={() => toggleFriendSelection(friend.id)} 
+                    style={{ 
+                      display: 'flex', alignItems: 'center', gap:'10px', padding: '10px', borderBottom: '1px solid #eee', cursor:'pointer',
+                      background: selectedFriends.includes(friend.id) ? '#e8f5e9' : 'transparent' 
+                    }}>
+                    <input 
+                      type="checkbox" 
+                      checked={selectedFriends.includes(friend.id)} 
+                      readOnly 
+                      style={{accentColor:'#2e8b57'}}
+                    />
+                    <span style={{color:'#333', fontWeight:'500'}}>{friend.full_name}</span>
+                  </div>
+                ))
+              )}
+            </div>
+            
+            <div style={{display:'flex', gap:'10px'}}>
+              <button onClick={() => setInviteModalOpen(false)} style={{ flex:1, padding: '10px', background: '#f0f0f0', border: 'none', borderRadius: '8px', cursor: 'pointer', color:'#333' }}>Cancel</button>
+              <button onClick={sendBulkInvites} disabled={selectedFriends.length === 0} style={{ flex:1, padding: '10px', background: '#2e8b57', color: 'white', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight:'bold', opacity: selectedFriends.length===0?0.5:1 }}>
+                Send Invites ({selectedFriends.length})
+              </button>
+            </div>
           </div>
         </div>
       )}
