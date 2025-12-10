@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { useSearchParams } from "next/navigation";
 
 export default function ChatPage() {
+  // ... (keep existing state and logic: mounted, user, chats, activeChat, messages, etc.) ...
   const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState(null);
   const [chats, setChats] = useState([]);
@@ -26,17 +27,13 @@ export default function ChatPage() {
       setUser(data.user);
       await loadRecentChats(data.user.id);
       
-      // Load chat from URL if present
       const targetId = searchParams.get('uid');
       if (targetId) loadChatWithUser(targetId, data.user.id);
     }
   }
 
   async function loadRecentChats(myId) {
-    // Find unique users I've messaged
-    const { data } = await supabase.from('messages').select('sender_id, receiver_id')
-      .or(`sender_id.eq.${myId},receiver_id.eq.${myId}`);
-    
+    const { data } = await supabase.from('messages').select('sender_id, receiver_id').or(`sender_id.eq.${myId},receiver_id.eq.${myId}`);
     if (!data) return;
 
     const uniqueIds = new Set();
@@ -55,15 +52,11 @@ export default function ChatPage() {
     if (!myId && user) myId = user.id;
     if (!myId) return;
 
-    // 1. Set Active User UI
-    // Check if in existing chats list
     let partnerProfile = chats.find(c => c.id === partnerId);
     if (!partnerProfile) {
-        // Not in sidebar? Fetch it manually.
         const { data } = await supabase.from('profiles').select('*').eq('id', partnerId).single();
         if (data) {
             partnerProfile = data;
-            // Add to sidebar temporarily
             setChats(prev => {
                 if (prev.find(p => p.id === data.id)) return prev;
                 return [data, ...prev];
@@ -74,7 +67,6 @@ export default function ChatPage() {
     setActiveChat(partnerId);
     setActiveChatUser(partnerProfile);
 
-    // 2. Fetch Messages
     const { data } = await supabase.from('messages').select('*')
       .or(`and(sender_id.eq.${myId},receiver_id.eq.${partnerId}),and(sender_id.eq.${partnerId},receiver_id.eq.${myId})`)
       .order('created_at', { ascending: true });
@@ -114,7 +106,8 @@ export default function ChatPage() {
             <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#ccc', overflow:'hidden' }}>
                {c.avatar_url ? <img src={c.avatar_url} style={{width:'100%', height:'100%', objectFit:'cover'}}/> : null}
             </div>
-            <div style={{fontWeight:'bold', fontSize:'14px'}}>{c.full_name}</div>
+            {/* FIXED COLOR HERE */}
+            <div style={{fontWeight:'bold', fontSize:'14px', color:'#000'}}>{c.full_name}</div>
           </div>
         ))}
       </div>
@@ -123,7 +116,7 @@ export default function ChatPage() {
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         {activeChat ? (
           <>
-            <div style={{padding:'15px', borderBottom:'1px solid #eee', fontWeight:'bold', background:'#fff'}}>
+            <div style={{padding:'15px', borderBottom:'1px solid #eee', fontWeight:'bold', background:'#fff', color:'#0b2e4a'}}>
               {activeChatUser?.full_name || "Chat"}
             </div>
             <div style={{ flex: 1, padding: '20px', overflowY: 'auto', background: '#fff' }}>
@@ -140,7 +133,7 @@ export default function ChatPage() {
               <div ref={messagesEndRef} />
             </div>
             <form onSubmit={sendMessage} style={{ padding: '15px', background: '#f9f9f9', display: 'flex', gap: '10px', borderTop:'1px solid #eee' }}>
-              <input type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Type a message..." style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #ddd', outline:'none' }} />
+              <input type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Type a message..." style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #ddd', outline:'none', color:'#333' }} />
               <button type="submit" style={{ padding: '0 20px', background: '#2e8b57', color: 'white', borderRadius: '8px', border: 'none', fontWeight:'bold', cursor:'pointer' }}>Send</button>
             </form>
           </>
