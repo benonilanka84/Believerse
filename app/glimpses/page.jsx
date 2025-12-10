@@ -4,12 +4,6 @@ import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
-// Placeholder for mock actions
-const mockAction = (action, id) => {
-  console.log(`${action} on glimpse ${id}`);
-  alert(`${action} triggered!`);
-};
-
 export default function GlimpsesPage() {
   const [mounted, setMounted] = useState(false);
   const [glimpses, setGlimpses] = useState([]);
@@ -23,7 +17,7 @@ export default function GlimpsesPage() {
   
   // Modal States
   const [blessModalUser, setBlessModalUser] = useState(null);
-  const [openMenuId, setOpenMenuId] = useState(null);
+  const [openMenuId, setOpenMenuId] = useState(null); // Track which video's menu is open
 
   useEffect(() => {
     setMounted(true);
@@ -113,15 +107,15 @@ export default function GlimpsesPage() {
     else alert("Link copied!");
   }
   
-  // --- MENU HANDLERS ---
-  function handleSaveToPlaylist(id) { setOpenMenuId(null); mockAction("Save to Playlist", id); }
-  function handleToggleCaptions(id) { setOpenMenuId(null); mockAction("Toggle Captions", id); }
+  // --- MENU ACTIONS ---
+  function handleSaveToPlaylist(id) { setOpenMenuId(null); alert("Saved to Playlist (Mock)"); }
+  function handleToggleCaptions(id) { setOpenMenuId(null); alert("Captions Toggled (Mock)"); }
   function handleNotInterested(id) { 
     setOpenMenuId(null); 
-    setGlimpses(prev => prev.filter(g => g.id !== id)); // Hide locally
-    mockAction("Not Interested", id); 
+    setGlimpses(prev => prev.filter(g => g.id !== id)); 
+    alert("This video is now hidden."); 
   }
-  function handleReport(id) { setOpenMenuId(null); mockAction("Report", id); }
+  function handleReport(id) { setOpenMenuId(null); alert("Reported for review."); }
 
 
   if (!mounted) return null;
@@ -190,7 +184,6 @@ export default function GlimpsesPage() {
       {/* BLESS MODAL */}
       {blessModalUser && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-          {/* ... (Bless Modal Content same as before) ... */}
            <div style={{ background: 'white', padding: '25px', borderRadius: '16px', width: '85%', maxWidth: '320px', textAlign: 'center' }}>
             <h3 style={{ margin: '0 0 15px 0', color: '#0b2e4a' }}>Bless {blessModalUser.full_name}</h3>
             <div style={{ background: '#f9f9f9', padding: '10px', borderRadius: '12px', marginBottom: '15px' }}>
