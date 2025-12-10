@@ -14,9 +14,9 @@ export default function GlimpsesPage() {
   const [newGlimpseCaption, setNewGlimpseCaption] = useState("");
   const fileInputRef = useRef(null);
   
-  // Modal States
+  // Interaction State
   const [blessModalUser, setBlessModalUser] = useState(null);
-  const [openMenuId, setOpenMenuId] = useState(null); // Track which video menu is open
+  const [openMenuId, setOpenMenuId] = useState(null); 
 
   useEffect(() => {
     setMounted(true);
@@ -48,7 +48,7 @@ export default function GlimpsesPage() {
     }
   }
 
-  // --- UPLOAD HANDLER ---
+  // --- UPLOAD ---
   async function handleFileUpload() {
     const file = fileInputRef.current?.files?.[0];
     if (!file || !user) return;
@@ -85,11 +85,11 @@ export default function GlimpsesPage() {
 
   // --- ACTIONS ---
   async function handleDelete(glimpseId) {
-    if(!confirm("Are you sure you want to delete this Glimpse?")) return;
-    
+    if(!confirm("Permanently delete this Glimpse?")) return;
     const { error } = await supabase.from('posts').delete().eq('id', glimpseId);
     if (!error) {
         setGlimpses(prev => prev.filter(g => g.id !== glimpseId));
+        setOpenMenuId(null); // Close menu
     } else {
         alert("Error deleting: " + error.message);
     }
@@ -111,7 +111,6 @@ export default function GlimpsesPage() {
     else alert("Link copied!");
   }
   
-  // --- MENU LOGIC ---
   function handleMenuAction(action, id) {
     setOpenMenuId(null);
     if (action === "NotInterested") {
@@ -138,7 +137,7 @@ export default function GlimpsesPage() {
         </div>
       </div>
 
-      {/* FEED CONTAINER */}
+      {/* FEED */}
       <div style={{ width: '100%', maxWidth: '480px', height: '100%', overflowY: "scroll", scrollSnapType: "y mandatory", scrollBehavior: "smooth", background:'#000', position:'relative' }}>
         {glimpses.length === 0 ? <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "white" }}><p>No Glimpses yet.</p></div> : 
           glimpses.map((glimpse) => (
@@ -198,7 +197,7 @@ export default function GlimpsesPage() {
   );
 }
 
-// --- VIDEO ITEM COMPONENT (REELS STYLE) ---
+// --- GLIMPSE VIDEO ITEM ---
 function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, openMenuId, setOpenMenuId, onMenuAction }) {
   const videoRef = useRef(null);
   const [playing, setPlaying] = useState(true);
@@ -226,7 +225,7 @@ function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, ope
         style={{ height: "100%", width: "100%", objectFit: "cover", cursor:'pointer' }} 
       />
       
-      {/* OVERLAY: MUTE BUTTON (Top Left) */}
+      {/* MUTE TOGGLE (Top Left) */}
       <button 
         onClick={(e) => {e.stopPropagation(); setMuted(!muted);}} 
         style={{position:'absolute', top:20, left:20, background:'rgba(0,0,0,0.4)', color:'white', border:'none', padding:'8px 12px', borderRadius:'20px', zIndex:5, cursor:'pointer', display:'flex', alignItems:'center', gap:'5px', backdropFilter:'blur(5px)'}}
@@ -235,10 +234,7 @@ function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, ope
         <span style={{fontSize:'12px', fontWeight:'bold'}}>{muted ? "Tap to Unmute" : "On"}</span>
       </button>
 
-      {/* OVERLAY: PLAY ICON (Center) */}
-      {!playing && <div onClick={togglePlay} style={{position:'absolute', fontSize:'60px', color:'rgba(255,255,255,0.8)', pointerEvents:'none', zIndex:4, textShadow:'0 2px 10px rgba(0,0,0,0.5)'}}>▶</div>}
-
-      {/* RIGHT SIDEBAR (The "Shorts" Toolbar) */}
+      {/* RIGHT SIDEBAR (ACTIONS) */}
       <div style={{ position: "absolute", right: "10px", bottom: "120px", display: "flex", flexDirection: "column", gap: "25px", alignItems: "center", zIndex: 5 }}>
         
         {/* AVATAR */}
@@ -268,16 +264,21 @@ function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, ope
 
         {/* MENU (Three Dots) */}
         <div style={{ position:'relative' }}>
-          <button onClick={(e) => {e.stopPropagation(); setOpenMenuId(showMenu ? null : glimpse.id);}} style={{ background: "rgba(0,0,0,0.3)", borderRadius:'50%', width:'40px', height:'40px', border: "none", fontSize: "20px", color:'white', cursor: "pointer", display:'flex', alignItems:'center', justifyContent:'center', backdropFilter:'blur(5px)' }}>⋮</button>
+          <button 
+            onClick={(e) => {e.stopPropagation(); setOpenMenuId(showMenu ? null : glimpse.id);}} 
+            style={{ background: "rgba(0,0,0,0.3)", borderRadius:'50%', width:'40px', height:'40px', border: "none", fontSize: "20px", color:'white', cursor: "pointer", display:'flex', alignItems:'center', justifyContent:'center', backdropFilter:'blur(5px)' }}
+          >
+            ⋮
+          </button>
           
-          {/* POPUP MENU */}
+          {/* MENU POPUP */}
           {showMenu && (
             <div style={{ position: 'absolute', right: 50, bottom: 0, background: 'white', borderRadius: '12px', width: '180px', overflow: 'hidden', boxShadow: '0 4px 15px rgba(0,0,0,0.3)', animation: 'fadeIn 0.2s ease' }}>
               <button onClick={() => onMenuAction("Save", glimpse.id)} style={{ width: '100%', padding: '12px', textAlign: 'left', border: 'none', background: 'white', cursor: 'pointer', fontSize: '13px', borderBottom: '1px solid #eee', color:'#333' }}>💾 Save to Playlist</button>
               <button onClick={() => onMenuAction("Captions", glimpse.id)} style={{ width: '100%', padding: '12px', textAlign: 'left', border: 'none', background: 'white', cursor: 'pointer', fontSize: '13px', borderBottom: '1px solid #eee', color:'#333' }}>🅰️ Captions</button>
               <button onClick={() => onMenuAction("NotInterested", glimpse.id)} style={{ width: '100%', padding: '12px', textAlign: 'left', border: 'none', background: 'white', cursor: 'pointer', fontSize: '13px', borderBottom: '1px solid #eee', color:'#333' }}>🙈 Not Interested</button>
               
-              {/* DELETE BUTTON FOR OWNER */}
+              {/* DELETE (Only for Creator) */}
               {isOwner ? (
                 <button onClick={onDelete} style={{ width: '100%', padding: '12px', textAlign: 'left', border: 'none', background: '#fff5f5', cursor: 'pointer', color: 'red', fontSize: '13px', fontWeight:'bold' }}>🗑️ Delete</button>
               ) : (
