@@ -4,13 +4,26 @@ import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
+// Placeholder function for database interaction
+function mockAction(action, glimpseId) {
+  console.log(`${action} triggered for Glimpse ID: ${glimpseId}`);
+  alert(`${action} recorded.`);
+}
+
 export default function GlimpsesPage() {
   const [mounted, setMounted] = useState(false);
   const [glimpses, setGlimpses] = useState([]);
   const [user, setUser] = useState(null);
+  
+  // Upload State
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [newGlimpseCaption, setNewGlimpseCaption] = useState("");
   const fileInputRef = useRef(null);
+  
+  // Modal States
   const [blessModalUser, setBlessModalUser] = useState(null);
+  const [openMenuId, setOpenMenuId] = useState(null);
 
   useEffect(() => {
     setMounted(true);
@@ -35,6 +48,7 @@ export default function GlimpsesPage() {
     if (data) {
       const formatted = data.map(p => ({
         ...p,
+        author: p.profiles,
         amenCount: p.amens.length,
         hasAmened: p.amens.some(a => a.user_id === userId)
       }));
@@ -42,12 +56,14 @@ export default function GlimpsesPage() {
     }
   }
 
-  async function handleUpload(e) {
-    const file = e.target.files?.[0];
+  // --- UPLOAD HANDLER ---
+  async function handleFileUpload() {
+    const file = fileInputRef.current?.files?.[0];
     if (!file || !user) return;
     if (file.size > 50 * 1024 * 1024) { alert("Video too large! Max 50MB."); return; }
 
     setUploading(true);
+    setIsUploadModalOpen(false); // Close modal right away
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `glimpse-${user.id}-${Date.now()}.${fileExt}`;
@@ -58,32 +74,35 @@ export default function GlimpsesPage() {
 
       await supabase.from('posts').insert({
         user_id: user.id,
-        content: "⚡ New Glimpse",
+        content: newGlimpseCaption || "⚡ New Glimpse", // Use caption
         type: "Glimpse",
         media_url: urlData.publicUrl,
         media_type: "video"
       });
 
       alert("✅ Glimpse Uploaded!");
+      setNewGlimpseCaption("");
       loadGlimpses(user.id);
     } catch (err) {
       alert("Error: " + err.message);
     } finally {
       setUploading(false);
+      // Clear file input
+      if (fileInputRef.current) fileInputRef.current.value = null;
     }
   }
 
+  // --- GLIMPSE ACTIONS ---
   async function handleDelete(glimpseId) {
     if(!confirm("Delete this Glimpse?")) return;
     await supabase.from('posts').delete().eq('id', glimpseId);
     setGlimpses(prev => prev.filter(g => g.id !== glimpseId));
   }
 
-  // --- ACTIONS ---
-  async function handleAmen(glimpseId, currentStatus) {
-    setGlimpses(prev => prev.map(g => g.id === glimpseId ? { ...g, hasAmened: !currentStatus, amenCount: currentStatus ? g.amenCount - 1 : g.amenCount + 1 } : g));
-    if (currentStatus) await supabase.from('amens').delete().match({ user_id: user.id, post_id: glimpseId });
-    else await supabase.from('amens').insert({ user_id: user.id, post_id: glimpseId });
+  async function handleAmen(glimpse, currentStatus) {
+    setGlimpses(prev => prev.map(g => g.id === glimpse.id ? { ...g, hasAmened: !currentStatus, amenCount: currentStatus ? g.amenCount - 1 : g.amenCount + 1 } : g));
+    if (currentStatus) await supabase.from('amens').delete().match({ user_id: user.id, post_id: glimpse.id });
+    else await supabase.from('amens').insert({ user_id: user.id, post_id: glimpse.id });
   }
 
   function handleBless(author) {
@@ -95,6 +114,29 @@ export default function GlimpsesPage() {
     if (navigator.share) navigator.share({ title: 'Glimpse', url: window.location.href });
     else alert("Link copied!");
   }
+  
+  // --- MENU ACTIONS ---
+  function handleSaveToPlaylist(glimpseId) {
+    setOpenMenuId(null);
+    mockAction("Save to Playlist", glimpseId);
+  }
+  
+  function handleToggleCaptions(glimpseId) {
+    setOpenMenuId(null);
+    mockAction("Toggle Captions (Mock)", glimpseId); // In a real app, this would toggle a caption track
+  }
+  
+  function handleNotInterested(glimpseId) {
+    setOpenMenuId(null);
+    setGlimpses(prev => prev.filter(g => g.id !== glimpseId)); // Immediately hide for the user
+    mockAction("Not Interested", glimpseId);
+  }
+  
+  function handleReport(glimpseId) {
+    setOpenMenuId(null);
+    mockAction("Report Content", glimpseId);
+  }
+
 
   if (!mounted) return null;
 
@@ -105,30 +147,60 @@ export default function GlimpsesPage() {
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, padding: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 10 }}>
         <h2 style={{ color: "white", margin: 0, fontSize: "18px", fontWeight:'bold', textShadow:'0 2px 4px rgba(0,0,0,0.5)' }}>⚡ Glimpses</h2>
         <div style={{display:'flex', gap:'10px'}}>
-           <button onClick={() => fileInputRef.current.click()} style={{ background: "rgba(255,255,255,0.2)", border: "1px solid white", color: "white", padding: "6px 12px", borderRadius: "20px", fontSize:'12px', cursor: "pointer" }}>
-             {uploading ? "..." : "+ Upload"}
+           <button onClick={() => setIsUploadModalOpen(true)} style={{ background: "rgba(255,255,255,0.2)", border: "1px solid white", color: "white", padding: "6px 12px", borderRadius: "20px", fontSize:'12px', cursor: "pointer" }}>
+             {uploading ? "Uploading..." : "+ Upload"}
            </button>
            <button onClick={() => window.location.href='/dashboard'} style={{background:'rgba(0,0,0,0.5)', border:'none', color:'white', width:'30px', height:'30px', borderRadius:'50%', cursor:'pointer'}}>✕</button>
         </div>
-        <input type="file" ref={fileInputRef} accept="video/*" style={{ display: "none" }} onChange={handleUpload} />
       </div>
 
       {/* FEED */}
       <div style={{ width: '100%', maxWidth: '450px', height: '100%', overflowY: "scroll", scrollSnapType: "y mandatory", scrollBehavior: "smooth", background:'#111', position:'relative' }}>
-        {glimpses.length === 0 ? <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "white" }}><p>No Glimpses yet.</p></div> : 
+        {glimpses.length === 0 ? <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "white" }}><p>No Glimpses yet. Be the first!</p></div> : 
           glimpses.map((glimpse) => (
             <GlimpseItem 
               key={glimpse.id} 
               glimpse={glimpse} 
               isOwner={user && user.id === glimpse.user_id}
-              onDelete={() => handleDelete(glimpse.id)}
-              onAmen={() => handleAmen(glimpse.id, glimpse.hasAmened)} 
-              onBless={() => handleBless(glimpse.profiles)} 
-              onShare={handleShare} 
+              onDelete={handleDelete}
+              onAmen={handleAmen} 
+              onBless={handleBless} 
+              onShare={handleShare}
+              openMenuId={openMenuId}
+              setOpenMenuId={setOpenMenuId}
+              handleSaveToPlaylist={handleSaveToPlaylist}
+              handleToggleCaptions={handleToggleCaptions}
+              handleNotInterested={handleNotInterested}
+              handleReport={handleReport}
             />
           ))
         }
       </div>
+      
+      {/* UPLOAD MODAL */}
+      {isUploadModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: 'white', padding: '25px', borderRadius: '16px', width: '90%', maxWidth: '350px', textAlign: 'center' }}>
+            <h3 style={{ margin: '0 0 15px 0', color: '#0b2e4a' }}>Upload New Glimpse</h3>
+            <textarea 
+              value={newGlimpseCaption} 
+              onChange={e => setNewGlimpseCaption(e.target.value)} 
+              placeholder="Add a caption to your Glimpse..."
+              style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ddd', minHeight: '80px', marginBottom: '15px' }}
+            />
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              accept="video/*" 
+              style={{ display: 'block', marginBottom: '20px' }} 
+              onChange={() => fileInputRef.current.files.length > 0 && handleFileUpload()} // Trigger upload immediately after file select
+            />
+            
+            <button onClick={() => setIsUploadModalOpen(false)} style={{ width: '100%', padding: '10px', background: '#ccc', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Cancel</button>
+          </div>
+        </div>
+      )}
+
 
       {/* BLESS MODAL */}
       {blessModalUser && (
@@ -147,7 +219,7 @@ export default function GlimpsesPage() {
   );
 }
 
-function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare }) {
+function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, openMenuId, setOpenMenuId, handleSaveToPlaylist, handleToggleCaptions, handleNotInterested, handleReport }) {
   const videoRef = useRef(null);
   const [playing, setPlaying] = useState(true);
   const [muted, setMuted] = useState(true);
@@ -156,28 +228,51 @@ function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare }) {
     if (playing) { videoRef.current.pause(); setPlaying(false); } 
     else { videoRef.current.play(); setPlaying(true); }
   }
+  
+  const showMenu = openMenuId === glimpse.id;
 
   return (
     <div style={{ height: "100%", width: "100%", scrollSnapAlign: "start", position: "relative", display: "flex", alignItems: "center", justifyContent: "center", overflow:'hidden' }}>
       <video ref={videoRef} src={glimpse.media_url} loop muted={muted} playsInline autoPlay onClick={togglePlay} style={{ height: "100%", width: "100%", objectFit: "cover", cursor:'pointer' }} />
+      
+      {/* Mute/Unmute */}
       <button onClick={(e) => {e.stopPropagation(); setMuted(!muted);}} style={{position:'absolute', top:20, left:20, background:'rgba(0,0,0,0.5)', color:'white', border:'none', padding:'5px 10px', borderRadius:'20px', zIndex:5, cursor:'pointer'}}>{muted ? "🔇 Unmute" : "🔊"}</button>
       
-      {/* DELETE BUTTON (For Owner) */}
-      {isOwner && (
-        <button onClick={(e) => {e.stopPropagation(); onDelete();}} style={{position:'absolute', top:20, right:20, background:'rgba(255,0,0,0.6)', color:'white', border:'none', padding:'5px 10px', borderRadius:'20px', zIndex:5, cursor:'pointer'}}>🗑️</button>
-      )}
+      {/* 3-DOT MENU */}
+      <div style={{ position: 'absolute', top: 20, right: 20, zIndex: 6 }}>
+        <button 
+          onClick={(e) => {e.stopPropagation(); setOpenMenuId(showMenu ? null : glimpse.id);}} 
+          style={{ background: 'rgba(0,0,0,0.5)', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '20px', fontSize: '18px', cursor: 'pointer' }}
+        >
+          ⋮
+        </button>
+        {showMenu && (
+          <div style={{ position: 'absolute', right: 0, top: '40px', background: 'white', border: '1px solid #eee', boxShadow: '0 4px 12px rgba(0,0,0,0.2)', borderRadius: '8px', zIndex: 10, width: '150px', overflow: 'hidden' }}>
+            <button onClick={() => handleSaveToPlaylist(glimpse.id)} style={{ width: '100%', padding: '10px', textAlign: 'left', border: 'none', background: 'white', cursor: 'pointer', fontSize: '13px', borderBottom: '1px solid #eee' }}>💾 Save to Playlist</button>
+            <button onClick={() => handleToggleCaptions(glimpse.id)} style={{ width: '100%', padding: '10px', textAlign: 'left', border: 'none', background: 'white', cursor: 'pointer', fontSize: '13px', borderBottom: '1px solid #eee' }}>🅰️ Captions</button>
+            <button onClick={() => handleNotInterested(glimpse.id)} style={{ width: '100%', padding: '10px', textAlign: 'left', border: 'none', background: 'white', cursor: 'pointer', fontSize: '13px', borderBottom: '1px solid #eee' }}>🙈 Not Interested</button>
+            {isOwner ? (
+                // OWNER OPTIONS
+                <button onClick={() => { setOpenMenuId(null); onDelete(glimpse.id); }} style={{ width: '100%', padding: '10px', textAlign: 'left', border: 'none', background: 'white', cursor: 'pointer', color: 'red', fontSize: '13px' }}>🗑️ Delete</button>
+            ) : (
+                // VIEWER OPTIONS
+                <button onClick={() => handleReport(glimpse.id)} style={{ width: '100%', padding: '10px', textAlign: 'left', border: 'none', background: 'white', cursor: 'pointer', color: '#ff8800', fontSize: '13px' }}>🚩 Report</button>
+            )}
+          </div>
+        )}
+      </div>
 
       {!playing && <div onClick={togglePlay} style={{position:'absolute', fontSize:'60px', color:'rgba(255,255,255,0.7)', pointerEvents:'none', zIndex:4}}>▶</div>}
 
       <div style={{ position: "absolute", right: "10px", bottom: "100px", display: "flex", flexDirection: "column", gap: "20px", alignItems: "center", zIndex: 5 }}>
-        <div style={{ position: "relative" }}><img src={glimpse.profiles?.avatar_url || '/images/default-avatar.png'} style={{ width: 40, height: 40, borderRadius: "50%", border: "2px solid white" }} /></div>
-        <div style={{ textAlign: "center" }}><button onClick={onAmen} style={{ background: "none", border: "none", fontSize: "28px", cursor: "pointer", textShadow: "0 2px 5px rgba(0,0,0,0.5)" }}>{glimpse.hasAmened ? "🙏" : "👐"}</button><div style={{ color: "white", fontSize: "11px", fontWeight: "bold", textShadow: "0 1px 3px black" }}>{glimpse.amenCount}</div></div>
-        <div style={{ textAlign: "center" }}><button onClick={onBless} style={{ background: "none", border: "none", fontSize: "28px", cursor: "pointer", textShadow: "0 2px 5px rgba(0,0,0,0.5)" }}>✨</button><div style={{ color: "white", fontSize: "11px", fontWeight: "bold", textShadow: "0 1px 3px black" }}>Bless</div></div>
+        <div style={{ position: "relative" }}><img src={glimpse.author?.avatar_url || '/images/default-avatar.png'} style={{ width: 40, height: 40, borderRadius: "50%", border: "2px solid white" }} /></div>
+        <div style={{ textAlign: "center" }}><button onClick={() => onAmen(glimpse, glimpse.hasAmened)} style={{ background: "none", border: "none", fontSize: "28px", cursor: "pointer", textShadow: "0 2px 5px rgba(0,0,0,0.5)" }}>{glimpse.hasAmened ? "🙏" : "👐"}</button><div style={{ color: "white", fontSize: "11px", fontWeight: "bold", textShadow: "0 1px 3px black" }}>{glimpse.amenCount}</div></div>
+        <div style={{ textAlign: "center" }}><button onClick={() => onBless(glimpse.author)} style={{ background: "none", border: "none", fontSize: "28px", cursor: "pointer", textShadow: "0 2px 5px rgba(0,0,0,0.5)" }}>✨</button><div style={{ color: "white", fontSize: "11px", fontWeight: "bold", textShadow: "0 1px 3px black" }}>Bless</div></div>
         <div style={{ textAlign: "center" }}><button onClick={onShare} style={{ background: "none", border: "none", fontSize: "28px", cursor: "pointer", textShadow: "0 2px 5px rgba(0,0,0,0.5)" }}>📢</button><div style={{ color: "white", fontSize: "11px", fontWeight: "bold", textShadow: "0 1px 3px black" }}>Share</div></div>
       </div>
 
       <div style={{ position: "absolute", bottom: "20px", left: "15px", width: "75%", color: "white", textShadow: "0 1px 4px rgba(0,0,0,0.8)", zIndex: 5 }}>
-        <h3 style={{ margin: "0 0 5px 0", fontSize: "15px" }}>@{glimpse.profiles?.full_name?.split(' ')[0]}</h3>
+        <h3 style={{ margin: "0 0 5px 0", fontSize: "15px" }}>@{glimpse.author?.full_name?.split(' ')[0]}</h3>
         <p style={{ margin: 0, fontSize: "13px", lineHeight: "1.4" }}>{glimpse.content || "#Believerse"}</p>
       </div>
     </div>

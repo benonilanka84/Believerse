@@ -34,6 +34,7 @@ export default function Dashboard() {
   const [openMenuId, setOpenMenuId] = useState(null);
   const [editingPost, setEditingPost] = useState(null);
   const [editContent, setEditContent] = useState("");
+  const [editTitle, setEditTitle] = useState("");
 
   // Bless Modal
   const [blessModalUser, setBlessModalUser] = useState(null);
@@ -70,7 +71,6 @@ export default function Dashboard() {
 
   // --- 1. VISIBLE BIBLE VERSE ---
   function generateDailyVisualVerse() {
-    // High-quality, reliable backgrounds
     const verses = [
       { text: "I am the good shepherd. The good shepherd lays down his life for the sheep.", ref: "John 10:11", bg: "https://images.unsplash.com/photo-1484557985045-6f5c98486c90?auto=format&fit=crop&w=800&q=80" },
       { text: "The Lord is my light and my salvation; whom shall I fear?", ref: "Psalm 27:1", bg: "https://images.unsplash.com/photo-1505322022379-7c3353ee6291?auto=format&fit=crop&w=800&q=80" },
@@ -92,7 +92,7 @@ export default function Dashboard() {
   }
 
   async function loadPrayerWall(userId) {
-    // 1. Get Friend IDs
+    // 1. Get Friend IDs (Self + Friends)
     const { data: conns } = await supabase
       .from('connections')
       .select('user_a, user_b')
@@ -102,11 +102,15 @@ export default function Dashboard() {
     let friendIds = [userId]; 
     if (conns) {
       conns.forEach(c => {
-        friendIds.push(c.user_a === userId ? c.user_b : c.user_a);
+        // Only add friend's ID if it's not the current user's ID
+        if (c.user_a !== userId) friendIds.push(c.user_a);
+        if (c.user_b !== userId) friendIds.push(c.user_b);
       });
+      // Ensure unique IDs
+      friendIds = Array.from(new Set(friendIds));
     }
 
-    // 2. Fetch Prayers (Self + Friends)
+    // 2. Fetch Prayers
     const { data } = await supabase
       .from('posts')
       .select('id, content, user_id, profiles(full_name)')
@@ -121,8 +125,10 @@ export default function Dashboard() {
   async function deletePrayer(prayerId) {
     if(!confirm("Delete this prayer request?")) return;
     await supabase.from('posts').delete().eq('id', prayerId);
+    // Remove from the widget
     setPrayerRequests(prev => prev.filter(p => p.id !== prayerId));
-    loadPosts(user.id, true); // Refresh main feed too
+    // Remove from the main feed
+    setPosts(prev => prev.filter(p => p.id !== prayerId)); 
   }
 
   async function loadRecentChats(userId) {
@@ -182,11 +188,14 @@ export default function Dashboard() {
   }
 
   // --- 5. ACTIONS ---
+  
+  // Bless Action
   function handleBlessClick(author) {
     if (!author?.upi_id) { alert(`God bless! ${author.full_name} has not set up their UPI ID yet.`); return; }
     setBlessModalUser(author);
   }
 
+  // Amen Action
   async function handleAmen(post, currentlyAmened) {
     setPosts(posts.map(p => p.id === post.id ? { ...p, hasAmened: !currentlyAmened, amenCount: currentlyAmened ? p.amenCount - 1 : p.amenCount + 1 } : p));
     if (currentlyAmened) await supabase.from('amens').delete().match({ user_id: user.id, post_id: post.id });
@@ -200,17 +209,22 @@ export default function Dashboard() {
     if (!confirm("Are you sure?")) return;
     await supabase.from('posts').delete().eq('id', postId);
     setPosts(posts.filter(p => p.id !== postId));
+    // If it was a prayer, remove from prayer wall too
+    if (prayerRequests.some(p => p.id === postId)) setPrayerRequests(prev => prev.filter(p => p.id !== postId));
   }
 
   async function handleUpdatePost(postId) {
-    await supabase.from('posts').update({ content: editContent }).eq('id', postId);
-    setPosts(posts.map(p => p.id === postId ? { ...p, content: editContent } : p));
+    await supabase.from('posts').update({ title: editTitle, content: editContent }).eq('id', postId);
+    setPosts(posts.map(p => p.id === postId ? { ...p, title: editTitle, content: editContent } : p));
+    // If it was a prayer, update prayer wall too
+    if (prayerRequests.some(p => p.id === postId)) loadPrayerWall(user.id); 
     setEditingPost(null);
   }
 
   function startEditing(post) {
     setEditingPost(post.id);
     setEditContent(post.content);
+    setEditTitle(post.title || '');
     setOpenMenuId(null);
   }
 
@@ -237,7 +251,7 @@ export default function Dashboard() {
       <div className="dashboard-grid">
         <div className="left-panel">
           
-          {/* DAILY BIBLE VERSE (FIXED VISIBILITY) */}
+          {/* DAILY BIBLE VERSE */}
           {verseData && (
             <div className="panel-card" style={{padding:0, overflow:'hidden', position:'relative', borderRadius:'12px', border:'none', background:'#000'}}>
               <div style={{padding:'10px 15px', background:'#0b2e4a', color:'white', fontWeight:'bold'}}>Daily Bible Verse</div>
@@ -246,7 +260,6 @@ export default function Dashboard() {
                 display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', 
                 padding: '20px', textAlign: 'center', color: 'white', position: 'relative' 
               }}>
-                {/* DARK OVERLAY FOR TEXT VISIBILITY */}
                 <div style={{position:'absolute', inset:0, background:'rgba(0,0,0,0.5)'}} />
                 <div style={{position:'relative', zIndex:2, textShadow: '0 2px 8px black'}}>
                   <p style={{fontSize:'16px', fontWeight:'bold', fontFamily:'Georgia'}}>"{verseData.text}"</p>
@@ -260,7 +273,7 @@ export default function Dashboard() {
             </div>
           )}
           
-          {/* EVENTS WIDGET (FIXED DOTS) */}
+          {/* EVENTS WIDGET */}
           <div className="panel-card">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}><h3 style={{ margin: 0, fontSize:'16px' }}>📅 Events</h3><Link href="/events" style={{ fontSize: "12px", color: "#2e8b57", fontWeight: "600", textDecoration:'none' }}>View All →</Link></div>
             <div style={{ background: "#f9f9f9", borderRadius: "8px", padding: "10px", marginBottom: "15px" }}>
@@ -274,7 +287,7 @@ export default function Dashboard() {
                   const dateStr = `${dateCheck.getFullYear()}-${String(dateCheck.getMonth() + 1).padStart(2, '0')}-${String(dateCheck.getDate()).padStart(2, '0')}`;
                   
                   const isSelected = day === selectedDate.getDate();
-                  const hasEvent = events.some(e => e.event_date === dateStr); // Check for dots
+                  const hasEvent = events.some(e => e.event_date === dateStr);
 
                   return (
                     <div key={day} onClick={() => handleDateClick(day)} 
@@ -291,12 +304,12 @@ export default function Dashboard() {
                 })}
               </div>
             </div>
-            {filteredEvents.length > 0 ? filteredEvents.map(e => <div key={e.id} style={{fontSize:'12px', padding:'5px', background:'#e8f5e9', marginBottom:'5px', color:'#000'}}>{e.title}</div>) : <div style={{fontSize:'12px', color:'#999'}}>No events.</div>}
+            {filteredEvents.length > 0 ? filteredEvents.map(e => <div key={e.id} style={{fontSize:'12px', padding:'5px', background:'#e8f5e9', marginBottom:'5px', color:'#000'}}>{e.title}</div>) : <div style={{fontSize:'12px', color:'#999'}}>No events on this date.</div>}
           </div>
         </div>
 
         <div className="center-panel">
-          {user && <CreatePost user={user} onPostCreated={() => loadPosts(user.id, true)} />}
+          {user && <CreatePost user={user} onPostCreated={() => { loadPosts(user.id, true); loadPrayerWall(user.id); }} />}
           <div className="panel-card">
             <h3>🏠 The Walk</h3>
             {loadingPosts ? <p style={{textAlign:'center', padding:'20px'}}>Loading...</p> : 
@@ -310,9 +323,9 @@ export default function Dashboard() {
                      <div style={{marginLeft:'auto', position:'relative'}}>
                        <button onClick={() => setOpenMenuId(openMenuId === post.id ? null : post.id)} style={{border:'none', background:'none', fontSize:'20px', cursor:'pointer'}}>⋮</button>
                        {openMenuId === post.id && (
-                         <div style={{position:'absolute', right:0, top:'25px', background:'white', border:'1px solid #eee', boxShadow:'0 4px 12px rgba(0,0,0,0.1)', borderRadius:'8px', zIndex:10, width:'100px'}}>
-                           <button onClick={() => startEditing(post)} style={{width:'100%', padding:'8px', textAlign:'left', border:'none', background:'white', cursor:'pointer', fontSize:'13px', color:'#333'}}>Edit</button>
-                           <button onClick={() => handleDeletePost(post.id)} style={{width:'100%', padding:'8px', textAlign:'left', border:'none', background:'white', cursor:'pointer', color:'red', fontSize:'13px'}}>Delete</button>
+                         <div style={{position:'absolute', right:0, top:'25px', background:'white', border:'1px solid #eee', boxShadow:'0 4px 12px rgba(0,0,0,0.1)', borderRadius:'8px', zIndex:10, width:'120px'}}>
+                           <button onClick={() => startEditing(post)} style={{width:'100%', padding:'8px', textAlign:'left', border:'none', background:'white', cursor:'pointer', fontSize:'13px', color:'#333'}}>📝 Edit {post.type === 'Prayer' ? 'Prayer' : 'Post'}</button>
+                           <button onClick={() => handleDeletePost(post.id)} style={{width:'100%', padding:'8px', textAlign:'left', border:'none', background:'white', cursor:'pointer', color:'red', fontSize:'13px'}}>🗑️ Delete</button>
                          </div>
                        )}
                      </div>
@@ -320,15 +333,27 @@ export default function Dashboard() {
                  </div>
                  {editingPost === post.id ? (
                    <div style={{marginBottom:'10px'}}>
-                     <textarea value={editContent} onChange={e => setEditContent(e.target.value)} style={{width:'100%', padding:'10px', borderRadius:'8px', border:'1px solid #ddd'}} />
-                     <div style={{marginTop:'5px', display:'flex', gap:'5px'}}>
-                       <button onClick={() => handleUpdatePost(post.id)} style={{padding:'6px 12px', background:'#2e8b57', color:'white', border:'none', borderRadius:'4px', cursor:'pointer'}}>Save</button>
+                     <input 
+                        type="text" 
+                        value={editTitle} 
+                        onChange={e => setEditTitle(e.target.value)} 
+                        placeholder="Title (Optional)"
+                        style={{width:'100%', padding:'8px', marginBottom:'5px', borderRadius:'4px', border:'1px solid #ddd'}} 
+                      />
+                     <textarea 
+                        value={editContent} 
+                        onChange={e => setEditContent(e.target.value)} 
+                        placeholder="What's on your heart?"
+                        style={{width:'100%', padding:'10px', borderRadius:'8px', border:'1px solid #ddd', minHeight:'100px'}} 
+                      />
+                     <div style={{marginTop:'5px', display:'flex', gap:'5px', justifyContent:'flex-end'}}>
+                       <button onClick={() => handleUpdatePost(post.id)} style={{padding:'6px 12px', background:'#2e8b57', color:'white', border:'none', borderRadius:'4px', cursor:'pointer'}}>Save Changes</button>
                        <button onClick={() => setEditingPost(null)} style={{padding:'6px 12px', background:'#ccc', border:'none', borderRadius:'4px', cursor:'pointer'}}>Cancel</button>
                      </div>
                    </div>
                  ) : (
                    <>
-                     {post.title && <h4 style={{margin:'0 0 5px 0'}}>{post.title}</h4>}
+                     {post.title && <h4 style={{margin:'0 0 5px 0', color: post.type === 'Prayer' ? '#d4af37' : '#0b2e4a'}}>{post.title}</h4>}
                      <p style={{whiteSpace:'pre-wrap', color:'#333'}}>{post.content}</p>
                      {post.media_url && <img src={post.media_url} style={{width:'100%', borderRadius:'8px', marginTop:'10px'}} />}
                    </>
@@ -359,21 +384,23 @@ export default function Dashboard() {
             <Link href="/believers" style={{fontSize:'12px', color:'#2e8b57', fontWeight:'bold', display:'block', marginTop:'5px', textDecoration:'none'}}>Find More →</Link>
           </div>
           
-          {/* PRAYER WALL WIDGET (With Delete) */}
+          {/* PRAYER WALL WIDGET (FIXED LOGIC & DELETE OPTION) */}
           <div className="panel-card" style={{background:'#fff9e6', borderLeft:'4px solid #d4af37'}}>
             <h3>🙏 Prayer Wall</h3>
-            {prayerRequests.length === 0 ? <p style={{fontSize:'12px', color:'#666'}}>No requests from friends.</p> : 
+            {prayerRequests.length === 0 ? <p style={{fontSize:'12px', color:'#666'}}>No recent prayers from friends.</p> : 
               prayerRequests.map(p => (
-                <div key={p.id} style={{marginBottom:'8px', fontSize:'12px', position:'relative'}}>
-                  <div style={{fontWeight:'bold', color:'#000'}}>{p.profiles?.full_name}</div>
-                  <div style={{fontStyle:'italic', color:'#555'}}>"{p.content.substring(0, 40)}..."</div>
-                  {user && user.id === p.user_id && (
-                    <button onClick={() => deletePrayer(p.id)} style={{position:'absolute', right:0, top:0, border:'none', background:'none', color:'red', cursor:'pointer', fontSize:'10px'}}>✕</button>
-                  )}
+                <div key={p.id} style={{marginBottom:'8px', fontSize:'12px', position:'relative', borderBottom:'1px dotted #ccc', paddingBottom:'5px'}}>
+                  <div style={{fontWeight:'bold', color:'#000', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                    <span>{p.profiles?.full_name}</span>
+                    {user && user.id === p.user_id && (
+                      <button onClick={() => deletePrayer(p.id)} style={{border:'none', background:'none', color:'red', cursor:'pointer', fontSize:'12px', padding:0}}>🗑️</button>
+                    )}
+                  </div>
+                  <div style={{fontStyle:'italic', color:'#555'}}>"{p.content.substring(0, 40)}{p.content.length > 40 ? '...' : ''}"</div>
                 </div>
               ))
             }
-            <button style={{width:'100%', padding:'8px', background:'#2e8b57', color:'white', border:'none', borderRadius:'6px', cursor:'pointer', marginTop:'5px'}}>I'll Pray</button>
+            <button style={{width:'100%', padding:'8px', background:'#2e8b57', color:'white', border:'none', borderRadius:'6px', cursor:'pointer', marginTop:'10px'}}>I'll Pray</button>
           </div>
           
           {/* CHAT WIDGET (Fixed Black Text) */}
@@ -382,6 +409,7 @@ export default function Dashboard() {
             {recentChats.map(c => (
               <Link key={c.id} href={`/chat?uid=${c.id}`} style={{display:'flex', alignItems:'center', gap:'10px', padding:'8px', background:'#f5f5f5', borderRadius:'8px', marginBottom:'5px', textDecoration:'none'}}>
                 <img src={c.avatar_url || '/images/default-avatar.png'} style={{width:30, height:30, borderRadius:'50%'}} />
+                {/* FIX: Ensure user names are visible */}
                 <div style={{fontSize:'13px', fontWeight:'bold', color:'#000'}}>{c.full_name}</div>
               </Link>
             ))}
