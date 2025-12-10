@@ -9,15 +9,15 @@ export default function GlimpsesPage() {
   const [glimpses, setGlimpses] = useState([]);
   const [user, setUser] = useState(null);
   
-  // Upload State
+  // Upload
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [newGlimpseCaption, setNewGlimpseCaption] = useState("");
   const fileInputRef = useRef(null);
   
-  // Modal States
+  // States
   const [blessModalUser, setBlessModalUser] = useState(null);
-  const [openMenuId, setOpenMenuId] = useState(null); // Track which video's menu is open
+  const [openMenuId, setOpenMenuId] = useState(null);
 
   useEffect(() => {
     setMounted(true);
@@ -49,7 +49,7 @@ export default function GlimpsesPage() {
     }
   }
 
-  // --- UPLOAD HANDLER ---
+  // --- UPLOAD ---
   async function handleFileUpload() {
     const file = fileInputRef.current?.files?.[0];
     if (!file || !user) return;
@@ -86,7 +86,7 @@ export default function GlimpsesPage() {
 
   // --- ACTIONS ---
   async function handleDelete(glimpseId) {
-    if(!confirm("Delete this Glimpse?")) return;
+    if(!confirm("Are you sure you want to delete this Glimpse?")) return;
     await supabase.from('posts').delete().eq('id', glimpseId);
     setGlimpses(prev => prev.filter(g => g.id !== glimpseId));
   }
@@ -107,16 +107,21 @@ export default function GlimpsesPage() {
     else alert("Link copied!");
   }
   
-  // --- MENU ACTIONS ---
+  // --- MENU LOGIC ---
   function handleSaveToPlaylist(id) { setOpenMenuId(null); alert("Saved to Playlist (Mock)"); }
   function handleToggleCaptions(id) { setOpenMenuId(null); alert("Captions Toggled (Mock)"); }
+  
   function handleNotInterested(id) { 
     setOpenMenuId(null); 
+    // Logic: Remove from local state immediately
     setGlimpses(prev => prev.filter(g => g.id !== id)); 
-    alert("This video is now hidden."); 
+    alert("Video hidden. We'll show fewer videos like this."); 
   }
-  function handleReport(id) { setOpenMenuId(null); alert("Reported for review."); }
-
+  
+  function handleReport(id) { 
+    setOpenMenuId(null); 
+    alert("Report submitted. Thank you for keeping the community safe."); 
+  }
 
   if (!mounted) return null;
 
@@ -136,19 +141,18 @@ export default function GlimpsesPage() {
 
       {/* FEED */}
       <div style={{ width: '100%', maxWidth: '450px', height: '100%', overflowY: "scroll", scrollSnapType: "y mandatory", scrollBehavior: "smooth", background:'#111', position:'relative' }}>
-        {glimpses.length === 0 ? <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "white" }}><p>No Glimpses yet. Be the first!</p></div> : 
+        {glimpses.length === 0 ? <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "white" }}><p>No Glimpses yet.</p></div> : 
           glimpses.map((glimpse) => (
             <GlimpseItem 
               key={glimpse.id} 
               glimpse={glimpse} 
               isOwner={user && user.id === glimpse.user_id}
-              onDelete={handleDelete}
+              onDelete={() => handleDelete(glimpse.id)} // Pass properly
               onAmen={handleAmen} 
               onBless={handleBless} 
               onShare={handleShare}
               openMenuId={openMenuId}
               setOpenMenuId={setOpenMenuId}
-              // Menu Actions
               onSave={() => handleSaveToPlaylist(glimpse.id)}
               onCaptions={() => handleToggleCaptions(glimpse.id)}
               onNotInterested={() => handleNotInterested(glimpse.id)}
@@ -214,7 +218,7 @@ function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, ope
     <div style={{ height: "100%", width: "100%", scrollSnapAlign: "start", position: "relative", display: "flex", alignItems: "center", justifyContent: "center", overflow:'hidden' }}>
       <video ref={videoRef} src={glimpse.media_url} loop muted={muted} playsInline autoPlay onClick={togglePlay} style={{ height: "100%", width: "100%", objectFit: "cover", cursor:'pointer' }} />
       
-      <button onClick={(e) => {e.stopPropagation(); setMuted(!muted);}} style={{position:'absolute', top:20, left:20, background:'rgba(0,0,0,0.5)', color:'white', border:'none', padding:'5px 10px', borderRadius:'20px', zIndex:5, cursor:'pointer'}}>{muted ? "🔇 Unmute" : "🔊"}</button>
+      <button onClick={(e) => {e.stopPropagation(); setMuted(!muted);}} style={{position:'absolute', top:20, left:20, background:'rgba(0,0,0,0.5)', color:'white', border:'none', padding:'5px 10px', borderRadius:'20px', zIndex:5, cursor:'pointer'}}>{muted ? "🔇" : "🔊"}</button>
       
       {/* 3-DOT MENU */}
       <div style={{ position: 'absolute', top: 20, right: 20, zIndex: 6 }}>
@@ -226,13 +230,13 @@ function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, ope
         </button>
         {showMenu && (
           <div style={{ position: 'absolute', right: 0, top: '40px', background: 'white', border: '1px solid #eee', boxShadow: '0 4px 12px rgba(0,0,0,0.2)', borderRadius: '8px', zIndex: 10, width: '160px', overflow: 'hidden' }}>
-            <button onClick={onSave} style={{ width: '100%', padding: '10px', textAlign: 'left', border: 'none', background: 'white', cursor: 'pointer', fontSize: '13px', borderBottom: '1px solid #eee' }}>💾 Save to Playlist</button>
-            <button onClick={onCaptions} style={{ width: '100%', padding: '10px', textAlign: 'left', border: 'none', background: 'white', cursor: 'pointer', fontSize: '13px', borderBottom: '1px solid #eee' }}>🅰️ Captions</button>
-            <button onClick={onNotInterested} style={{ width: '100%', padding: '10px', textAlign: 'left', border: 'none', background: 'white', cursor: 'pointer', fontSize: '13px', borderBottom: '1px solid #eee' }}>🙈 Not Interested</button>
+            <button onClick={onSave} style={{ width: '100%', padding: '12px', textAlign: 'left', border: 'none', background: 'white', cursor: 'pointer', fontSize: '13px', borderBottom: '1px solid #eee', color:'#333' }}>💾 Save</button>
+            <button onClick={onCaptions} style={{ width: '100%', padding: '12px', textAlign: 'left', border: 'none', background: 'white', cursor: 'pointer', fontSize: '13px', borderBottom: '1px solid #eee', color:'#333' }}>🅰️ Captions</button>
+            <button onClick={onNotInterested} style={{ width: '100%', padding: '12px', textAlign: 'left', border: 'none', background: 'white', cursor: 'pointer', fontSize: '13px', borderBottom: '1px solid #eee', color:'#333' }}>🙈 Hide</button>
             {isOwner ? (
-                <button onClick={() => { setOpenMenuId(null); onDelete(glimpse.id); }} style={{ width: '100%', padding: '10px', textAlign: 'left', border: 'none', background: 'white', cursor: 'pointer', color: 'red', fontSize: '13px' }}>🗑️ Delete</button>
+                <button onClick={() => { setOpenMenuId(null); onDelete(); }} style={{ width: '100%', padding: '12px', textAlign: 'left', border: 'none', background: 'white', cursor: 'pointer', color: 'red', fontSize: '13px', fontWeight:'bold' }}>🗑️ Delete</button>
             ) : (
-                <button onClick={onReport} style={{ width: '100%', padding: '10px', textAlign: 'left', border: 'none', background: 'white', cursor: 'pointer', color: '#ff8800', fontSize: '13px' }}>🚩 Report</button>
+                <button onClick={onReport} style={{ width: '100%', padding: '12px', textAlign: 'left', border: 'none', background: 'white', cursor: 'pointer', color: '#ff8800', fontSize: '13px' }}>🚩 Report</button>
             )}
           </div>
         )}

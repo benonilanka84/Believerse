@@ -17,7 +17,7 @@ export default function Dashboard() {
   
   // Widget Data
   const [suggestedBelievers, setSuggestedBelievers] = useState([]);
-  const [prayerRequests, setPrayerRequests] = useState([]); // For the widget
+  const [prayerRequests, setPrayerRequests] = useState([]);
   const [recentChats, setRecentChats] = useState([]);
 
   // Verse State
@@ -38,6 +38,10 @@ export default function Dashboard() {
 
   // Bless Modal
   const [blessModalUser, setBlessModalUser] = useState(null);
+
+  // Widget Edit State
+  const [editingPrayerId, setEditingPrayerId] = useState(null);
+  const [prayerEditContent, setPrayerEditContent] = useState("");
 
   const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
@@ -90,31 +94,12 @@ export default function Dashboard() {
     if (data) setSuggestedBelievers(data);
   }
 
-  // FIXED: Prayer Wall Fetching Logic
+  // UPDATED: Fetch ALL Global Prayers for Widget (Ensures it's not empty)
   async function loadPrayerWall(userId) {
-    // 1. Get Friend IDs (Connected status only)
-    const { data: conns } = await supabase
-      .from('connections')
-      .select('user_a, user_b')
-      .or(`user_a.eq.${userId},user_b.eq.${userId}`)
-      .eq('status', 'connected');
-
-    let friendIds = [userId]; // Always include self
-    if (conns) {
-      conns.forEach(c => {
-        if (c.user_a !== userId) friendIds.push(c.user_a);
-        if (c.user_b !== userId) friendIds.push(c.user_b);
-      });
-    }
-    // Remove duplicates
-    friendIds = [...new Set(friendIds)];
-
-    // 2. Fetch Prayers
     const { data } = await supabase
       .from('posts')
       .select('id, content, user_id, profiles(full_name)')
       .eq('type', 'Prayer')
-      .in('user_id', friendIds)
       .order('created_at', { ascending: false })
       .limit(5);
     
@@ -125,10 +110,14 @@ export default function Dashboard() {
     if(!confirm("Delete this prayer request?")) return;
     await supabase.from('posts').delete().eq('id', prayerId);
     
-    // Update Widget
     setPrayerRequests(prev => prev.filter(p => p.id !== prayerId));
-    // Update Main Feed if it's there
     setPosts(prev => prev.filter(p => p.id !== prayerId));
+  }
+
+  async function updatePrayerInWidget(prayerId) {
+    await supabase.from('posts').update({ content: prayerEditContent }).eq('id', prayerId);
+    setPrayerRequests(prev => prev.map(p => p.id === prayerId ? { ...p, content: prayerEditContent } : p));
+    setEditingPrayerId(null);
   }
 
   async function loadRecentChats(userId) {
@@ -198,7 +187,15 @@ export default function Dashboard() {
     if (currentlyAmened) await supabase.from('amens').delete().match({ user_id: user.id, post_id: post.id });
     else {
       await supabase.from('amens').insert({ user_id: user.id, post_id: post.id });
-      // Notification logic (simplified for now)
+      if (user && user.id !== post.user_id) {
+        await supabase.from('notifications').insert({ 
+          user_id: post.user_id, 
+          actor_id: user.id, 
+          type: 'amen', 
+          content: `${profile?.full_name || 'Someone'} said Amen to your post.`, 
+          link: '/dashboard' 
+        });
+      }
     }
   }
 
@@ -206,17 +203,13 @@ export default function Dashboard() {
     if (!confirm("Are you sure?")) return;
     await supabase.from('posts').delete().eq('id', postId);
     setPosts(posts.filter(p => p.id !== postId));
-    // Also remove from prayer wall if applicable
     setPrayerRequests(prev => prev.filter(p => p.id !== postId));
   }
 
   async function handleUpdatePost(postId) {
     await supabase.from('posts').update({ title: editTitle, content: editContent }).eq('id', postId);
     setPosts(posts.map(p => p.id === postId ? { ...p, title: editTitle, content: editContent } : p));
-    
-    // Refresh prayer wall to reflect changes
-    loadPrayerWall(user.id);
-    
+    loadPrayerWall(user.id); // Refresh widget
     setEditingPost(null);
   }
 
@@ -238,6 +231,8 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard-wrapper">
+      
+      {/* HEADER */}
       <div style={{ background: "linear-gradient(135deg, #2e8b57 0%, #1d5d3a 100%)", padding: "20px 30px", borderRadius: "12px", color: "white", marginBottom: "20px" }}>
         <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
           <span style={{fontSize:'2rem'}}>🏠</span>
@@ -247,6 +242,7 @@ export default function Dashboard() {
 
       <div className="dashboard-grid">
         <div className="left-panel">
+          
           {/* DAILY BIBLE VERSE */}
           {verseData && (
             <div className="panel-card" style={{padding:0, overflow:'hidden', position:'relative', borderRadius:'12px', border:'none', background:'#000'}}>
@@ -273,10 +269,20 @@ export default function Dashboard() {
               <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "4px" }}>
                 {["S","M","T","W","T","F","S"].map(d => <div key={d} style={{ fontSize: "10px", textAlign: "center", color: "#888" }}>{d}</div>)}
                 {Array.from({ length: startingDayOfWeek }).map((_, i) => <div key={`empty-${i}`} />)}
-                {Array.from({ length: daysInMonth }).map((_, i) => { const day = i + 1; const isSelected = day === selectedDate.getDate(); return <div key={day} onClick={() => handleDateClick(day)} style={{ textAlign: "center", padding: "6px", background: isSelected ? "#2e8b57" : "transparent", color: isSelected ? "white" : "#333", borderRadius: "6px", cursor: 'pointer', fontSize:'12px' }}>{day}</div> })}
+                {Array.from({ length: daysInMonth }).map((_, i) => { 
+                  const day = i + 1; 
+                  const dateCheck = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day);
+                  const dateStr = `${dateCheck.getFullYear()}-${String(dateCheck.getMonth() + 1).padStart(2, '0')}-${String(dateCheck.getDate()).padStart(2, '0')}`;
+                  const isSelected = day === selectedDate.getDate();
+                  const hasEvent = events.some(e => e.event_date === dateStr);
+                  return (
+                    <div key={day} onClick={() => handleDateClick(day)} 
+                      style={{ textAlign: "center", padding: "6px", borderRadius: "6px", cursor: 'pointer', fontSize:'12px', background: isSelected ? "#2e8b57" : (hasEvent ? "#e8f5e9" : "transparent"), color: isSelected ? "white" : (hasEvent ? "#2e8b57" : "#333"), fontWeight: isSelected || hasEvent ? 'bold' : 'normal', border: hasEvent ? "1px solid #2e8b57" : "1px solid transparent" }}>{day}</div>
+                  );
+                })}
               </div>
             </div>
-            {filteredEvents.length > 0 ? filteredEvents.map(e => <div key={e.id} style={{fontSize:'12px', padding:'5px', background:'#e8f5e9', marginBottom:'5px', color:'#000'}}>{e.title}</div>) : <div style={{fontSize:'12px', color:'#999'}}>No events.</div>}
+            {filteredEvents.length > 0 ? filteredEvents.map(e => <div key={e.id} style={{fontSize:'12px', padding:'5px', background:'#e8f5e9', marginBottom:'5px', color:'#000'}}>{e.title}</div>) : <div style={{fontSize:'12px', color:'#999'}}>No events on this date.</div>}
           </div>
         </div>
 
@@ -345,20 +351,32 @@ export default function Dashboard() {
             <Link href="/believers" style={{fontSize:'12px', color:'#2e8b57', fontWeight:'bold', display:'block', marginTop:'5px', textDecoration:'none'}}>Find More →</Link>
           </div>
           
-          {/* PRAYER WALL WIDGET (With Delete) */}
+          {/* PRAYER WALL WIDGET (EDITABLE) */}
           <div className="panel-card" style={{background:'#fff9e6', borderLeft:'4px solid #d4af37'}}>
             <h3>🙏 Prayer Wall</h3>
-            {prayerRequests.length === 0 ? <p style={{fontSize:'12px', color:'#666'}}>No requests from friends.</p> : 
+            {prayerRequests.length === 0 ? <p style={{fontSize:'12px', color:'#666'}}>No recent prayers.</p> : 
               prayerRequests.map(p => (
                 <div key={p.id} style={{marginBottom:'8px', fontSize:'12px', position:'relative', borderBottom:'1px dotted #ccc', paddingBottom:'5px'}}>
                   <div style={{fontWeight:'bold', color:'#000', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
                     <span>{p.profiles?.full_name}</span>
-                    {/* Delete for Owner */}
                     {user && user.id === p.user_id && (
-                      <button onClick={() => deletePrayerFromWidget(p.id)} style={{border:'none', background:'none', color:'red', cursor:'pointer', fontSize:'12px', padding:0}}>🗑️</button>
+                      <div style={{display:'flex', gap:'5px'}}>
+                        <button onClick={() => { setEditingPrayerId(p.id); setPrayerEditContent(p.content); }} style={{border:'none', background:'none', color:'#2d6be3', cursor:'pointer', fontSize:'10px', padding:0}}>✏️</button>
+                        <button onClick={() => deletePrayerFromWidget(p.id)} style={{border:'none', background:'none', color:'red', cursor:'pointer', fontSize:'10px', padding:0}}>🗑️</button>
+                      </div>
                     )}
                   </div>
-                  <div style={{fontStyle:'italic', color:'#555'}}>"{p.content.substring(0, 40)}{p.content.length > 40 ? '...' : ''}"</div>
+                  {editingPrayerId === p.id ? (
+                    <div style={{marginTop:'5px'}}>
+                      <textarea value={prayerEditContent} onChange={e => setPrayerEditContent(e.target.value)} style={{width:'100%', fontSize:'12px', border:'1px solid #ddd', borderRadius:'4px'}} />
+                      <div style={{display:'flex', gap:'5px', marginTop:'5px'}}>
+                        <button onClick={() => updatePrayerInWidget(p.id)} style={{fontSize:'10px', background:'#2e8b57', color:'white', border:'none', borderRadius:'3px', padding:'2px 5px'}}>Save</button>
+                        <button onClick={() => setEditingPrayerId(null)} style={{fontSize:'10px', background:'#ccc', border:'none', borderRadius:'3px', padding:'2px 5px'}}>Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{fontStyle:'italic', color:'#555'}}>"{p.content.substring(0, 40)}{p.content.length > 40 ? '...' : ''}"</div>
+                  )}
                 </div>
               ))
             }
