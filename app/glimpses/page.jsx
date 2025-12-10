@@ -73,6 +73,12 @@ export default function GlimpsesPage() {
     }
   }
 
+  async function handleDelete(glimpseId) {
+    if(!confirm("Delete this Glimpse?")) return;
+    await supabase.from('posts').delete().eq('id', glimpseId);
+    setGlimpses(prev => prev.filter(g => g.id !== glimpseId));
+  }
+
   // --- ACTIONS ---
   async function handleAmen(glimpseId, currentStatus) {
     setGlimpses(prev => prev.map(g => g.id === glimpseId ? { ...g, hasAmened: !currentStatus, amenCount: currentStatus ? g.amenCount - 1 : g.amenCount + 1 } : g));
@@ -107,19 +113,21 @@ export default function GlimpsesPage() {
         <input type="file" ref={fileInputRef} accept="video/*" style={{ display: "none" }} onChange={handleUpload} />
       </div>
 
-      {/* FEED CONTAINER - MOBILE WIDTH ENFORCED */}
+      {/* FEED */}
       <div style={{ width: '100%', maxWidth: '450px', height: '100%', overflowY: "scroll", scrollSnapType: "y mandatory", scrollBehavior: "smooth", background:'#111', position:'relative' }}>
-        
-        {glimpses.length === 0 ? (
-          <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "white", flexDirection:'column' }}>
-            <p>No Glimpses yet.</p>
-          </div>
-        ) : (
+        {glimpses.length === 0 ? <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "white" }}><p>No Glimpses yet.</p></div> : 
           glimpses.map((glimpse) => (
-            <GlimpseItem key={glimpse.id} glimpse={glimpse} onAmen={() => handleAmen(glimpse.id, glimpse.hasAmened)} onBless={() => handleBless(glimpse.profiles)} onShare={handleShare} />
+            <GlimpseItem 
+              key={glimpse.id} 
+              glimpse={glimpse} 
+              isOwner={user && user.id === glimpse.user_id}
+              onDelete={() => handleDelete(glimpse.id)}
+              onAmen={() => handleAmen(glimpse.id, glimpse.hasAmened)} 
+              onBless={() => handleBless(glimpse.profiles)} 
+              onShare={handleShare} 
+            />
           ))
-        )}
-
+        }
       </div>
 
       {/* BLESS MODAL */}
@@ -128,18 +136,9 @@ export default function GlimpsesPage() {
           <div style={{ background: 'white', padding: '25px', borderRadius: '16px', width: '85%', maxWidth: '320px', textAlign: 'center' }}>
             <h3 style={{ margin: '0 0 15px 0', color: '#0b2e4a' }}>Bless {blessModalUser.full_name}</h3>
             <div style={{ background: '#f9f9f9', padding: '10px', borderRadius: '12px', marginBottom: '15px' }}>
-              <img 
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=${blessModalUser.upi_id}&pn=${encodeURIComponent(blessModalUser.full_name)}&cu=INR`)}`} 
-                style={{ width: '100%', height: 'auto' }}
-              />
+              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=${blessModalUser.upi_id}&pn=${encodeURIComponent(blessModalUser.full_name)}&cu=INR`)}`} style={{ width: '100%', height: 'auto' }} />
             </div>
-            <a 
-              href={`upi://pay?pa=${blessModalUser.upi_id}&pn=${encodeURIComponent(blessModalUser.full_name)}&cu=INR`}
-              target="_blank"
-              style={{ display: 'block', width: '100%', padding: '10px', background: '#2e8b57', color: 'white', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold', marginBottom: '10px' }}
-            >
-              Open Payment App
-            </a>
+            <a href={`upi://pay?pa=${blessModalUser.upi_id}&pn=${encodeURIComponent(blessModalUser.full_name)}&cu=INR`} target="_blank" style={{ display: 'block', width: '100%', padding: '10px', background: '#2e8b57', color: 'white', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold', marginBottom: '10px' }}>Open Payment App</a>
             <button onClick={() => setBlessModalUser(null)} style={{ width: '100%', padding: '10px', background: '#ccc', border: 'none', borderRadius: '8px' }}>Close</button>
           </div>
         </div>
@@ -148,102 +147,39 @@ export default function GlimpsesPage() {
   );
 }
 
-// --- VIDEO PLAYER COMPONENT ---
-function GlimpseItem({ glimpse, onAmen, onBless, onShare }) {
+function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare }) {
   const videoRef = useRef(null);
-  const [playing, setPlaying] = useState(true); // Start Playing
-  const [muted, setMuted] = useState(true); // Start Muted (Required by Browsers)
-
-  // Auto-play when scrolled into view
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          videoRef.current.currentTime = 0;
-          videoRef.current.play().catch(() => setPlaying(false)); // Handle blocks
-          setPlaying(true);
-        } else {
-          videoRef.current.pause();
-          setPlaying(false);
-        }
-      },
-      { threshold: 0.6 } // Play when 60% visible
-    );
-    if (videoRef.current) observer.observe(videoRef.current);
-    return () => observer.disconnect();
-  }, []);
+  const [playing, setPlaying] = useState(true);
+  const [muted, setMuted] = useState(true);
 
   function togglePlay() {
     if (playing) { videoRef.current.pause(); setPlaying(false); } 
     else { videoRef.current.play(); setPlaying(true); }
   }
 
-  function toggleMute(e) {
-    e.stopPropagation();
-    setMuted(!muted);
-  }
-
   return (
     <div style={{ height: "100%", width: "100%", scrollSnapAlign: "start", position: "relative", display: "flex", alignItems: "center", justifyContent: "center", overflow:'hidden' }}>
+      <video ref={videoRef} src={glimpse.media_url} loop muted={muted} playsInline autoPlay onClick={togglePlay} style={{ height: "100%", width: "100%", objectFit: "cover", cursor:'pointer' }} />
+      <button onClick={(e) => {e.stopPropagation(); setMuted(!muted);}} style={{position:'absolute', top:20, left:20, background:'rgba(0,0,0,0.5)', color:'white', border:'none', padding:'5px 10px', borderRadius:'20px', zIndex:5, cursor:'pointer'}}>{muted ? "🔇 Unmute" : "🔊"}</button>
       
-      {/* VIDEO - Object Fit Cover creates the vertical feel */}
-      <video 
-        ref={videoRef}
-        src={glimpse.media_url} 
-        loop 
-        muted={muted}
-        playsInline
-        autoPlay // Try autoplay
-        onClick={togglePlay}
-        style={{ height: "100%", width: "100%", objectFit: "cover", cursor:'pointer' }} 
-      />
-
-      {/* MUTE BUTTON (Top Left) */}
-      <button onClick={toggleMute} style={{position:'absolute', top:20, left:20, background:'rgba(0,0,0,0.5)', color:'white', border:'none', padding:'5px 10px', borderRadius:'20px', zIndex:5, cursor:'pointer'}}>
-        {muted ? "🔇 Tap to Unmute" : "🔊"}
-      </button>
-
-      {/* PLAY ICON (Center) */}
-      {!playing && (
-        <div onClick={togglePlay} style={{position:'absolute', fontSize:'60px', color:'rgba(255,255,255,0.7)', pointerEvents:'none', zIndex:4}}>▶</div>
+      {/* DELETE BUTTON (For Owner) */}
+      {isOwner && (
+        <button onClick={(e) => {e.stopPropagation(); onDelete();}} style={{position:'absolute', top:20, right:20, background:'rgba(255,0,0,0.6)', color:'white', border:'none', padding:'5px 10px', borderRadius:'20px', zIndex:5, cursor:'pointer'}}>🗑️</button>
       )}
 
-      {/* SIDEBAR ACTIONS (Right) */}
+      {!playing && <div onClick={togglePlay} style={{position:'absolute', fontSize:'60px', color:'rgba(255,255,255,0.7)', pointerEvents:'none', zIndex:4}}>▶</div>}
+
       <div style={{ position: "absolute", right: "10px", bottom: "100px", display: "flex", flexDirection: "column", gap: "20px", alignItems: "center", zIndex: 5 }}>
-        
-        {/* Profile Avatar (Functional) */}
-        <div onClick={() => alert("Go to Profile: " + glimpse.profiles?.full_name)} style={{ position: "relative", cursor:'pointer' }}>
-          <img src={glimpse.profiles?.avatar_url || '/images/default-avatar.png'} style={{ width: 40, height: 40, borderRadius: "50%", border: "2px solid white" }} />
-          <div style={{ position: "absolute", bottom: -5, left: 12, background: "#ef4444", color: "white", width: 16, height: 16, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px" }}>+</div>
-        </div>
-
-        <div style={{ textAlign: "center" }}>
-          <button onClick={onAmen} style={{ background: "none", border: "none", fontSize: "28px", cursor: "pointer", textShadow: "0 2px 5px rgba(0,0,0,0.5)" }}>
-            {glimpse.hasAmened ? "🙏" : "👐"}
-          </button>
-          <div style={{ color: "white", fontSize: "11px", fontWeight: "bold", textShadow: "0 1px 3px black" }}>{glimpse.amenCount}</div>
-        </div>
-
-        <div style={{ textAlign: "center" }}>
-          <button onClick={onBless} style={{ background: "none", border: "none", fontSize: "28px", cursor: "pointer", textShadow: "0 2px 5px rgba(0,0,0,0.5)" }}>✨</button>
-          <div style={{ color: "white", fontSize: "11px", fontWeight: "bold", textShadow: "0 1px 3px black" }}>Bless</div>
-        </div>
-
-        <div style={{ textAlign: "center" }}>
-          <button onClick={onShare} style={{ background: "none", border: "none", fontSize: "28px", cursor: "pointer", textShadow: "0 2px 5px rgba(0,0,0,0.5)" }}>📢</button>
-          <div style={{ color: "white", fontSize: "11px", fontWeight: "bold", textShadow: "0 1px 3px black" }}>Share</div>
-        </div>
+        <div style={{ position: "relative" }}><img src={glimpse.profiles?.avatar_url || '/images/default-avatar.png'} style={{ width: 40, height: 40, borderRadius: "50%", border: "2px solid white" }} /></div>
+        <div style={{ textAlign: "center" }}><button onClick={onAmen} style={{ background: "none", border: "none", fontSize: "28px", cursor: "pointer", textShadow: "0 2px 5px rgba(0,0,0,0.5)" }}>{glimpse.hasAmened ? "🙏" : "👐"}</button><div style={{ color: "white", fontSize: "11px", fontWeight: "bold", textShadow: "0 1px 3px black" }}>{glimpse.amenCount}</div></div>
+        <div style={{ textAlign: "center" }}><button onClick={onBless} style={{ background: "none", border: "none", fontSize: "28px", cursor: "pointer", textShadow: "0 2px 5px rgba(0,0,0,0.5)" }}>✨</button><div style={{ color: "white", fontSize: "11px", fontWeight: "bold", textShadow: "0 1px 3px black" }}>Bless</div></div>
+        <div style={{ textAlign: "center" }}><button onClick={onShare} style={{ background: "none", border: "none", fontSize: "28px", cursor: "pointer", textShadow: "0 2px 5px rgba(0,0,0,0.5)" }}>📢</button><div style={{ color: "white", fontSize: "11px", fontWeight: "bold", textShadow: "0 1px 3px black" }}>Share</div></div>
       </div>
 
-      {/* BOTTOM CAPTION */}
       <div style={{ position: "absolute", bottom: "20px", left: "15px", width: "75%", color: "white", textShadow: "0 1px 4px rgba(0,0,0,0.8)", zIndex: 5 }}>
         <h3 style={{ margin: "0 0 5px 0", fontSize: "15px" }}>@{glimpse.profiles?.full_name?.split(' ')[0]}</h3>
         <p style={{ margin: 0, fontSize: "13px", lineHeight: "1.4" }}>{glimpse.content || "#Believerse"}</p>
-        <div style={{ marginTop: "8px", display: "flex", alignItems: "center", gap: "5px", fontSize: "11px", opacity: 0.8 }}>
-          <span>🎵</span> Original Audio
-        </div>
       </div>
-
     </div>
   );
 }

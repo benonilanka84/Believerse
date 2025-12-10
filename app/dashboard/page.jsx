@@ -35,7 +35,7 @@ export default function Dashboard() {
   const [editingPost, setEditingPost] = useState(null);
   const [editContent, setEditContent] = useState("");
 
-  // BLESS MODAL STATE
+  // Bless Modal
   const [blessModalUser, setBlessModalUser] = useState(null);
 
   const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -68,8 +68,9 @@ export default function Dashboard() {
     loadUpcomingEvents();
   }
 
-  // --- 1. VERSE LOGIC ---
+  // --- 1. VISIBLE BIBLE VERSE ---
   function generateDailyVisualVerse() {
+    // High-quality, reliable backgrounds
     const verses = [
       { text: "I am the good shepherd. The good shepherd lays down his life for the sheep.", ref: "John 10:11", bg: "https://images.unsplash.com/photo-1484557985045-6f5c98486c90?auto=format&fit=crop&w=800&q=80" },
       { text: "The Lord is my light and my salvation; whom shall I fear?", ref: "Psalm 27:1", bg: "https://images.unsplash.com/photo-1505322022379-7c3353ee6291?auto=format&fit=crop&w=800&q=80" },
@@ -105,10 +106,10 @@ export default function Dashboard() {
       });
     }
 
-    // 2. Fetch Prayers
+    // 2. Fetch Prayers (Self + Friends)
     const { data } = await supabase
       .from('posts')
-      .select('id, content, profiles(full_name)')
+      .select('id, content, user_id, profiles(full_name)')
       .eq('type', 'Prayer')
       .in('user_id', friendIds)
       .order('created_at', { ascending: false })
@@ -117,23 +118,28 @@ export default function Dashboard() {
     setPrayerRequests(data || []);
   }
 
+  async function deletePrayer(prayerId) {
+    if(!confirm("Delete this prayer request?")) return;
+    await supabase.from('posts').delete().eq('id', prayerId);
+    setPrayerRequests(prev => prev.filter(p => p.id !== prayerId));
+    loadPosts(user.id, true); // Refresh main feed too
+  }
+
   async function loadRecentChats(userId) {
     const { data: msgs } = await supabase.from('messages').select('sender_id, receiver_id').or(`sender_id.eq.${userId},receiver_id.eq.${userId}`).order('created_at', { ascending: false }).limit(20);
     if (!msgs) return;
-    
     const partnerIds = new Set();
     msgs.forEach(m => {
       if (m.sender_id !== userId) partnerIds.add(m.sender_id);
       if (m.receiver_id !== userId) partnerIds.add(m.receiver_id);
     });
-    
     if (partnerIds.size > 0) {
       const { data: profiles } = await supabase.from('profiles').select('*').in('id', Array.from(partnerIds)).limit(3);
       setRecentChats(profiles || []);
     }
   }
 
-  // --- 3. EVENTS ---
+  // --- 3. EVENTS (With Dots) ---
   async function loadUpcomingEvents() {
     const { data } = await supabase.from('events').select('*').gte('event_date', new Date().toISOString().split('T')[0]).order('event_date', { ascending: true });
     if (data) {
@@ -143,9 +149,7 @@ export default function Dashboard() {
   }
 
   function filterEventsByDate(date, allEvents) {
-    const year = date.getFullYear(); 
-    const month = String(date.getMonth() + 1).padStart(2, '0'); 
-    const day = String(date.getDate()).padStart(2, '0');
+    const year = date.getFullYear(); const month = String(date.getMonth() + 1).padStart(2, '0'); const day = String(date.getDate()).padStart(2, '0');
     const dateStr = `${year}-${month}-${day}`;
     setFilteredEvents(allEvents.filter(e => e.event_date === dateStr));
   }
@@ -159,11 +163,10 @@ export default function Dashboard() {
   // --- 4. FEED ---
   async function loadPosts(currentUserId, isRefresh = false) {
     if (!isRefresh) setLoadingPosts(true);
-    
     const { data, error } = await supabase
       .from('posts')
-      .select(`*, profiles (username, full_name, avatar_url, upi_id), amens (user_id)`) 
-      .neq('type', 'Glimpse') // Exclude Glimpses from Feed
+      .select(`*, profiles (username, full_name, avatar_url, upi_id), amens (user_id)`)
+      .neq('type', 'Glimpse')
       .order('created_at', { ascending: false });
 
     if (!error && data) {
@@ -178,50 +181,18 @@ export default function Dashboard() {
     setLoadingPosts(false);
   }
 
-  // --- 5. ACTIONS (With Notifications) ---
-  
-  // Bless Action
-  async function handleBlessClick(author) {
-    if (!author?.upi_id) {
-      alert(`God bless! ${author.full_name} has not set up their UPI ID yet.`);
-      return;
-    }
+  // --- 5. ACTIONS ---
+  function handleBlessClick(author) {
+    if (!author?.upi_id) { alert(`God bless! ${author.full_name} has not set up their UPI ID yet.`); return; }
     setBlessModalUser(author);
-    
-    // SEND NOTIFICATION TO AUTHOR
-    if (user && user.id !== author.id) { // Don't notify self
-      await supabase.from('notifications').insert({
-        user_id: author.id, // Receiver (The person being blessed)
-        actor_id: user.id, // Sender (Me)
-        type: 'bless',
-        content: `${profile?.full_name} opened your Bless link.`,
-        link: '/dashboard'
-      });
-    }
   }
 
-  // Amen Action
   async function handleAmen(post, currentlyAmened) {
-    // Optimistic Update
     setPosts(posts.map(p => p.id === post.id ? { ...p, hasAmened: !currentlyAmened, amenCount: currentlyAmened ? p.amenCount - 1 : p.amenCount + 1 } : p));
-    
-    if (currentlyAmened) {
-      // Remove Amen
-      await supabase.from('amens').delete().match({ user_id: user.id, post_id: post.id });
-    } else {
-      // Add Amen
+    if (currentlyAmened) await supabase.from('amens').delete().match({ user_id: user.id, post_id: post.id });
+    else {
       await supabase.from('amens').insert({ user_id: user.id, post_id: post.id });
-      
-      // SEND NOTIFICATION TO POST AUTHOR
-      if (user && user.id !== post.user_id) {
-        await supabase.from('notifications').insert({
-          user_id: post.user_id, // Post Author
-          actor_id: user.id, // Me
-          type: 'amen',
-          content: `${profile?.full_name} said Amen to your post.`,
-          link: '/dashboard' // In future, link to specific post ID
-        });
-      }
+      if (user && user.id !== post.user_id) await supabase.from('notifications').insert({ user_id: post.user_id, actor_id: user.id, type: 'amen', content: `${profile?.full_name} said Amen to your post.`, link: '/dashboard' });
     }
   }
 
@@ -254,6 +225,8 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard-wrapper">
+      
+      {/* HEADER */}
       <div style={{ background: "linear-gradient(135deg, #2e8b57 0%, #1d5d3a 100%)", padding: "20px 30px", borderRadius: "12px", color: "white", marginBottom: "20px" }}>
         <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
           <span style={{fontSize:'2rem'}}>🏠</span>
@@ -263,31 +236,59 @@ export default function Dashboard() {
 
       <div className="dashboard-grid">
         <div className="left-panel">
+          
+          {/* DAILY BIBLE VERSE (FIXED VISIBILITY) */}
           {verseData && (
-            <div className="panel-card" style={{padding:0, overflow:'hidden', position:'relative', borderRadius:'12px', border:'none'}}>
-              <div style={{padding:'10px 15px', background:'#0b2e4a', color:'white'}}><h3 style={{margin:0, fontSize:'14px'}}>Daily Bible Verse</h3></div>
-              <div style={{ backgroundImage: `url(${verseData.bg})`, backgroundSize: 'cover', height: '200px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '20px', textAlign: 'center', color: 'white', position: 'relative' }}>
-                <div style={{position:'absolute', inset:0, background:'rgba(0,0,0,0.4)'}} />
-                <div style={{position:'relative', zIndex:2, textShadow: '0 2px 8px rgba(0,0,0,0.9)'}}>
+            <div className="panel-card" style={{padding:0, overflow:'hidden', position:'relative', borderRadius:'12px', border:'none', background:'#000'}}>
+              <div style={{padding:'10px 15px', background:'#0b2e4a', color:'white', fontWeight:'bold'}}>Daily Bible Verse</div>
+              <div style={{ 
+                backgroundImage: `url(${verseData.bg})`, backgroundSize: 'cover', height: '200px', 
+                display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', 
+                padding: '20px', textAlign: 'center', color: 'white', position: 'relative' 
+              }}>
+                {/* DARK OVERLAY FOR TEXT VISIBILITY */}
+                <div style={{position:'absolute', inset:0, background:'rgba(0,0,0,0.5)'}} />
+                <div style={{position:'relative', zIndex:2, textShadow: '0 2px 8px black'}}>
                   <p style={{fontSize:'16px', fontWeight:'bold', fontFamily:'Georgia'}}>"{verseData.text}"</p>
                   <p style={{marginTop:'10px', fontSize:'13px'}}>{verseData.ref}</p>
                 </div>
               </div>
-              <div style={{display:'flex', borderTop:'1px solid #eee'}}>
-                <button onClick={handleVerseAmen} style={{flex:1, padding:'10px', border:'none', background:'white', cursor:'pointer', borderRight:'1px solid #eee', color: hasAmenedVerse ? '#2e8b57' : '#555', fontWeight:'bold'}}>🙏 Amen ({verseAmenCount})</button>
-                <button onClick={() => handleShare(verseData.text)} style={{flex:1, padding:'10px', border:'none', background:'white', cursor:'pointer', color:'#0b2e4a', fontWeight:'bold'}}>📢 Spread</button>
+              <div style={{display:'flex', borderTop:'1px solid #333', background:'white'}}>
+                <button onClick={handleVerseAmen} style={{flex:1, padding:'10px', border:'none', background:'transparent', cursor:'pointer', borderRight:'1px solid #eee', color: hasAmenedVerse ? '#2e8b57' : '#555', fontWeight:'bold'}}>🙏 Amen ({verseAmenCount})</button>
+                <button onClick={() => handleShare(verseData.text)} style={{flex:1, padding:'10px', border:'none', background:'transparent', cursor:'pointer', color:'#0b2e4a', fontWeight:'bold'}}>📢 Spread</button>
               </div>
             </div>
           )}
           
+          {/* EVENTS WIDGET (FIXED DOTS) */}
           <div className="panel-card">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}><h3 style={{ margin: 0 }}>📅 Events</h3><Link href="/events" style={{ fontSize: "12px", color: "#2e8b57", fontWeight: "600", textDecoration:'none' }}>View All →</Link></div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}><h3 style={{ margin: 0, fontSize:'16px' }}>📅 Events</h3><Link href="/events" style={{ fontSize: "12px", color: "#2e8b57", fontWeight: "600", textDecoration:'none' }}>View All →</Link></div>
             <div style={{ background: "#f9f9f9", borderRadius: "8px", padding: "10px", marginBottom: "15px" }}>
               <div style={{ textAlign:'center', marginBottom:'10px', fontWeight:'bold', color:'#0b2e4a', fontSize:'14px'}}>{monthNames[selectedDate.getMonth()]} {selectedDate.getFullYear()}</div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "4px" }}>
                 {["S","M","T","W","T","F","S"].map(d => <div key={d} style={{ fontSize: "10px", textAlign: "center", color: "#888" }}>{d}</div>)}
                 {Array.from({ length: startingDayOfWeek }).map((_, i) => <div key={`empty-${i}`} />)}
-                {Array.from({ length: daysInMonth }).map((_, i) => { const day = i + 1; const isSelected = day === selectedDate.getDate(); return <div key={day} onClick={() => handleDateClick(day)} style={{ textAlign: "center", padding: "6px", background: isSelected ? "#2e8b57" : "transparent", color: isSelected ? "white" : "#333", borderRadius: "6px", cursor: 'pointer', fontSize:'12px' }}>{day}</div> })}
+                {Array.from({ length: daysInMonth }).map((_, i) => { 
+                  const day = i + 1; 
+                  const dateCheck = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day);
+                  const dateStr = `${dateCheck.getFullYear()}-${String(dateCheck.getMonth() + 1).padStart(2, '0')}-${String(dateCheck.getDate()).padStart(2, '0')}`;
+                  
+                  const isSelected = day === selectedDate.getDate();
+                  const hasEvent = events.some(e => e.event_date === dateStr); // Check for dots
+
+                  return (
+                    <div key={day} onClick={() => handleDateClick(day)} 
+                      style={{ 
+                        textAlign: "center", padding: "6px", borderRadius: "6px", cursor: 'pointer', fontSize:'12px',
+                        background: isSelected ? "#2e8b57" : (hasEvent ? "#e8f5e9" : "transparent"), 
+                        color: isSelected ? "white" : (hasEvent ? "#2e8b57" : "#333"),
+                        fontWeight: isSelected || hasEvent ? 'bold' : 'normal',
+                        border: hasEvent ? "1px solid #2e8b57" : "1px solid transparent"
+                      }}>
+                      {day}
+                    </div>
+                  );
+                })}
               </div>
             </div>
             {filteredEvents.length > 0 ? filteredEvents.map(e => <div key={e.id} style={{fontSize:'12px', padding:'5px', background:'#e8f5e9', marginBottom:'5px', color:'#000'}}>{e.title}</div>) : <div style={{fontSize:'12px', color:'#999'}}>No events.</div>}
@@ -357,25 +358,31 @@ export default function Dashboard() {
             ))}
             <Link href="/believers" style={{fontSize:'12px', color:'#2e8b57', fontWeight:'bold', display:'block', marginTop:'5px', textDecoration:'none'}}>Find More →</Link>
           </div>
+          
+          {/* PRAYER WALL WIDGET (With Delete) */}
           <div className="panel-card" style={{background:'#fff9e6', borderLeft:'4px solid #d4af37'}}>
             <h3>🙏 Prayer Wall</h3>
             {prayerRequests.length === 0 ? <p style={{fontSize:'12px', color:'#666'}}>No requests from friends.</p> : 
               prayerRequests.map(p => (
-                <div key={p.id} style={{marginBottom:'8px', fontSize:'12px'}}>
+                <div key={p.id} style={{marginBottom:'8px', fontSize:'12px', position:'relative'}}>
                   <div style={{fontWeight:'bold', color:'#000'}}>{p.profiles?.full_name}</div>
                   <div style={{fontStyle:'italic', color:'#555'}}>"{p.content.substring(0, 40)}..."</div>
+                  {user && user.id === p.user_id && (
+                    <button onClick={() => deletePrayer(p.id)} style={{position:'absolute', right:0, top:0, border:'none', background:'none', color:'red', cursor:'pointer', fontSize:'10px'}}>✕</button>
+                  )}
                 </div>
               ))
             }
             <button style={{width:'100%', padding:'8px', background:'#2e8b57', color:'white', border:'none', borderRadius:'6px', cursor:'pointer', marginTop:'5px'}}>I'll Pray</button>
           </div>
+          
+          {/* CHAT WIDGET (Fixed Black Text) */}
           <div className="panel-card">
             <h3>💬 Recent Chats</h3>
             {recentChats.map(c => (
               <Link key={c.id} href={`/chat?uid=${c.id}`} style={{display:'flex', alignItems:'center', gap:'10px', padding:'8px', background:'#f5f5f5', borderRadius:'8px', marginBottom:'5px', textDecoration:'none'}}>
                 <img src={c.avatar_url || '/images/default-avatar.png'} style={{width:30, height:30, borderRadius:'50%'}} />
-                {/* FORCED COLOR BLACK/DARK */}
-                <div style={{fontSize:'13px', fontWeight:'bold', color:'#0b2e4a'}}>{c.full_name}</div>
+                <div style={{fontSize:'13px', fontWeight:'bold', color:'#000'}}>{c.full_name}</div>
               </Link>
             ))}
             <Link href="/chat" style={{display:'block', textAlign:'center', marginTop:'10px', fontSize:'12px', color:'#2e8b57', fontWeight:'600', textDecoration:'none'}}>Open Messenger →</Link>
@@ -386,32 +393,13 @@ export default function Dashboard() {
       {/* BLESS MODAL */}
       {blessModalUser && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-          <div style={{ background: 'white', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '350px', textAlign: 'center', boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
+          <div style={{ background: 'white', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '350px', textAlign: 'center' }}>
             <h3 style={{ margin: '0 0 15px 0', color: '#0b2e4a' }}>Bless {blessModalUser.full_name}</h3>
-            
             <div style={{ background: '#f9f9f9', padding: '15px', borderRadius: '12px', marginBottom: '20px' }}>
-              <img 
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=${blessModalUser.upi_id}&pn=${encodeURIComponent(blessModalUser.full_name)}&cu=INR`)}`} 
-                alt="Scan to Bless"
-                style={{ width: '100%', height: 'auto', borderRadius: '8px' }}
-              />
+              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=${blessModalUser.upi_id}&pn=${encodeURIComponent(blessModalUser.full_name)}&cu=INR`)}`} style={{ width: '100%', height: 'auto', borderRadius: '8px' }} />
             </div>
-
-            <p style={{ fontSize: '13px', color: '#666', marginBottom: '20px' }}>
-              Scan with <b>GPay</b>, <b>PhonePe</b>, or <b>Paytm</b> to send your offering directly to them.
-            </p>
-
-            <a 
-              href={`upi://pay?pa=${blessModalUser.upi_id}&pn=${encodeURIComponent(blessModalUser.full_name)}&cu=INR`}
-              target="_blank"
-              style={{ display: 'block', width: '100%', padding: '12px', background: '#2e8b57', color: 'white', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold', marginBottom: '10px' }}
-            >
-              Open Payment App (Mobile)
-            </a>
-
-            <button onClick={() => setBlessModalUser(null)} style={{ width: '100%', padding: '12px', background: '#f0f0f0', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
-              Close
-            </button>
+            <a href={`upi://pay?pa=${blessModalUser.upi_id}&pn=${encodeURIComponent(blessModalUser.full_name)}&cu=INR`} target="_blank" style={{ display: 'block', width: '100%', padding: '12px', background: '#2e8b57', color: 'white', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold', marginBottom: '10px' }}>Open Payment App</a>
+            <button onClick={() => setBlessModalUser(null)} style={{ width: '100%', padding: '12px', background: '#f0f0f0', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Close</button>
           </div>
         </div>
       )}
@@ -419,7 +407,6 @@ export default function Dashboard() {
   );
 }
 
-// FIX: Helper function is now correctly defined outside the component
 function getDaysInMonth(date) {
   const year = date.getFullYear();
   const month = date.getMonth();
