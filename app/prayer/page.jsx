@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import CreatePost from "@/components/CreatePost"; // Using your existing component
 
 export default function PrayerPage() {
   const [mounted, setMounted] = useState(false);
@@ -10,6 +9,14 @@ export default function PrayerPage() {
   const [prayers, setPrayers] = useState([]);
   const [activeTab, setActiveTab] = useState("all"); // 'all' or 'my'
   
+  // Stats
+  const [stats, setStats] = useState({ active: 0, answered: 0, total: 0 });
+
+  // Create Modal State
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [newRequest, setNewRequest] = useState({ title: "", content: "" });
+  const [creating, setCreating] = useState(false);
+
   // Edit State
   const [editingId, setEditingId] = useState(null);
   const [editContent, setEditContent] = useState("");
@@ -23,11 +30,11 @@ export default function PrayerPage() {
     const { data } = await supabase.auth.getUser();
     if (data?.user) {
       setUser(data.user);
-      loadPrayers();
+      loadPrayers(data.user.id);
     }
   }
 
-  async function loadPrayers() {
+  async function loadPrayers(currentUserId) {
     const { data } = await supabase
       .from('posts')
       .select('*, profiles(full_name, avatar_url), amens(user_id)')
@@ -35,21 +42,49 @@ export default function PrayerPage() {
       .order('created_at', { ascending: false });
     
     if (data) {
-      // Map amens to "Praying Hands" count
       const formatted = data.map(p => ({
         ...p,
         prayCount: p.amens.length,
-        hasPrayed: p.amens.some(a => a.user_id === user?.id)
+        hasPrayed: p.amens.some(a => a.user_id === (currentUserId || user?.id))
       }));
       setPrayers(formatted);
+      calculateStats(formatted);
     }
   }
 
+  function calculateStats(data) {
+    const answered = data.filter(p => p.title && p.title.includes("Answered")).length;
+    const total = data.length;
+    const active = total - answered;
+    setStats({ active, answered, total });
+  }
+
   // --- ACTIONS ---
+  async function handleCreate(e) {
+    e.preventDefault();
+    if (!newRequest.content.trim()) return;
+    setCreating(true);
+
+    const { error } = await supabase.from('posts').insert({
+      user_id: user.id,
+      title: newRequest.title || "Prayer Request",
+      content: newRequest.content,
+      type: "Prayer"
+    });
+
+    if (error) {
+      alert("Error: " + error.message);
+    } else {
+      alert("Prayer Request Shared!");
+      setIsCreateOpen(false);
+      setNewRequest({ title: "", content: "" });
+      loadPrayers(user.id);
+    }
+    setCreating(false);
+  }
+
   async function handlePray(prayerId, hasPrayed) {
     if (!user) return;
-    
-    // Optimistic UI update
     setPrayers(prev => prev.map(p => p.id === prayerId ? { ...p, hasPrayed: !hasPrayed, prayCount: hasPrayed ? p.prayCount - 1 : p.prayCount + 1 } : p));
 
     if (hasPrayed) {
@@ -62,7 +97,9 @@ export default function PrayerPage() {
   async function handleDelete(id) {
     if (!confirm("Delete this prayer request?")) return;
     await supabase.from('posts').delete().eq('id', id);
-    setPrayers(prev => prev.filter(p => p.id !== id));
+    const updated = prayers.filter(p => p.id !== id);
+    setPrayers(updated);
+    calculateStats(updated);
   }
 
   async function handleUpdate(id) {
@@ -72,15 +109,14 @@ export default function PrayerPage() {
   }
 
   async function toggleAnswered(id, currentStatus) {
-    // We can store 'Answered' in the title or a separate column. 
-    // For now, let's append "[Answered]" to the title as a simple flag if no dedicated column exists.
     const newTitle = currentStatus ? "Prayer Request" : "✨ Answered Prayer";
-    
     await supabase.from('posts').update({ title: newTitle }).eq('id', id);
-    setPrayers(prev => prev.map(p => p.id === id ? { ...p, title: newTitle } : p));
+    
+    const updated = prayers.map(p => p.id === id ? { ...p, title: newTitle } : p);
+    setPrayers(updated);
+    calculateStats(updated);
   }
 
-  // --- FILTER ---
   const visiblePrayers = activeTab === 'my' 
     ? prayers.filter(p => p.user_id === user?.id)
     : prayers;
@@ -89,31 +125,57 @@ export default function PrayerPage() {
 
   return (
     <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '20px' }}>
-      {/* Header */}
-      <div style={{ background: '#2e8b57', padding: '30px', borderRadius: '12px', color: 'white', marginBottom: '20px' }}>
-        <h1 style={{ margin: 0 }}>🙏 Prayer Wall</h1>
-        <p style={{ opacity: 0.9 }}>Share requests and stand in the gap for others.</p>
+      
+      {/* Header Banner */}
+      <div style={{ background: '#2e8b57', padding: '30px', borderRadius: '12px', color: 'white', marginBottom: '20px', textAlign:'center' }}>
+        <h1 style={{ margin: 0, fontSize:'28px' }}>🙏 Prayer Wall</h1>
+        <p style={{ opacity: 0.9, marginTop:'5px' }}>Share requests and stand in the gap for others.</p>
       </div>
+
+      {/* Stats Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', marginBottom: '20px' }}>
+        <div style={{ background: 'white', padding: '20px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
+          <div style={{ fontSize: '24px' }}>🙏</div>
+          <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#2e8b57' }}>{stats.active}</div>
+          <div style={{ fontSize: '12px', color: '#666' }}>Active Prayers</div>
+        </div>
+        <div style={{ background: 'white', padding: '20px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
+          <div style={{ fontSize: '24px' }}>🎉</div>
+          <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#d4af37' }}>{stats.answered}</div>
+          <div style={{ fontSize: '12px', color: '#666' }}>Answered</div>
+        </div>
+        <div style={{ background: 'white', padding: '20px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
+          <div style={{ fontSize: '24px' }}>👥</div>
+          <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#0b2e4a' }}>{stats.total}</div>
+          <div style={{ fontSize: '12px', color: '#666' }}>Total Prayers</div>
+        </div>
+      </div>
+
+      {/* Share Button */}
+      <button 
+        onClick={() => setIsCreateOpen(true)}
+        style={{ width: '100%', padding: '15px', background: '#2e8b57', color: 'white', border: 'none', borderRadius: '12px', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer', marginBottom: '20px', boxShadow: '0 4px 10px rgba(46, 139, 87, 0.3)' }}
+      >
+        + Share a Prayer Request
+      </button>
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-        <button onClick={() => setActiveTab('all')} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: 'none', background: activeTab === 'all' ? '#0b2e4a' : 'white', color: activeTab === 'all' ? 'white' : '#333', fontWeight: 'bold', cursor:'pointer' }}>
-          🌍 All Prayers ({prayers.length})
+        <button onClick={() => setActiveTab('all')} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: 'none', background: activeTab === 'all' ? 'white' : 'transparent', color: activeTab === 'all' ? '#2e8b57' : '#666', fontWeight: 'bold', cursor:'pointer', boxShadow: activeTab === 'all' ? '0 2px 5px rgba(0,0,0,0.1)' : 'none' }}>
+          🌍 All Prayers
         </button>
-        <button onClick={() => setActiveTab('my')} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: 'none', background: activeTab === 'my' ? '#0b2e4a' : 'white', color: activeTab === 'my' ? 'white' : '#333', fontWeight: 'bold', cursor:'pointer' }}>
-          👤 My Prayers ({prayers.filter(p => p.user_id === user?.id).length})
+        <button onClick={() => setActiveTab('my')} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: 'none', background: activeTab === 'my' ? '#2e8b57' : 'transparent', color: activeTab === 'my' ? 'white' : '#666', fontWeight: 'bold', cursor:'pointer', boxShadow: activeTab === 'my' ? '0 2px 5px rgba(0,0,0,0.1)' : 'none' }}>
+          👤 My Prayers
         </button>
       </div>
 
-      {/* Create Box */}
-      {user && <CreatePost user={user} onPostCreated={loadPrayers} />}
-
       {/* List */}
-      <div style={{ display: 'grid', gap: '15px', marginTop:'20px' }}>
-        {visiblePrayers.map(p => (
+      <div style={{ display: 'grid', gap: '15px' }}>
+        {visiblePrayers.length === 0 ? <p style={{textAlign:'center', color:'#666', padding:20}}>No prayers found.</p> : 
+          visiblePrayers.map(p => (
           <div key={p.id} style={{ background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', borderLeft: p.title?.includes('Answered') ? '5px solid #d4af37' : '5px solid #2e8b57' }}>
             
-            {/* Header: User & Menu */}
+            {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                 <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#eee', overflow: 'hidden' }}>
@@ -125,7 +187,7 @@ export default function PrayerPage() {
                 </div>
               </div>
 
-              {/* Owner Options */}
+              {/* Edit/Delete for Owner */}
               {user?.id === p.user_id && (
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button onClick={() => { setEditingId(p.id); setEditContent(p.content); }} style={{ padding: '5px 10px', background: '#f0f0f0', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>✏️ Edit</button>
@@ -154,7 +216,7 @@ export default function PrayerPage() {
               </>
             )}
 
-            {/* Footer Actions */}
+            {/* Footer */}
             <div style={{ marginTop: '15px', paddingTop: '10px', borderTop: '1px solid #eee', display: 'flex', justifyContent: 'space-between' }}>
               <button 
                 onClick={() => handlePray(p.id, p.hasPrayed)} 
@@ -176,6 +238,38 @@ export default function PrayerPage() {
           </div>
         ))}
       </div>
+
+      {/* CREATE MODAL */}
+      {isCreateOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: 'white', padding: '25px', borderRadius: '12px', width: '90%', maxWidth: '500px' }}>
+            <h3 style={{ margin: '0 0 15px 0', color: '#2e8b57' }}>Share a Prayer Request</h3>
+            
+            <input 
+              type="text" 
+              placeholder="Prayer Title (Optional)" 
+              value={newRequest.title} 
+              onChange={e => setNewRequest({...newRequest, title: e.target.value})} 
+              style={{ width: '100%', padding: '12px', marginBottom: '10px', borderRadius: '8px', border: '1px solid #ddd' }} 
+            />
+            
+            <textarea 
+              placeholder="Describe your request..." 
+              value={newRequest.content} 
+              onChange={e => setNewRequest({...newRequest, content: e.target.value})} 
+              style={{ width: '100%', padding: '12px', minHeight: '120px', borderRadius: '8px', border: '1px solid #ddd', marginBottom: '15px' }} 
+            />
+            
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button onClick={() => setIsCreateOpen(false)} style={{ padding: '10px 20px', background: '#ccc', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Cancel</button>
+              <button onClick={handleCreate} disabled={creating || !newRequest.content.trim()} style={{ padding: '10px 20px', background: '#2e8b57', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', opacity: creating ? 0.7 : 1 }}>
+                {creating ? "Posting..." : "Share Request"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
