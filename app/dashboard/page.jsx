@@ -94,12 +94,29 @@ export default function Dashboard() {
     if (data) setSuggestedBelievers(data);
   }
 
-  // UPDATED: Fetch ALL Global Prayers for Widget (Ensures it's not empty)
   async function loadPrayerWall(userId) {
+    // 1. Get Friend IDs (Self + Friends)
+    const { data: conns } = await supabase
+      .from('connections')
+      .select('user_a, user_b')
+      .or(`user_a.eq.${userId},user_b.eq.${userId}`)
+      .eq('status', 'connected');
+
+    let friendIds = [userId]; 
+    if (conns) {
+      conns.forEach(c => {
+        if (c.user_a !== userId) friendIds.push(c.user_a);
+        if (c.user_b !== userId) friendIds.push(c.user_b);
+      });
+      friendIds = Array.from(new Set(friendIds));
+    }
+
+    // 2. Fetch Prayers
     const { data } = await supabase
       .from('posts')
       .select('id, content, user_id, profiles(full_name)')
       .eq('type', 'Prayer')
+      .in('user_id', friendIds)
       .order('created_at', { ascending: false })
       .limit(5);
     
@@ -110,7 +127,9 @@ export default function Dashboard() {
     if(!confirm("Delete this prayer request?")) return;
     await supabase.from('posts').delete().eq('id', prayerId);
     
+    // Update Widget
     setPrayerRequests(prev => prev.filter(p => p.id !== prayerId));
+    // Update Main Feed if it's there (though now it won't be)
     setPosts(prev => prev.filter(p => p.id !== prayerId));
   }
 
@@ -155,13 +174,15 @@ export default function Dashboard() {
     filterEventsByDate(newDate, events);
   }
 
-  // --- 4. FEED ---
+  // --- 4. FEED (THE WALK) ---
+  // FIXED: Now excludes 'Prayer' so it doesn't duplicate content
   async function loadPosts(currentUserId, isRefresh = false) {
     if (!isRefresh) setLoadingPosts(true);
     const { data, error } = await supabase
       .from('posts')
       .select(`*, profiles (username, full_name, avatar_url, upi_id), amens (user_id)`)
       .neq('type', 'Glimpse')
+      .neq('type', 'Prayer') // <--- EXCLUDE PRAYERS FROM THE WALK
       .order('created_at', { ascending: false });
 
     if (!error && data) {
@@ -187,15 +208,7 @@ export default function Dashboard() {
     if (currentlyAmened) await supabase.from('amens').delete().match({ user_id: user.id, post_id: post.id });
     else {
       await supabase.from('amens').insert({ user_id: user.id, post_id: post.id });
-      if (user && user.id !== post.user_id) {
-        await supabase.from('notifications').insert({ 
-          user_id: post.user_id, 
-          actor_id: user.id, 
-          type: 'amen', 
-          content: `${profile?.full_name || 'Someone'} said Amen to your post.`, 
-          link: '/dashboard' 
-        });
-      }
+      if (user && user.id !== post.user_id) await supabase.from('notifications').insert({ user_id: post.user_id, actor_id: user.id, type: 'amen', content: `${profile?.full_name} said Amen to your post.`, link: '/dashboard' });
     }
   }
 
@@ -203,13 +216,11 @@ export default function Dashboard() {
     if (!confirm("Are you sure?")) return;
     await supabase.from('posts').delete().eq('id', postId);
     setPosts(posts.filter(p => p.id !== postId));
-    setPrayerRequests(prev => prev.filter(p => p.id !== postId));
   }
 
   async function handleUpdatePost(postId) {
     await supabase.from('posts').update({ title: editTitle, content: editContent }).eq('id', postId);
     setPosts(posts.map(p => p.id === postId ? { ...p, title: editTitle, content: editContent } : p));
-    loadPrayerWall(user.id); // Refresh widget
     setEditingPost(null);
   }
 
@@ -231,8 +242,6 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard-wrapper">
-      
-      {/* HEADER */}
       <div style={{ background: "linear-gradient(135deg, #2e8b57 0%, #1d5d3a 100%)", padding: "20px 30px", borderRadius: "12px", color: "white", marginBottom: "20px" }}>
         <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
           <span style={{fontSize:'2rem'}}>🏠</span>
@@ -242,7 +251,6 @@ export default function Dashboard() {
 
       <div className="dashboard-grid">
         <div className="left-panel">
-          
           {/* DAILY BIBLE VERSE */}
           {verseData && (
             <div className="panel-card" style={{padding:0, overflow:'hidden', position:'relative', borderRadius:'12px', border:'none', background:'#000'}}>
@@ -287,7 +295,9 @@ export default function Dashboard() {
         </div>
 
         <div className="center-panel">
+          {/* CREATE POST - Triggers Refresh of both Feed AND Prayer Widget */}
           {user && <CreatePost user={user} onPostCreated={() => { loadPosts(user.id, true); loadPrayerWall(user.id); }} />}
+          
           <div className="panel-card">
             <h3>🏠 The Walk</h3>
             {loadingPosts ? <p style={{textAlign:'center', padding:'20px'}}>Loading...</p> : 
@@ -320,7 +330,7 @@ export default function Dashboard() {
                    </div>
                  ) : (
                    <>
-                     {post.title && <h4 style={{margin:'0 0 5px 0', color: post.type === 'Prayer' ? '#d4af37' : '#0b2e4a'}}>{post.title}</h4>}
+                     {post.title && <h4 style={{margin:'0 0 5px 0', color: '#0b2e4a'}}>{post.title}</h4>}
                      <p style={{whiteSpace:'pre-wrap', color:'#333'}}>{post.content}</p>
                      {post.media_url && <img src={post.media_url} style={{width:'100%', borderRadius:'8px', marginTop:'10px'}} />}
                    </>
@@ -351,10 +361,10 @@ export default function Dashboard() {
             <Link href="/believers" style={{fontSize:'12px', color:'#2e8b57', fontWeight:'bold', display:'block', marginTop:'5px', textDecoration:'none'}}>Find More →</Link>
           </div>
           
-          {/* PRAYER WALL WIDGET (EDITABLE) */}
+          {/* PRAYER WALL WIDGET */}
           <div className="panel-card" style={{background:'#fff9e6', borderLeft:'4px solid #d4af37'}}>
             <h3>🙏 Prayer Wall</h3>
-            {prayerRequests.length === 0 ? <p style={{fontSize:'12px', color:'#666'}}>No recent prayers.</p> : 
+            {prayerRequests.length === 0 ? <p style={{fontSize:'12px', color:'#666'}}>No requests from friends.</p> : 
               prayerRequests.map(p => (
                 <div key={p.id} style={{marginBottom:'8px', fontSize:'12px', position:'relative', borderBottom:'1px dotted #ccc', paddingBottom:'5px'}}>
                   <div style={{fontWeight:'bold', color:'#000', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
