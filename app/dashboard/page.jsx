@@ -91,21 +91,42 @@ export default function Dashboard() {
   }
 
   async function loadPrayerWall(userId) {
-    const { data: conns } = await supabase.from('connections').select('user_a, user_b').or(`user_a.eq.${userId},user_b.eq.${userId}`).eq('status', 'connected');
+    // 1. Get Friend IDs
+    const { data: conns } = await supabase
+      .from('connections')
+      .select('user_a, user_b')
+      .or(`user_a.eq.${userId},user_b.eq.${userId}`)
+      .eq('status', 'connected');
+
     let friendIds = [userId]; 
-    if (conns) conns.forEach(c => friendIds.push(c.user_a === userId ? c.user_b : c.user_a));
-    const { data } = await supabase.from('posts').select('id, content, profiles(full_name)').eq('type', 'Prayer').in('user_id', friendIds).order('created_at', { ascending: false }).limit(5);
+    if (conns) {
+      conns.forEach(c => {
+        friendIds.push(c.user_a === userId ? c.user_b : c.user_a);
+      });
+    }
+
+    // 2. Fetch Prayers
+    const { data } = await supabase
+      .from('posts')
+      .select('id, content, profiles(full_name)')
+      .eq('type', 'Prayer')
+      .in('user_id', friendIds)
+      .order('created_at', { ascending: false })
+      .limit(5);
+    
     setPrayerRequests(data || []);
   }
 
   async function loadRecentChats(userId) {
     const { data: msgs } = await supabase.from('messages').select('sender_id, receiver_id').or(`sender_id.eq.${userId},receiver_id.eq.${userId}`).order('created_at', { ascending: false }).limit(20);
     if (!msgs) return;
+    
     const partnerIds = new Set();
     msgs.forEach(m => {
       if (m.sender_id !== userId) partnerIds.add(m.sender_id);
       if (m.receiver_id !== userId) partnerIds.add(m.receiver_id);
     });
+    
     if (partnerIds.size > 0) {
       const { data: profiles } = await supabase.from('profiles').select('*').in('id', Array.from(partnerIds)).limit(3);
       setRecentChats(profiles || []);
@@ -122,7 +143,9 @@ export default function Dashboard() {
   }
 
   function filterEventsByDate(date, allEvents) {
-    const year = date.getFullYear(); const month = String(date.getMonth() + 1).padStart(2, '0'); const day = String(date.getDate()).padStart(2, '0');
+    const year = date.getFullYear(); 
+    const month = String(date.getMonth() + 1).padStart(2, '0'); 
+    const day = String(date.getDate()).padStart(2, '0');
     const dateStr = `${year}-${month}-${day}`;
     setFilteredEvents(allEvents.filter(e => e.event_date === dateStr));
   }
@@ -133,239 +156,69 @@ export default function Dashboard() {
     filterEventsByDate(newDate, events);
   }
 
-  // --- 4. FEED LOGIC (Hide Glimpses) ---
-async function loadPosts(currentUserId, isRefresh = false) {
-  if (!isRefresh) setLoadingPosts(true);
-  
-  const { data, error } = await supabase
-    .from('posts')
-    .select(`*, profiles (username, full_name, avatar_url, upi_id), amens (user_id)`)
-    .neq('type', 'Glimpse') // <--- THIS LINE HIDES GLIMPSES FROM THE WALK
-    .order('created_at', { ascending: false });
+  // --- 4. FEED ---
+  async function loadPosts(currentUserId, isRefresh = false) {
+    if (!isRefresh) setLoadingPosts(true);
+    
+    const { data, error } = await supabase
+      .from('posts')
+      .select(`*, profiles (username, full_name, avatar_url, upi_id), amens (user_id)`) 
+      .neq('type', 'Glimpse') // Exclude Glimpses from Feed
+      .order('created_at', { ascending: false });
 
-  if (!error && data) {
-    const formatted = data.map(p => ({
-      ...p,
-      author: p.profiles,
-      amenCount: p.amens.length,
-      hasAmened: p.amens.some(a => a.user_id === currentUserId)
-    }));
-    setPosts(formatted);
+    if (!error && data) {
+      const formatted = data.map(p => ({
+        ...p,
+        author: p.profiles,
+        amenCount: p.amens.length,
+        hasAmened: p.amens.some(a => a.user_id === currentUserId)
+      }));
+      setPosts(formatted);
+    }
+    setLoadingPosts(false);
   }
-  setLoadingPosts(false);
-}
 
-  // --- 5. ACTIONS ---
-  function handleBlessClick(author) {
+  // --- 5. ACTIONS (With Notifications) ---
+  
+  // Bless Action
+  async function handleBlessClick(author) {
     if (!author?.upi_id) {
       alert(`God bless! ${author.full_name} has not set up their UPI ID yet.`);
       return;
     }
-    setBlessModalUser(author); // Open Modal
+    setBlessModalUser(author);
+    
+    // SEND NOTIFICATION TO AUTHOR
+    if (user && user.id !== author.id) { // Don't notify self
+      await supabase.from('notifications').insert({
+        user_id: author.id, // Receiver (The person being blessed)
+        actor_id: user.id, // Sender (Me)
+        type: 'bless',
+        content: `${profile?.full_name} opened your Bless link.`,
+        link: '/dashboard'
+      });
+    }
   }
 
-  async function handleAmen(postId, currentlyAmened) {
-    setPosts(posts.map(p => p.id === postId ? { ...p, hasAmened: !currentlyAmened, amenCount: currentlyAmened ? p.amenCount - 1 : p.amenCount + 1 } : p));
-    if (currentlyAmened) await supabase.from('amens').delete().match({ user_id: user.id, post_id: postId });
-    else await supabase.from('amens').insert({ user_id: user.id, post_id: postId });
-  }
-
-  async function handleDeletePost(postId) {
-    if (!confirm("Are you sure?")) return;
-    await supabase.from('posts').delete().eq('id', postId);
-    setPosts(posts.filter(p => p.id !== postId));
-  }
-
-  async function handleUpdatePost(postId) {
-    await supabase.from('posts').update({ content: editContent }).eq('id', postId);
-    setPosts(posts.map(p => p.id === postId ? { ...p, content: editContent } : p));
-    setEditingPost(null);
-  }
-
-  function startEditing(post) {
-    setEditingPost(post.id);
-    setEditContent(post.content);
-    setOpenMenuId(null);
-  }
-
-  function handleShare(text) {
-    if (navigator.share) navigator.share({ title: 'The Believerse', text: text });
-    else alert("Link copied!");
-  }
-
-  if (!mounted) return null;
-  const { daysInMonth, startingDayOfWeek } = getDaysInMonth(selectedDate);
-  const firstName = profile?.full_name ? profile.full_name.split(' ')[0] : 'Believer';
-
-  return (
-    <div className="dashboard-wrapper">
-      <div style={{ background: "linear-gradient(135deg, #2e8b57 0%, #1d5d3a 100%)", padding: "20px 30px", borderRadius: "12px", color: "white", marginBottom: "20px" }}>
-        <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
-          <span style={{fontSize:'2rem'}}>🏠</span>
-          <div><h2 style={{ margin: 0 }}>Welcome, {firstName}</h2><p style={{ margin: 0, opacity: 0.9 }}>Walking with God and fellow Believers</p></div>
-        </div>
-      </div>
-
-      <div className="dashboard-grid">
-        <div className="left-panel">
-          {verseData && (
-            <div className="panel-card" style={{padding:0, overflow:'hidden', position:'relative', borderRadius:'12px', border:'none'}}>
-              <div style={{padding:'10px 15px', background:'#0b2e4a', color:'white'}}><h3 style={{margin:0, fontSize:'14px'}}>Daily Bible Verse</h3></div>
-              <div style={{ backgroundImage: `url(${verseData.bg})`, backgroundSize: 'cover', height: '200px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '20px', textAlign: 'center', color: 'white', position: 'relative' }}>
-                <div style={{position:'absolute', inset:0, background:'rgba(0,0,0,0.4)'}} />
-                <div style={{position:'relative', zIndex:2, textShadow: '0 2px 8px rgba(0,0,0,0.9)'}}>
-                  <p style={{fontSize:'16px', fontWeight:'bold', fontFamily:'Georgia'}}>"{verseData.text}"</p>
-                  <p style={{marginTop:'10px', fontSize:'13px'}}>{verseData.ref}</p>
-                </div>
-              </div>
-              <div style={{display:'flex', borderTop:'1px solid #eee'}}>
-                <button onClick={handleVerseAmen} style={{flex:1, padding:'10px', border:'none', background:'white', cursor:'pointer', borderRight:'1px solid #eee', color: hasAmenedVerse ? '#2e8b57' : '#555', fontWeight:'bold'}}>🙏 Amen ({verseAmenCount})</button>
-                <button onClick={() => handleShare(verseData.text)} style={{flex:1, padding:'10px', border:'none', background:'white', cursor:'pointer', color:'#0b2e4a', fontWeight:'bold'}}>📢 Spread</button>
-              </div>
-            </div>
-          )}
-          
-          <div className="panel-card">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}><h3 style={{ margin: 0 }}>📅 Events</h3><Link href="/events" style={{ fontSize: "12px", color: "#2e8b57", fontWeight: "600", textDecoration:'none' }}>View All →</Link></div>
-            <div style={{ background: "#f9f9f9", borderRadius: "8px", padding: "10px", marginBottom: "15px" }}>
-              <div style={{ textAlign:'center', marginBottom:'10px', fontWeight:'bold', color:'#0b2e4a', fontSize:'14px'}}>{monthNames[selectedDate.getMonth()]} {selectedDate.getFullYear()}</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "4px" }}>
-                {["S","M","T","W","T","F","S"].map(d => <div key={d} style={{ fontSize: "10px", textAlign: "center", color: "#888" }}>{d}</div>)}
-                {Array.from({ length: startingDayOfWeek }).map((_, i) => <div key={`empty-${i}`} />)}
-                {Array.from({ length: daysInMonth }).map((_, i) => { const day = i + 1; const isSelected = day === selectedDate.getDate(); return <div key={day} onClick={() => handleDateClick(day)} style={{ textAlign: "center", padding: "6px", background: isSelected ? "#2e8b57" : "transparent", color: isSelected ? "white" : "#333", borderRadius: "6px", cursor: 'pointer', fontSize:'12px' }}>{day}</div> })}
-              </div>
-            </div>
-            {filteredEvents.length > 0 ? filteredEvents.map(e => <div key={e.id} style={{fontSize:'12px', padding:'5px', background:'#e8f5e9', marginBottom:'5px', color:'#000'}}>{e.title}</div>) : <div style={{fontSize:'12px', color:'#999'}}>No events.</div>}
-          </div>
-        </div>
-
-        <div className="center-panel">
-          {user && <CreatePost user={user} onPostCreated={() => loadPosts(user.id, true)} />}
-          <div className="panel-card">
-            <h3>🏠 The Walk</h3>
-            {loadingPosts ? <p style={{textAlign:'center', padding:'20px'}}>Loading...</p> : 
-             posts.length === 0 ? <div style={{textAlign:'center', padding:'40px', color:'#666'}}>The Walk is quiet. Be the first to share!</div> :
-             posts.map(post => (
-               <div key={post.id} style={{border:'1px solid #eee', borderRadius:'12px', padding:'15px', marginBottom:'15px', background:'#fafafa'}}>
-                 <div style={{display:'flex', alignItems:'center', gap:'10px', marginBottom:'10px'}}>
-                   <img src={post.author?.avatar_url || '/images/default-avatar.png'} style={{width:40, height:40, borderRadius:'50%', objectFit:'cover'}} />
-                   <div><div style={{fontWeight:'bold', color:'#0b2e4a'}}>{post.author?.full_name}</div><div style={{fontSize:'12px', color:'#666'}}>{new Date(post.created_at).toDateString()}</div></div>
-                   {user?.id === post.user_id && (
-                     <div style={{marginLeft:'auto', position:'relative'}}>
-                       <button onClick={() => setOpenMenuId(openMenuId === post.id ? null : post.id)} style={{border:'none', background:'none', fontSize:'20px', cursor:'pointer'}}>⋮</button>
-                       {openMenuId === post.id && (
-                         <div style={{position:'absolute', right:0, top:'25px', background:'white', border:'1px solid #eee', boxShadow:'0 4px 12px rgba(0,0,0,0.1)', borderRadius:'8px', zIndex:10, width:'100px'}}>
-                           <button onClick={() => startEditing(post)} style={{width:'100%', padding:'8px', textAlign:'left', border:'none', background:'white', cursor:'pointer', fontSize:'13px', color:'#333'}}>Edit</button>
-                           <button onClick={() => handleDeletePost(post.id)} style={{width:'100%', padding:'8px', textAlign:'left', border:'none', background:'white', cursor:'pointer', color:'red', fontSize:'13px'}}>Delete</button>
-                         </div>
-                       )}
-                     </div>
-                   )}
-                 </div>
-                 {editingPost === post.id ? (
-                   <div style={{marginBottom:'10px'}}>
-                     <textarea value={editContent} onChange={e => setEditContent(e.target.value)} style={{width:'100%', padding:'10px', borderRadius:'8px', border:'1px solid #ddd'}} />
-                     <div style={{marginTop:'5px', display:'flex', gap:'5px'}}>
-                       <button onClick={() => handleUpdatePost(post.id)} style={{padding:'6px 12px', background:'#2e8b57', color:'white', border:'none', borderRadius:'4px', cursor:'pointer'}}>Save</button>
-                       <button onClick={() => setEditingPost(null)} style={{padding:'6px 12px', background:'#ccc', border:'none', borderRadius:'4px', cursor:'pointer'}}>Cancel</button>
-                     </div>
-                   </div>
-                 ) : (
-                   <>
-                     {post.title && <h4 style={{margin:'0 0 5px 0'}}>{post.title}</h4>}
-                     <p style={{whiteSpace:'pre-wrap', color:'#333'}}>{post.content}</p>
-                     {post.media_url && <img src={post.media_url} style={{width:'100%', borderRadius:'8px', marginTop:'10px'}} />}
-                   </>
-                 )}
-                 <div style={{display:'flex', justifyContent:'space-between', marginTop:'15px', borderTop:'1px solid #eee', paddingTop:'10px'}}>
-                   <button onClick={() => handleAmen(post.id, post.hasAmened)} style={{background:'none', border:'none', color: post.hasAmened ? '#2e8b57' : '#666', fontWeight: post.hasAmened ? 'bold' : 'normal', cursor:'pointer'}}>🙏 Amen ({post.amenCount})</button>
-                   <button onClick={() => handleBlessClick(post.author)} style={{background:'none', border:'none', color:'#d4af37', fontWeight:'bold', cursor:'pointer'}}>✨ Bless</button>
-                   <button onClick={() => handleShare(post.content)} style={{background:'none', border:'none', color:'#666', cursor:'pointer'}}>📢 Spread</button>
-                 </div>
-               </div>
-             ))
-            }
-          </div>
-        </div>
-
-        <div className="right-panel">
-          <div className="panel-card">
-            <h3>🤝 Suggested Believers</h3>
-            {suggestedBelievers.map(b => (
-              <div key={b.id} style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'10px'}}>
-                <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
-                  <img src={b.avatar_url || '/images/default-avatar.png'} style={{width:30, height:30, borderRadius:'50%'}} />
-                  <span style={{fontSize:'13px', color:'#0b2e4a', fontWeight:'bold'}}>{b.full_name?.split(' ')[0]}</span>
-                </div>
-                <Link href={`/chat?uid=${b.id}`} style={{textDecoration:'none', fontSize:'16px'}}>💬</Link>
-              </div>
-            ))}
-            <Link href="/believers" style={{fontSize:'12px', color:'#2e8b57', fontWeight:'bold', display:'block', marginTop:'5px', textDecoration:'none'}}>Find More →</Link>
-          </div>
-          <div className="panel-card" style={{background:'#fff9e6', borderLeft:'4px solid #d4af37'}}>
-            <h3>🙏 Prayer Wall</h3>
-            {prayerRequests.length === 0 ? <p style={{fontSize:'12px', color:'#666'}}>No requests from friends.</p> : 
-              prayerRequests.map(p => (
-                <div key={p.id} style={{marginBottom:'8px', fontSize:'12px'}}>
-                  <div style={{fontWeight:'bold', color:'#000'}}>{p.profiles?.full_name}</div>
-                  <div style={{fontStyle:'italic', color:'#555'}}>"{p.content.substring(0, 40)}..."</div>
-                </div>
-              ))
-            }
-            <button style={{width:'100%', padding:'8px', background:'#2e8b57', color:'white', border:'none', borderRadius:'6px', cursor:'pointer', marginTop:'5px'}}>I'll Pray</button>
-          </div>
-          <div className="panel-card">
-            <h3>💬 Recent Chats</h3>
-            {recentChats.map(c => (
-              <Link key={c.id} href={`/chat?uid=${c.id}`} style={{display:'flex', alignItems:'center', gap:'10px', padding:'8px', background:'#f5f5f5', borderRadius:'8px', marginBottom:'5px', textDecoration:'none'}}>
-                <img src={c.avatar_url || '/images/default-avatar.png'} style={{width:30, height:30, borderRadius:'50%'}} />
-                <div style={{fontSize:'13px', fontWeight:'bold', color:'#0b2e4a'}}>{c.full_name}</div>
-              </Link>
-            ))}
-            <Link href="/chat" style={{display:'block', textAlign:'center', marginTop:'10px', fontSize:'12px', color:'#2e8b57', fontWeight:'600', textDecoration:'none'}}>Open Messenger →</Link>
-          </div>
-        </div>
-      </div>
-
-      {/* BLESS MODAL */}
-      {blessModalUser && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-          <div style={{ background: 'white', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '350px', textAlign: 'center', boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
-            <h3 style={{ margin: '0 0 15px 0', color: '#0b2e4a' }}>Bless {blessModalUser.full_name}</h3>
-            
-            <div style={{ background: '#f9f9f9', padding: '15px', borderRadius: '12px', marginBottom: '20px' }}>
-              <img 
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=${blessModalUser.upi_id}&pn=${encodeURIComponent(blessModalUser.full_name)}&cu=INR`)}`} 
-                alt="Scan to Bless"
-                style={{ width: '100%', height: 'auto', borderRadius: '8px' }}
-              />
-            </div>
-
-            <p style={{ fontSize: '13px', color: '#666', marginBottom: '20px' }}>
-              Scan with <b>GPay</b>, <b>PhonePe</b>, or <b>Paytm</b> to send your offering directly to them.
-            </p>
-
-            {/* Mobile-Only Button */}
-            <a 
-              href={`upi://pay?pa=${blessModalUser.upi_id}&pn=${encodeURIComponent(blessModalUser.full_name)}&cu=INR`}
-              target="_blank"
-              style={{ display: 'block', width: '100%', padding: '12px', background: '#2e8b57', color: 'white', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold', marginBottom: '10px' }}
-            >
-              Open Payment App (Mobile)
-            </a>
-
-            <button onClick={() => setBlessModalUser(null)} style={{ width: '100%', padding: '12px', background: '#f0f0f0', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
-              Close
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function getDaysInMonth(date) {
-  const year = date.getFullYear();
-  const month = date.getMonth();
-  return { daysInMonth: new Date(year, month + 1, 0).getDate(), startingDayOfWeek: new Date(year, month, 1).getDay() };
-}
+  // Amen Action
+  async function handleAmen(post, currentlyAmened) {
+    // Optimistic Update
+    setPosts(posts.map(p => p.id === post.id ? { ...p, hasAmened: !currentlyAmened, amenCount: currentlyAmened ? p.amenCount - 1 : p.amenCount + 1 } : p));
+    
+    if (currentlyAmened) {
+      // Remove Amen
+      await supabase.from('amens').delete().match({ user_id: user.id, post_id: post.id });
+    } else {
+      // Add Amen
+      await supabase.from('amens').insert({ user_id: user.id, post_id: post.id });
+      
+      // SEND NOTIFICATION TO POST AUTHOR
+      if (user && user.id !== post.user_id) {
+        await supabase.from('notifications').insert({
+          user_id: post.user_id, // Post Author
+          actor_id: user.id, // Me
+          type: 'amen',
+          content: `${profile?.full_name} said Amen to your post.`,
+          link: '/dashboard' // In future, link to specific post ID
+        });
+      }

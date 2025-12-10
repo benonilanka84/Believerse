@@ -12,7 +12,11 @@ export default function NavBar() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // Notification States
   const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  
   const router = useRouter();
 
   async function loadUserProfile() {
@@ -21,50 +25,41 @@ export default function NavBar() {
     setUser(currentUser || null);
 
     if (currentUser) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("avatar_url")
-        .eq("id", currentUser.id)
-        .single();
+      const { data: profile } = await supabase.from("profiles").select("avatar_url").eq("id", currentUser.id).single();
       setAvatar(profile?.avatar_url);
       loadNotifications(currentUser.id);
     }
   }
 
   async function loadNotifications(userId) {
-    const { data: reqs } = await supabase
-      .from('connections')
-      .select('id, profiles:user_a(full_name)')
-      .eq('user_b', userId)
-      .eq('status', 'pending');
-
-    const { data: invites } = await supabase
-      .from('event_invites')
-      .select('id, events(title), profiles:sender_id(full_name)')
-      .eq('receiver_id', userId)
-      .eq('status', 'pending');
-
-    const notifs = [];
-    // Map to a standard format with 'link'
-    if (reqs) reqs.forEach(r => notifs.push({ 
-        id: r.id, 
-        text: `${r.profiles.full_name} wants to connect.`, 
-        link: '/believers',
-        type: 'req' 
-    }));
-    if (invites) invites.forEach(i => notifs.push({ 
-        id: i.id, 
-        text: `${i.profiles.full_name} invited you to ${i.events.title}`, 
-        link: '/events',
-        type: 'inv' 
-    }));
+    const { data } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(10);
     
-    setNotifications(notifs);
+    if (data) {
+      setNotifications(data);
+      setUnreadCount(data.filter(n => !n.is_read).length);
+    }
   }
 
-  useEffect(() => {
-    loadUserProfile();
-  }, []);
+  async function handleClearAll() {
+    if (!user) return;
+    await supabase.from('notifications').update({ is_read: true }).eq('user_id', user.id);
+    setUnreadCount(0);
+    loadNotifications(user.id);
+  }
+
+  async function handleNotificationClick(n) {
+    if (!n.is_read) {
+      await supabase.from('notifications').update({ is_read: true }).eq('id', n.id);
+      setUnreadCount(c => Math.max(0, c - 1));
+    }
+    setNotifOpen(false);
+    if (n.link) router.push(n.link);
+  }
 
   function handleSearchSubmit(e) {
     e.preventDefault();
@@ -74,15 +69,12 @@ export default function NavBar() {
     }
   }
 
-  function handleNotificationClick(n) {
-    setNotifOpen(false);
-    router.push(n.link);
-  }
-
   async function handleLogout() {
     await supabase.auth.signOut();
     window.location.href = "/";
   }
+
+  useEffect(() => { loadUserProfile(); }, []);
 
   return (
     <header style={{ background: "rgba(255,255,255,0.95)", padding: "12px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.1)", marginBottom: "16px", position:'relative', zIndex:50 }}>
@@ -115,27 +107,34 @@ export default function NavBar() {
           )}
         </div>
 
-        {/* Notifications - FIXED VISIBILITY */}
+        {/* Notifications */}
         <div style={{ position: 'relative' }}>
           <button onClick={() => setNotifOpen(!notifOpen)} style={{ background: "transparent", border: "none", fontSize: "20px", cursor: "pointer" }}>
             🔔
-            {notifications.length > 0 && (
-              <span style={{ position: 'absolute', top: -5, right: -5, background: 'red', color: 'white', fontSize: '10px', width: '16px', height: '16px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{notifications.length}</span>
+            {unreadCount > 0 && (
+              <span style={{ position: 'absolute', top: -5, right: -5, background: 'red', color: 'white', fontSize: '10px', width: '16px', height: '16px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{unreadCount}</span>
             )}
           </button>
+          
           {notifOpen && (
-            <div style={{ position: 'absolute', right: 0, top: '40px', width: '300px', background: 'white', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', padding: '10px', zIndex: 1000, border:'1px solid #ddd' }}>
-              <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#0b2e4a', borderBottom:'1px solid #eee', paddingBottom:'5px' }}>Notifications</h4>
-              {notifications.length === 0 ? <p style={{ fontSize: '12px', color: '#666' }}>No new notifications.</p> : notifications.map((n, i) => (
-                <div 
-                  key={i} 
-                  onClick={() => handleNotificationClick(n)}
-                  style={{ padding: '10px', borderBottom: '1px solid #eee', fontSize: '13px', color: '#333', cursor:'pointer', background: '#f9f9f9', marginBottom:'2px', borderRadius:'4px' }}
-                >
-                  {n.text}
-                </div>
-              ))}
-              <Link href="/believers" style={{ display: 'block', textAlign: 'center', marginTop: '10px', fontSize: '12px', color: '#2e8b57', fontWeight: 'bold', textDecoration:'none' }}>View All Requests</Link>
+            <div style={{ position: 'absolute', right: 0, top: '40px', width: '320px', background: 'white', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', padding: '15px', zIndex: 1000, border:'1px solid #ddd' }}>
+              <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom:'1px solid #eee', paddingBottom:'8px', marginBottom:'10px'}}>
+                <h4 style={{ margin: 0, fontSize: '14px', color: '#0b2e4a' }}>Notifications</h4>
+                <button onClick={handleClearAll} style={{fontSize:'11px', color:'red', background:'none', border:'none', cursor:'pointer', fontWeight:'bold'}}>Clear All</button>
+              </div>
+              
+              {notifications.length === 0 ? <p style={{ fontSize: '12px', color: '#666' }}>No new notifications.</p> : 
+                notifications.map((n) => (
+                  <div 
+                    key={n.id} 
+                    onClick={() => handleNotificationClick(n)}
+                    style={{ padding: '10px', borderBottom: '1px solid #eee', fontSize: '13px', color: '#333', cursor:'pointer', background: n.is_read ? 'white' : '#e8f5e9', marginBottom:'2px', borderRadius:'4px' }}
+                  >
+                    {n.content}
+                    <div style={{fontSize:'10px', color:'#888', marginTop:'2px'}}>{new Date(n.created_at).toLocaleDateString()}</div>
+                  </div>
+                ))
+              }
             </div>
           )}
         </div>

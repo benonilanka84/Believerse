@@ -2,11 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { useSearchParams } from "next/navigation"; // Added this
 
 export default function EventsPage() {
   const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  
+  // URL Params
+  const searchParams = useSearchParams();
   
   // Data
   const [allEvents, setAllEvents] = useState([]);
@@ -18,23 +22,28 @@ export default function EventsPage() {
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [selectedEventForInvite, setSelectedEventForInvite] = useState(null);
   const [editingEvent, setEditingEvent] = useState(null);
-  
-  // Bulk Invite State
   const [selectedFriends, setSelectedFriends] = useState([]);
 
   // Create Form
   const [newEvent, setNewEvent] = useState({
     title: "", description: "", date: "", time: "", location: "",
-    type: "Fellowship", isOnline: false, meetingLink: "",
-    shareToFeed: false // NEW OPTION
+    type: "Fellowship", isOnline: false, meetingLink: "", shareToFeed: false
   });
 
   const eventTypes = [{ value: "Fellowship" }, { value: "Prayer" }, { value: "Bible Study" }, { value: "Worship" }];
 
   useEffect(() => {
     setMounted(true);
+    
+    // Check URL for date
+    const paramDate = searchParams.get('date');
+    if (paramDate) {
+      const parsedDate = new Date(paramDate);
+      if (!isNaN(parsedDate)) setSelectedDate(parsedDate);
+    }
+
     checkUser();
-  }, []);
+  }, [searchParams]); // Re-run if URL changes
 
   async function checkUser() {
     const { data } = await supabase.auth.getUser();
@@ -81,7 +90,6 @@ export default function EventsPage() {
     }
   }
 
-  // --- CREATE / EDIT EVENT ---
   async function handleCreateEvent(e) {
     e.preventDefault();
     if (!user) return;
@@ -99,14 +107,10 @@ export default function EventsPage() {
     } else {
       ({ error } = await supabase.from('events').insert(payload));
       
-      // CONDITIONAL POST TO FEED
       if (!error && newEvent.shareToFeed) {
         const postContent = `📅 New Event: ${newEvent.title}\n\n${newEvent.description}\n\nJoin us on ${newEvent.date} at ${newEvent.time}!`;
         await supabase.from('posts').insert({
-          user_id: user.id,
-          content: postContent,
-          type: "Event",
-          title: newEvent.title
+          user_id: user.id, content: postContent, type: "Event", title: newEvent.title
         });
       }
     }
@@ -116,7 +120,6 @@ export default function EventsPage() {
       alert(editingEvent ? "Event Updated!" : "Event Created!");
       setShowCreateForm(false);
       setEditingEvent(null);
-      // Reset form
       setNewEvent({ title: "", description: "", date: "", time: "", location: "", type: "Fellowship", isOnline: false, meetingLink: "", shareToFeed: false });
       loadEvents();
     }
@@ -134,13 +137,11 @@ export default function EventsPage() {
       title: event.title, description: event.description,
       date: event.event_date, time: event.event_time,
       location: event.location, isOnline: event.is_online,
-      meetingLink: event.meeting_link || "",
-      shareToFeed: false // Usually don't re-share on edit
+      meetingLink: event.meeting_link || "", shareToFeed: false 
     });
     setShowCreateForm(true);
   }
 
-  // --- BULK INVITE LOGIC ---
   function toggleFriendSelection(id) {
     if (selectedFriends.includes(id)) {
       setSelectedFriends(selectedFriends.filter(fid => fid !== id));
@@ -157,24 +158,32 @@ export default function EventsPage() {
     }
   }
 
+  // UPDATED: SEND INVITES NOW CREATES NOTIFICATIONS
   async function sendBulkInvites() {
     if (!selectedEventForInvite || selectedFriends.length === 0) return;
 
+    // 1. Create Invite Records
     const invites = selectedFriends.map(fid => ({
       event_id: selectedEventForInvite.id,
       sender_id: user.id,
       receiver_id: fid,
       status: 'pending'
     }));
+    await supabase.from('event_invites').insert(invites);
 
-    const { error } = await supabase.from('event_invites').insert(invites);
+    // 2. Create Notifications
+    const notifications = selectedFriends.map(fid => ({
+      user_id: fid,
+      actor_id: user.id,
+      type: 'invite',
+      content: `Invited you to ${selectedEventForInvite.title}`,
+      link: `/events?date=${selectedEventForInvite.event_date}` // <--- DEEP LINK
+    }));
+    await supabase.from('notifications').insert(notifications);
 
-    if (error) alert("Error sending invites: " + error.message);
-    else {
-      alert(`✅ Sent invites to ${selectedFriends.length} believers!`);
-      setInviteModalOpen(false);
-      setSelectedFriends([]);
-    }
+    alert(`✅ Sent invites to ${selectedFriends.length} believers!`);
+    setInviteModalOpen(false);
+    setSelectedFriends([]);
   }
 
   function toLocalISODate(date) {
@@ -219,8 +228,6 @@ export default function EventsPage() {
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 <input type="checkbox" checked={newEvent.isOnline} onChange={e => setNewEvent({...newEvent, isOnline: e.target.checked})} /> <label style={{color:"#333"}}>Online</label>
               </div>
-              
-              {/* NEW SHARE OPTION */}
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 <input type="checkbox" checked={newEvent.shareToFeed} onChange={e => setNewEvent({...newEvent, shareToFeed: e.target.checked})} /> <label style={{color:"#333", fontWeight:'bold'}}>Share to The Walk (Feed)</label>
               </div>
@@ -233,7 +240,6 @@ export default function EventsPage() {
       )}
 
       <div style={{ display: "grid", gridTemplateColumns: "350px 1fr", gap: "20px" }}>
-        {/* Calendar UI */}
         <div style={{ background: "white", padding: "20px", borderRadius: "12px", height: "fit-content" }}>
           <div style={{ textAlign: "center", marginBottom: "15px", fontWeight: "bold", color: "#0b2e4a" }}>{monthNames[selectedDate.getMonth()]} {selectedDate.getFullYear()}</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "5px" }}>
@@ -299,9 +305,8 @@ export default function EventsPage() {
         </div>
       </div>
       
-      {/* BULK INVITE MODAL */}
       {inviteModalOpen && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: 'white', padding: '20px', borderRadius: '12px', width: '90%', maxWidth: '400px', maxHeight: '80vh', display:'flex', flexDirection:'column' }}>
             <h3 style={{ marginTop: 0, color:'#0b2e4a' }}>Invite Believers</h3>
             <p style={{fontSize:'13px', color:'#666', marginBottom:'15px'}}>Inviting to: <b>{selectedEventForInvite?.title}</b></p>
@@ -315,7 +320,7 @@ export default function EventsPage() {
 
             <div style={{ overflowY: 'auto', marginBottom: '15px', flex:1, border:'1px solid #eee', borderRadius:'8px', padding:'5px' }}>
               {myConnections.length === 0 ? (
-                <p style={{padding:'20px', textAlign:'center', color:'#666'}}>No connections yet. Connect with believers first!</p>
+                <p style={{padding:'20px', textAlign:'center', color:'#666'}}>No connections yet.</p>
               ) : (
                 myConnections.map(friend => (
                   <div key={friend.id} onClick={() => toggleFriendSelection(friend.id)} 
@@ -323,12 +328,7 @@ export default function EventsPage() {
                       display: 'flex', alignItems: 'center', gap:'10px', padding: '10px', borderBottom: '1px solid #eee', cursor:'pointer',
                       background: selectedFriends.includes(friend.id) ? '#e8f5e9' : 'transparent' 
                     }}>
-                    <input 
-                      type="checkbox" 
-                      checked={selectedFriends.includes(friend.id)} 
-                      readOnly 
-                      style={{accentColor:'#2e8b57'}}
-                    />
+                    <input type="checkbox" checked={selectedFriends.includes(friend.id)} readOnly style={{accentColor:'#2e8b57'}} />
                     <span style={{color:'#333', fontWeight:'500'}}>{friend.full_name}</span>
                   </div>
                 ))
