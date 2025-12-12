@@ -1,49 +1,42 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { supabase } from "@/lib/supabase";
-import { useSearchParams } from "next/navigation"; // Added this
+import { useSearchParams } from "next/navigation";
 
-export default function EventsPage() {
+// 1. Logic Component
+function EventsContent() {
   const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  
-  // URL Params
   const searchParams = useSearchParams();
   
-  // Data
   const [allEvents, setAllEvents] = useState([]);
   const [myConnections, setMyConnections] = useState([]); 
   const [viewMode, setViewMode] = useState("all"); 
   const [selectedDate, setSelectedDate] = useState(new Date());
   
-  // Invite/Edit Modal
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [selectedEventForInvite, setSelectedEventForInvite] = useState(null);
   const [editingEvent, setEditingEvent] = useState(null);
   const [selectedFriends, setSelectedFriends] = useState([]);
 
-  // Create Form
   const [newEvent, setNewEvent] = useState({
     title: "", description: "", date: "", time: "", location: "",
     type: "Fellowship", isOnline: false, meetingLink: "", shareToFeed: false
   });
 
-  const eventTypes = [{ value: "Fellowship" }, { value: "Prayer" }, { value: "Bible Study" }, { value: "Worship" }];
+  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
   useEffect(() => {
     setMounted(true);
-    
-    // Check URL for date
     const paramDate = searchParams.get('date');
     if (paramDate) {
       const parsedDate = new Date(paramDate);
       if (!isNaN(parsedDate)) setSelectedDate(parsedDate);
     }
-
     checkUser();
-  }, [searchParams]); // Re-run if URL changes
+  }, [searchParams]);
 
   async function checkUser() {
     const { data } = await supabase.auth.getUser();
@@ -106,7 +99,6 @@ export default function EventsPage() {
       ({ error } = await supabase.from('events').update(payload).eq('id', editingEvent.id));
     } else {
       ({ error } = await supabase.from('events').insert(payload));
-      
       if (!error && newEvent.shareToFeed) {
         const postContent = `📅 New Event: ${newEvent.title}\n\n${newEvent.description}\n\nJoin us on ${newEvent.date} at ${newEvent.time}!`;
         await supabase.from('posts').insert({
@@ -151,18 +143,13 @@ export default function EventsPage() {
   }
 
   function toggleSelectAll() {
-    if (selectedFriends.length === myConnections.length) {
-      setSelectedFriends([]); 
-    } else {
-      setSelectedFriends(myConnections.map(c => c.id));
-    }
+    if (selectedFriends.length === myConnections.length) setSelectedFriends([]); 
+    else setSelectedFriends(myConnections.map(c => c.id));
   }
 
-  // UPDATED: SEND INVITES NOW CREATES NOTIFICATIONS
   async function sendBulkInvites() {
     if (!selectedEventForInvite || selectedFriends.length === 0) return;
 
-    // 1. Create Invite Records
     const invites = selectedFriends.map(fid => ({
       event_id: selectedEventForInvite.id,
       sender_id: user.id,
@@ -171,13 +158,12 @@ export default function EventsPage() {
     }));
     await supabase.from('event_invites').insert(invites);
 
-    // 2. Create Notifications
     const notifications = selectedFriends.map(fid => ({
       user_id: fid,
       actor_id: user.id,
       type: 'invite',
       content: `Invited you to ${selectedEventForInvite.title}`,
-      link: `/events?date=${selectedEventForInvite.event_date}` // <--- DEEP LINK
+      link: `/events?date=${selectedEventForInvite.event_date}`
     }));
     await supabase.from('notifications').insert(notifications);
 
@@ -196,7 +182,6 @@ export default function EventsPage() {
 
   if (!mounted) return null;
   const { daysInMonth, startingDayOfWeek } = getDaysInMonth(selectedDate);
-  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
   return (
     <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
@@ -223,7 +208,6 @@ export default function EventsPage() {
               <input type="date" value={newEvent.date} onChange={e => setNewEvent({...newEvent, date: e.target.value})} required style={{ padding: "10px", borderRadius: "8px", border: "1px solid #ddd" }} />
               <input type="time" value={newEvent.time} onChange={e => setNewEvent({...newEvent, time: e.target.value})} required style={{ padding: "10px", borderRadius: "8px", border: "1px solid #ddd" }} />
             </div>
-            
             <div style={{display:'flex', gap:'20px'}}>
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 <input type="checkbox" checked={newEvent.isOnline} onChange={e => setNewEvent({...newEvent, isOnline: e.target.checked})} /> <label style={{color:"#333"}}>Online</label>
@@ -232,7 +216,6 @@ export default function EventsPage() {
                 <input type="checkbox" checked={newEvent.shareToFeed} onChange={e => setNewEvent({...newEvent, shareToFeed: e.target.checked})} /> <label style={{color:"#333", fontWeight:'bold'}}>Share to The Walk (Feed)</label>
               </div>
             </div>
-
             {newEvent.isOnline ? <input type="text" placeholder="Link" value={newEvent.meetingLink} onChange={e => setNewEvent({...newEvent, meetingLink: e.target.value})} style={{ padding: "10px", borderRadius: "8px", border: "1px solid #ddd" }} /> : <input type="text" placeholder="Location" value={newEvent.location} onChange={e => setNewEvent({...newEvent, location: e.target.value})} style={{ padding: "10px", borderRadius: "8px", border: "1px solid #ddd" }} />}
             <button type="submit" style={{ padding: "12px", background: "#2e8b57", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold" }}>{editingEvent ? "Update" : "Publish"}</button>
           </form>
@@ -240,6 +223,7 @@ export default function EventsPage() {
       )}
 
       <div style={{ display: "grid", gridTemplateColumns: "350px 1fr", gap: "20px" }}>
+        {/* Calendar UI */}
         <div style={{ background: "white", padding: "20px", borderRadius: "12px", height: "fit-content" }}>
           <div style={{ textAlign: "center", marginBottom: "15px", fontWeight: "bold", color: "#0b2e4a" }}>{monthNames[selectedDate.getMonth()]} {selectedDate.getFullYear()}</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "5px" }}>
@@ -249,9 +233,8 @@ export default function EventsPage() {
                 const day = i + 1; 
                 const dateCheck = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day);
                 const dateString = toLocalISODate(dateCheck);
-                
                 const isSelected = day === selectedDate.getDate();
-                const hasEvent = visibleEvents.some(e => e.event_date === dateString);
+                const hasEvent = allEvents.some(e => e.event_date === dateString);
 
                 return (
                   <div key={day} onClick={() => setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day))} 
@@ -305,6 +288,7 @@ export default function EventsPage() {
         </div>
       </div>
       
+      {/* BULK INVITE MODAL */}
       {inviteModalOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: 'white', padding: '20px', borderRadius: '12px', width: '90%', maxWidth: '400px', maxHeight: '80vh', display:'flex', flexDirection:'column' }}>
@@ -329,7 +313,7 @@ export default function EventsPage() {
                       background: selectedFriends.includes(friend.id) ? '#e8f5e9' : 'transparent' 
                     }}>
                     <input type="checkbox" checked={selectedFriends.includes(friend.id)} readOnly style={{accentColor:'#2e8b57'}} />
-                    <span style={{color:'#333', fontWeight:'500'}}>{friend.full_name}</span>
+                    <span style={{color:'#333', fontWeight:'500'}}>{friend.full_name || "Unknown Name"}</span>
                   </div>
                 ))
               )}
@@ -352,4 +336,13 @@ function getDaysInMonth(date) {
   const year = date.getFullYear();
   const month = date.getMonth();
   return { daysInMonth: new Date(year, month + 1, 0).getDate(), startingDayOfWeek: new Date(year, month, 1).getDay() };
+}
+
+// 2. Wrap Default Export in Suspense
+export default function EventsPage() {
+  return (
+    <Suspense fallback={<div style={{padding:50, textAlign:'center'}}>Loading Events...</div>}>
+      <EventsContent />
+    </Suspense>
+  );
 }

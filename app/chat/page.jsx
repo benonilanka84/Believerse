@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { supabase } from "@/lib/supabase";
 import { useSearchParams } from "next/navigation";
 
-export default function ChatPage() {
-  // ... (keep existing state and logic: mounted, user, chats, activeChat, messages, etc.) ...
+// 1. Separate the logic that uses searchParams into its own component
+function ChatContent() {
   const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState(null);
   const [chats, setChats] = useState([]);
@@ -13,6 +13,7 @@ export default function ChatPage() {
   const [activeChatUser, setActiveChatUser] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
+  
   const searchParams = useSearchParams();
   const messagesEndRef = useRef(null);
 
@@ -72,7 +73,7 @@ export default function ChatPage() {
       .order('created_at', { ascending: true });
       
     setMessages(data || []);
-    scrollToBottom();
+    setTimeout(scrollToBottom, 100);
   }
 
   async function sendMessage(e) {
@@ -106,7 +107,6 @@ export default function ChatPage() {
             <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#ccc', overflow:'hidden' }}>
                {c.avatar_url ? <img src={c.avatar_url} style={{width:'100%', height:'100%', objectFit:'cover'}}/> : null}
             </div>
-            {/* FIXED COLOR HERE */}
             <div style={{fontWeight:'bold', fontSize:'14px', color:'#000'}}>{c.full_name}</div>
           </div>
         ))}
@@ -142,5 +142,14 @@ export default function ChatPage() {
         )}
       </div>
     </div>
+  );
+}
+
+// 2. Wrap it in Suspense for the default export
+export default function ChatPage() {
+  return (
+    <Suspense fallback={<div style={{padding:50, textAlign:'center'}}>Loading Messenger...</div>}>
+      <ChatContent />
+    </Suspense>
   );
 }
