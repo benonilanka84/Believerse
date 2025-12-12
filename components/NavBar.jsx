@@ -5,6 +5,22 @@ import Link from "next/link";
 import supabase from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
+<Link href="/pricing" style={{ textDecoration: 'none', marginRight: '15px' }}>
+  <button style={{ 
+    background: 'linear-gradient(45deg, #d4af37, #f1c40f)', 
+    border: 'none', 
+    padding: '8px 16px', 
+    borderRadius: '20px', 
+    color: 'white', 
+    fontWeight: 'bold', 
+    fontSize: '13px', 
+    cursor: 'pointer',
+    boxShadow: '0 4px 10px rgba(212, 175, 55, 0.3)' 
+  }}>
+    👑 Upgrade
+  </button>
+</Link>
+
 export default function NavBar() {
   const [user, setUser] = useState(null);
   const [avatar, setAvatar] = useState(null);
