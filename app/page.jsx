@@ -1,4 +1,5 @@
 "use client";
+
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -26,14 +27,14 @@ export default function Home() {
     setLoading(true);
     setMsg(""); // Clear previous errors
 
-    let emailToLogin = identifier;
+    let emailToLogin = identifier.trim();
 
     // 1. Check if input is a Username (no '@' symbol)
-    if (!identifier.includes("@")) {
+    if (!emailToLogin.includes("@")) {
       const { data, error } = await supabase
         .from('profiles')
         .select('email')
-        .eq('username', identifier)
+        .eq('username', emailToLogin.toLowerCase()) // FIX: Enforce lowercase for matching
         .single();
       
       if (error || !data) {
@@ -92,6 +93,7 @@ export default function Home() {
       position: "relative"
     }}>
       
+      {/* Dark Overlay */}
       <div style={{
         position: "absolute",
         inset: 0,
@@ -109,8 +111,8 @@ export default function Home() {
         display: "grid",
         gridTemplateColumns: "1fr 480px",
         gap: "60px",
-        alignItems: "flex-start", // MOVED UP
-        paddingTop: "80px"        // MOVED UP
+        alignItems: "flex-start",
+        paddingTop: "80px"
       }}>
 
         {/* LEFT PANEL */}
