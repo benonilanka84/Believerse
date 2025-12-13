@@ -101,7 +101,8 @@ export default function Home() {
         backdropFilter: "blur(2px)"
       }} />
 
-      <div style={{
+      {/* Main Grid Container with Class for Responsiveness */}
+      <div className="login-grid-container" style={{
         position: "relative",
         zIndex: 1,
         width: "100%",
@@ -109,14 +110,14 @@ export default function Home() {
         margin: "0 auto",
         padding: "40px 20px",
         display: "grid",
-        gridTemplateColumns: "1fr 480px",
+        gridTemplateColumns: "1fr 480px", // Default Desktop
         gap: "60px",
         alignItems: "flex-start",
         paddingTop: "80px"
       }}>
 
-        {/* LEFT PANEL */}
-        <div style={{ color: "white", padding: "40px", textAlign: "center" }}>
+        {/* LEFT PANEL (Text) */}
+        <div className="left-panel" style={{ color: "white", padding: "40px", textAlign: "center" }}>
           <div style={{
             fontSize: "20px",
             fontFamily: "Georgia, serif",
@@ -133,7 +134,7 @@ export default function Home() {
             </div>
           </div>
 
-          <h1 style={{
+          <h1 className="hero-title" style={{
             fontSize: "72px",
             fontWeight: "800",
             margin: "0 0 15px 0",
@@ -144,7 +145,7 @@ export default function Home() {
             The <span style={{ color: "#d4af37" }}>B</span>elievers<span style={{ color: "#2e8b57" }}>e</span>
           </h1>
 
-          <div style={{
+          <div className="hero-subtitle" style={{
             fontSize: "26px",
             fontWeight: "600",
             color: "#e8f5e9",
@@ -157,7 +158,7 @@ export default function Home() {
         </div>
 
         {/* RIGHT PANEL - Login Form */}
-        <div style={{
+        <div className="login-card" style={{
           background: "rgba(255, 255, 255, 0.98)",
           borderRadius: "24px",
           padding: "45px 40px",
@@ -281,9 +282,29 @@ export default function Home() {
         </div>
       </div>
       
+      {/* Responsive Styles */}
       <style jsx>{`
         @media (max-width: 1024px) {
-          div[style*="gridTemplateColumns"] { grid-template-columns: 1fr !important; gap: 30px !important; }
+          .login-grid-container {
+            grid-template-columns: 1fr !important;
+            gap: 40px !important;
+            padding: 20px !important;
+            padding-top: 40px !important;
+          }
+          .left-panel {
+            padding: 0 !important;
+            margin-bottom: 20px;
+          }
+          .hero-title {
+            fontSize: 48px !important;
+          }
+          .hero-subtitle {
+            fontSize: 20px !important;
+          }
+          .login-card {
+            padding: 30px 20px !important;
+            max-width: 100% !important;
+          }
         }
       `}</style>
     </div>
