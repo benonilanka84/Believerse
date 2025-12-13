@@ -201,18 +201,34 @@ export default function GlimpsesPage() {
 function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, openMenuId, setOpenMenuId, onMenuAction }) {
   const videoRef = useRef(null);
   const [playing, setPlaying] = useState(true);
-  const [muted, setMuted] = useState(true); // Default true for autoplay
-
-  // Sync state to video element
-  useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.muted = muted;
-    }
-  }, [muted]);
+  const [isMutedUI, setIsMutedUI] = useState(true); // State only for the Icon
 
   function togglePlay() {
-    if (playing) { videoRef.current.pause(); setPlaying(false); } 
-    else { videoRef.current.play(); setPlaying(true); }
+    if (playing) { 
+      videoRef.current.pause(); 
+      setPlaying(false); 
+    } else { 
+      videoRef.current.play(); 
+      setPlaying(true); 
+    }
+  }
+
+  // FORCE UNMUTE FUNCTION
+  function toggleMute(e) {
+    e.stopPropagation(); // Don't trigger the video pause click
+    
+    if (videoRef.current) {
+      // 1. Directly flip the DOM property (Most reliable method)
+      videoRef.current.muted = !videoRef.current.muted;
+      
+      // 2. Update UI state to match
+      setIsMutedUI(videoRef.current.muted);
+      
+      // 3. Safety Check: Ensure volume is up
+      if (!videoRef.current.muted) {
+          videoRef.current.volume = 1.0;
+      }
+    }
   }
   
   const showMenu = openMenuId === glimpse.id;
@@ -227,24 +243,21 @@ function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, ope
         loop 
         playsInline 
         autoPlay 
-        muted={muted}  // <--- KEY FIX: Pass the state variable, not the hardcoded attribute
+        defaultMuted={true} // Use defaultMuted, not 'muted'
         onClick={togglePlay} 
         style={{ height: "100%", width: "100%", objectFit: "cover", cursor:'pointer' }} 
       />
       
       {/* MUTE TOGGLE (Top Left) */}
       <button 
-        onClick={(e) => {
-            e.stopPropagation(); 
-            setMuted(prev => !prev); // Toggle state
-        }} 
+        onClick={toggleMute} 
         style={{position:'absolute', top:20, left:20, background:'rgba(0,0,0,0.4)', color:'white', border:'none', padding:'8px 12px', borderRadius:'20px', zIndex:5, cursor:'pointer', display:'flex', alignItems:'center', gap:'5px', backdropFilter:'blur(5px)'}}
       >
-        <span style={{fontSize:'16px'}}>{muted ? "🔇" : "🔊"}</span>
-        <span style={{fontSize:'12px', fontWeight:'bold'}}>{muted ? "Tap to Unmute" : "On"}</span>
+        <span style={{fontSize:'16px'}}>{isMutedUI ? "🔇" : "🔊"}</span>
+        <span style={{fontSize:'12px', fontWeight:'bold'}}>{isMutedUI ? "Tap to Unmute" : "On"}</span>
       </button>
 
-      {/* REST OF THE UI (Icons, Sidebars) - No changes needed here */}
+      {/* RIGHT SIDEBAR (ACTIONS) */}
       <div style={{ position: "absolute", right: "10px", bottom: "120px", display: "flex", flexDirection: "column", gap: "25px", alignItems: "center", zIndex: 5 }}>
         
         {/* AVATAR */}
