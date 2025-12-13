@@ -34,7 +34,7 @@ export default function Home() {
       const { data, error } = await supabase
         .from('profiles')
         .select('email')
-        .eq('username', emailToLogin.toLowerCase()) // FIX: Enforce lowercase for matching
+        .eq('username', emailToLogin.toLowerCase())
         .single();
       
       if (error || !data) {
@@ -175,23 +175,18 @@ export default function Home() {
             </p>
           </div>
 
-          {/* Social Login */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "20px" }}>
+          {/* Social Login - Updated: Only Google */}
+          <div style={{ marginBottom: "20px" }}>
             <button 
               onClick={() => handleSocialLogin('google')}
               style={{
+                width: "100%", // Added full width
                 display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
-                padding: "10px", background: "white", border: "1px solid #ddd", borderRadius: "8px", cursor: "pointer", fontWeight: "600", fontSize: "14px", color: "#333"
+                padding: "12px", // Slightly increased padding for better look
+                background: "white", border: "1px solid #ddd", borderRadius: "8px", cursor: "pointer", fontWeight: "600", fontSize: "15px", color: "#333",
+                boxShadow: "0 2px 5px rgba(0,0,0,0.05)"
               }}>
-              <span style={{fontSize: '18px'}}>G</span> Google
-            </button>
-            <button 
-              onClick={() => handleSocialLogin('azure')}
-              style={{
-                display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
-                padding: "10px", background: "white", border: "1px solid #ddd", borderRadius: "8px", cursor: "pointer", fontWeight: "600", fontSize: "14px", color: "#333"
-              }}>
-              <span style={{fontSize: '18px'}}>M</span> Microsoft
+              <span style={{fontSize: '18px', fontWeight: 'bold', color: '#DB4437'}}>G</span> Continue with Google
             </button>
           </div>
 
