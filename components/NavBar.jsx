@@ -65,7 +65,6 @@ export default function NavBar() {
   }
 
   async function fetchNotifications(uid) {
-    // Only fetch unread or recent notifications
     const { data } = await supabase
       .from("notifications")
       .select("*")
@@ -79,31 +78,28 @@ export default function NavBar() {
   // --- 2. HANDLERS ---
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    router.push("/login");
+    setUser(null);
+    setProfile(null);
+    // FIX: Redirect to Home Page (/) instead of /login to prevent 404
+    window.location.href = "/"; 
   };
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
     setIsSearchOpen(false);
-    // Redirect to a dedicated search page
     router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
   };
 
   const handleNotificationClick = async (notif) => {
-    // 1. Optimistic UI update
     setNotifications(prev => prev.filter(n => n.id !== notif.id));
-    
-    // 2. DB Update (Mark as read)
     await supabase.from('notifications').update({ is_read: true }).eq('id', notif.id);
-
-    // 3. Navigate (Deep Link)
     if (notif.link) router.push(notif.link);
     setIsNotifOpen(false);
   };
 
   const handleClearAllNotifications = async () => {
-    setNotifications([]); // UI Clear
+    setNotifications([]); 
     await supabase.from('notifications').update({ is_read: true }).eq('user_id', user.id);
   };
 
@@ -128,10 +124,10 @@ export default function NavBar() {
       
       {/* 1. LEFT: LOGO & BRANDING */}
       <Link href="/dashboard" style={{ textDecoration: 'none', display: "flex", alignItems: "center", gap: "12px" }}>
-        {/* Logo Image */}
-        <img src="/images/final-logo.png" alt="The Believerse Logo" style={{ width: 40, height: 40, objectFit: 'contain' }} />
-        
-        {/* Brand Text: The Believerse */}
+        <img src="/images/final-logo.png" alt="Logo" style={{ width: 40, height: 40, objectFit: 'contain' }} onError={(e) => {e.target.style.display='none'; e.target.nextSibling.style.display='flex'}} />
+        {/* Fallback if image fails */}
+        <div style={{ display: 'none', width: 40, height: 40, background: "#fff9c4", borderRadius: "50%", alignItems: "center", justifyContent: "center", fontWeight: "bold", color: "#d4af37", border: "2px solid #d4af37", fontSize: "18px" }}>Be</div>
+
         <div style={{ fontSize: "22px", fontFamily: "sans-serif" }}>
           <span style={{ color: "#0b2e4a", fontWeight: "bold" }}>The </span>
           <span style={{ color: "#d4af37", fontWeight: "bold" }}>B</span>
@@ -260,7 +256,8 @@ export default function NavBar() {
               </div>
               
               <div style={{ padding: "5px 0" }}>
-                <Link href="/profile" style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 15px", textDecoration: "none", color: "#444", fontSize: "13px" }} onClick={() => setIsProfileOpen(false)}>
+                {/* FIX: Link to /profile/edit explicitly */}
+                <Link href="/profile/edit" style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 15px", textDecoration: "none", color: "#444", fontSize: "13px" }} onClick={() => setIsProfileOpen(false)}>
                   <span>✏️</span> Edit Profile
                 </Link>
                 <Link href="/settings" style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 15px", textDecoration: "none", color: "#444", fontSize: "13px" }} onClick={() => setIsProfileOpen(false)}>
@@ -272,7 +269,6 @@ export default function NavBar() {
                 <Link href="/about" style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 15px", textDecoration: "none", color: "#444", fontSize: "13px" }} onClick={() => setIsProfileOpen(false)}>
                   <span>ℹ️</span> About
                 </Link>
-                {/* Admin Link if role is admin */}
                 {profile?.role === 'admin' && (
                   <Link href="/admin" style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 15px", textDecoration: "none", color: "#d32f2f", fontSize: "13px", fontWeight: "bold", background: "#fff5f5" }} onClick={() => setIsProfileOpen(false)}>
                     <span>🛡️</span> Admin Panel
