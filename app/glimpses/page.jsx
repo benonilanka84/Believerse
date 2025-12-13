@@ -203,6 +203,13 @@ function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, ope
   const [playing, setPlaying] = useState(true);
   const [muted, setMuted] = useState(true);
 
+  // FIX: Force the video DOM element to sync with the muted state
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.muted = muted;
+    }
+  }, [muted]);
+
   function togglePlay() {
     if (playing) { videoRef.current.pause(); setPlaying(false); } 
     else { videoRef.current.play(); setPlaying(true); }
@@ -218,16 +225,21 @@ function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, ope
         ref={videoRef} 
         src={glimpse.media_url} 
         loop 
-        muted={muted} 
         playsInline 
         autoPlay 
+        // We removed 'muted={muted}' prop here to rely on the useEffect above, 
+        // but keeping 'muted' as a default attribute ensures autoplay works on load.
+        muted 
         onClick={togglePlay} 
         style={{ height: "100%", width: "100%", objectFit: "cover", cursor:'pointer' }} 
       />
       
       {/* MUTE TOGGLE (Top Left) */}
       <button 
-        onClick={(e) => {e.stopPropagation(); setMuted(!muted);}} 
+        onClick={(e) => {
+            e.stopPropagation(); 
+            setMuted(prev => !prev); // Toggle state
+        }} 
         style={{position:'absolute', top:20, left:20, background:'rgba(0,0,0,0.4)', color:'white', border:'none', padding:'8px 12px', borderRadius:'20px', zIndex:5, cursor:'pointer', display:'flex', alignItems:'center', gap:'5px', backdropFilter:'blur(5px)'}}
       >
         <span style={{fontSize:'16px'}}>{muted ? "🔇" : "🔊"}</span>
