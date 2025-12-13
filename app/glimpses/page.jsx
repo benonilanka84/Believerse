@@ -201,9 +201,9 @@ export default function GlimpsesPage() {
 function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, openMenuId, setOpenMenuId, onMenuAction }) {
   const videoRef = useRef(null);
   const [playing, setPlaying] = useState(true);
-  const [muted, setMuted] = useState(true);
+  const [muted, setMuted] = useState(true); // Default true for autoplay
 
-  // FIX: Force the video DOM element to sync with the muted state
+  // Sync state to video element
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.muted = muted;
@@ -222,15 +222,15 @@ function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, ope
       
       {/* VIDEO */}
       <video 
-  ref={videoRef} 
-  src={glimpse.media_url} 
-  loop 
-  playsInline 
-  autoPlay 
-  muted={muted} // <--- CHANGE TO THIS (Connects to your state)
-  onClick={togglePlay} 
-  style={{ height: "100%", width: "100%", objectFit: "cover", cursor:'pointer' }} 
-/>
+        ref={videoRef} 
+        src={glimpse.media_url} 
+        loop 
+        playsInline 
+        autoPlay 
+        muted={muted}  // <--- KEY FIX: Pass the state variable, not the hardcoded attribute
+        onClick={togglePlay} 
+        style={{ height: "100%", width: "100%", objectFit: "cover", cursor:'pointer' }} 
+      />
       
       {/* MUTE TOGGLE (Top Left) */}
       <button 
@@ -244,7 +244,7 @@ function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, ope
         <span style={{fontSize:'12px', fontWeight:'bold'}}>{muted ? "Tap to Unmute" : "On"}</span>
       </button>
 
-      {/* RIGHT SIDEBAR (ACTIONS) */}
+      {/* REST OF THE UI (Icons, Sidebars) - No changes needed here */}
       <div style={{ position: "absolute", right: "10px", bottom: "120px", display: "flex", flexDirection: "column", gap: "25px", alignItems: "center", zIndex: 5 }}>
         
         {/* AVATAR */}
