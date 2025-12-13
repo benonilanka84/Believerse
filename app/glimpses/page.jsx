@@ -200,108 +200,117 @@ export default function GlimpsesPage() {
 // --- GLIMPSE VIDEO ITEM ---
 function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, openMenuId, setOpenMenuId, onMenuAction }) {
   const videoRef = useRef(null);
-  const [playing, setPlaying] = useState(true);
-  const [isMutedUI, setIsMutedUI] = useState(true); // State only for the Icon
+  const containerRef = useRef(null);
+  const [playing, setPlaying] = useState(false);
+  const [isMutedUI, setIsMutedUI] = useState(true);
 
+  // 1. WATCH FOR VISIBILITY (Only play if visible)
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          videoRef.current?.play().catch(() => {}); // Play when in view
+          setPlaying(true);
+        } else {
+          videoRef.current?.pause(); // Pause when scrolled away
+          videoRef.current.muted = true; // Auto-mute background videos
+          setIsMutedUI(true);
+          setPlaying(false);
+        }
+      },
+      { threshold: 0.7 } // Must be 70% visible to play
+    );
+
+    if (containerRef.current) observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  // 2. TOGGLE PLAY/PAUSE
   function togglePlay() {
-    if (playing) { 
-      videoRef.current.pause(); 
-      setPlaying(false); 
-    } else { 
-      videoRef.current.play(); 
-      setPlaying(true); 
+    if (videoRef.current.paused) {
+      videoRef.current.play();
+      setPlaying(true);
+    } else {
+      videoRef.current.pause();
+      setPlaying(false);
     }
   }
 
-  // FORCE UNMUTE FUNCTION
+  // 3. TOGGLE MUTE (Direct DOM control)
   function toggleMute(e) {
-    e.stopPropagation(); // Don't trigger the video pause click
-    
+    e.stopPropagation();
     if (videoRef.current) {
-      // 1. Directly flip the DOM property (Most reliable method)
-      videoRef.current.muted = !videoRef.current.muted;
-      
-      // 2. Update UI state to match
-      setIsMutedUI(videoRef.current.muted);
-      
-      // 3. Safety Check: Ensure volume is up
-      if (!videoRef.current.muted) {
-          videoRef.current.volume = 1.0;
-      }
+      const newMutedState = !videoRef.current.muted;
+      videoRef.current.muted = newMutedState;
+      setIsMutedUI(newMutedState);
+      if (!newMutedState) videoRef.current.volume = 1.0;
     }
   }
-  
+
   const showMenu = openMenuId === glimpse.id;
 
   return (
-    <div style={{ height: "100%", width: "100%", scrollSnapAlign: "start", position: "relative", display: "flex", alignItems: "center", justifyContent: "center", overflow:'hidden' }}>
-      
+    <div 
+      ref={containerRef}
+      style={{ height: "100%", width: "100%", scrollSnapAlign: "start", position: "relative", display: "flex", alignItems: "center", justifyContent: "center", overflow:'hidden' }}
+    >
       {/* VIDEO */}
       <video 
         ref={videoRef} 
         src={glimpse.media_url} 
         loop 
         playsInline 
-        autoPlay 
-        defaultMuted={true} // Use defaultMuted, not 'muted'
+        muted={true} // Always start muted for browser compliance
         onClick={togglePlay} 
         style={{ height: "100%", width: "100%", objectFit: "cover", cursor:'pointer' }} 
       />
+
+      {/* PLAY/PAUSE OVERLAY (Visual feedback) */}
+      {!playing && (
+        <div onClick={togglePlay} style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.2)', zIndex:2 }}>
+           <span style={{ fontSize: '60px', color: 'white', opacity: 0.8 }}>▶️</span>
+        </div>
+      )}
       
-      {/* MUTE TOGGLE (Top Left) */}
+      {/* MUTE TOGGLE */}
       <button 
         onClick={toggleMute} 
-        style={{position:'absolute', top:20, left:20, background:'rgba(0,0,0,0.4)', color:'white', border:'none', padding:'8px 12px', borderRadius:'20px', zIndex:5, cursor:'pointer', display:'flex', alignItems:'center', gap:'5px', backdropFilter:'blur(5px)'}}
+        style={{position:'absolute', top:20, left:20, background:'rgba(0,0,0,0.6)', color:'white', border:'none', padding:'8px 15px', borderRadius:'20px', zIndex:5, cursor:'pointer', display:'flex', alignItems:'center', gap:'8px', backdropFilter:'blur(10px)'}}
       >
-        <span style={{fontSize:'16px'}}>{isMutedUI ? "🔇" : "🔊"}</span>
-        <span style={{fontSize:'12px', fontWeight:'bold'}}>{isMutedUI ? "Tap to Unmute" : "On"}</span>
+        <span style={{fontSize:'18px'}}>{isMutedUI ? "🔇" : "🔊"}</span>
+        <span style={{fontSize:'12px', fontWeight:'bold'}}>{isMutedUI ? "Tap to Unmute" : "Sound On"}</span>
       </button>
 
-      {/* RIGHT SIDEBAR (ACTIONS) */}
+      {/* RIGHT SIDEBAR ACTIONS */}
       <div style={{ position: "absolute", right: "10px", bottom: "120px", display: "flex", flexDirection: "column", gap: "25px", alignItems: "center", zIndex: 5 }}>
-        
-        {/* AVATAR */}
         <div style={{ position: "relative", marginBottom:'10px' }}>
-          <img src={glimpse.profiles?.avatar_url || '/images/default-avatar.png'} style={{ width: 45, height: 45, borderRadius: "50%", border: "2px solid white", objectFit:'cover' }} />
+          <img src={glimpse.profiles?.avatar_url || '/images/default-avatar.png'} style={{ width: 45, height: 45, borderRadius: "50%", border: "2px solid white", objectFit:'cover' }} alt="avatar" />
         </div>
 
-        {/* AMEN */}
         <div style={{ textAlign: "center" }}>
           <button onClick={() => onAmen(glimpse, glimpse.hasAmened)} style={{ background: "rgba(0,0,0,0.3)", borderRadius:'50%', width:'45px', height:'45px', border: "none", fontSize: "24px", cursor: "pointer", display:'flex', alignItems:'center', justifyContent:'center', backdropFilter:'blur(5px)' }}>
             {glimpse.hasAmened ? "🙏" : "👐"}
           </button>
-          <div style={{ color: "white", fontSize: "12px", fontWeight: "bold", marginTop:'2px', textShadow:'0 1px 2px black' }}>{glimpse.amenCount}</div>
+          <div style={{ color: "white", fontSize: "12px", fontWeight: "bold", marginTop:'2px' }}>{glimpse.amenCount}</div>
         </div>
 
-        {/* BLESS */}
         <div style={{ textAlign: "center" }}>
           <button onClick={() => onBless(glimpse.profiles)} style={{ background: "rgba(0,0,0,0.3)", borderRadius:'50%', width:'45px', height:'45px', border: "none", fontSize: "24px", cursor: "pointer", display:'flex', alignItems:'center', justifyContent:'center', backdropFilter:'blur(5px)' }}>✨</button>
-          <div style={{ color: "white", fontSize: "12px", fontWeight: "bold", marginTop:'2px', textShadow:'0 1px 2px black' }}>Bless</div>
+          <div style={{ color: "white", fontSize: "12px", fontWeight: "bold", marginTop:'2px' }}>Bless</div>
         </div>
 
-        {/* SHARE */}
         <div style={{ textAlign: "center" }}>
           <button onClick={onShare} style={{ background: "rgba(0,0,0,0.3)", borderRadius:'50%', width:'45px', height:'45px', border: "none", fontSize: "24px", cursor: "pointer", display:'flex', alignItems:'center', justifyContent:'center', backdropFilter:'blur(5px)' }}>📢</button>
-          <div style={{ color: "white", fontSize: "12px", fontWeight: "bold", marginTop:'2px', textShadow:'0 1px 2px black' }}>Share</div>
+          <div style={{ color: "white", fontSize: "12px", fontWeight: "bold", marginTop:'2px' }}>Share</div>
         </div>
 
-        {/* MENU (Three Dots) */}
+        {/* MENU */}
         <div style={{ position:'relative' }}>
-          <button 
-            onClick={(e) => {e.stopPropagation(); setOpenMenuId(showMenu ? null : glimpse.id);}} 
-            style={{ background: "rgba(0,0,0,0.3)", borderRadius:'50%', width:'40px', height:'40px', border: "none", fontSize: "20px", color:'white', cursor: "pointer", display:'flex', alignItems:'center', justifyContent:'center', backdropFilter:'blur(5px)' }}
-          >
-            ⋮
-          </button>
-          
-          {/* MENU POPUP */}
+          <button onClick={(e) => {e.stopPropagation(); setOpenMenuId(showMenu ? null : glimpse.id);}} style={{ background: "rgba(0,0,0,0.3)", borderRadius:'50%', width:'40px', height:'40px', border: "none", fontSize: "20px", color:'white', cursor: "pointer", display:'flex', alignItems:'center', justifyContent:'center', backdropFilter:'blur(5px)' }}>⋮</button>
           {showMenu && (
-            <div style={{ position: 'absolute', right: 50, bottom: 0, background: 'white', borderRadius: '12px', width: '180px', overflow: 'hidden', boxShadow: '0 4px 15px rgba(0,0,0,0.3)', animation: 'fadeIn 0.2s ease' }}>
+            <div style={{ position: 'absolute', right: 50, bottom: 0, background: 'white', borderRadius: '12px', width: '180px', overflow: 'hidden', boxShadow: '0 4px 15px rgba(0,0,0,0.3)' }}>
               <button onClick={() => onMenuAction("Save", glimpse.id)} style={{ width: '100%', padding: '12px', textAlign: 'left', border: 'none', background: 'white', cursor: 'pointer', fontSize: '13px', borderBottom: '1px solid #eee', color:'#333' }}>💾 Save to Playlist</button>
-              <button onClick={() => onMenuAction("Captions", glimpse.id)} style={{ width: '100%', padding: '12px', textAlign: 'left', border: 'none', background: 'white', cursor: 'pointer', fontSize: '13px', borderBottom: '1px solid #eee', color:'#333' }}>🅰️ Captions</button>
               <button onClick={() => onMenuAction("NotInterested", glimpse.id)} style={{ width: '100%', padding: '12px', textAlign: 'left', border: 'none', background: 'white', cursor: 'pointer', fontSize: '13px', borderBottom: '1px solid #eee', color:'#333' }}>🙈 Not Interested</button>
-              
-              {/* DELETE (Only for Creator) */}
               {isOwner ? (
                 <button onClick={onDelete} style={{ width: '100%', padding: '12px', textAlign: 'left', border: 'none', background: '#fff5f5', cursor: 'pointer', color: 'red', fontSize: '13px', fontWeight:'bold' }}>🗑️ Delete</button>
               ) : (
