@@ -163,7 +163,7 @@ export default function GlimpsesPage() {
               openMenuId={openMenuId}
               setOpenMenuId={setOpenMenuId}
               onMenuAction={handleMenuAction}
-              // NEW: Pass active state
+              // Active state props
               isActive={glimpse.id === activeGlimpseId}
               setActiveGlimpseId={setActiveGlimpseId}
             />
@@ -211,11 +211,10 @@ export default function GlimpsesPage() {
   );
 }
 
-// --- GLIMPSE VIDEO ITEM (Updated for Audio Fix) ---
+// --- GLIMPSE VIDEO ITEM (Cleaned up - No Unmute Button) ---
 function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, openMenuId, setOpenMenuId, onMenuAction, isActive, setActiveGlimpseId }) {
   const videoRef = useRef(null);
   const containerRef = useRef(null);
-  const [isMutedUI, setIsMutedUI] = useState(true);
 
   // 1. Intersection Observer: Detect when this video is in the center
   useEffect(() => {
@@ -263,17 +262,6 @@ function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, ope
         else videoRef.current.pause();
     }
   }
-
-  // 4. Force Unmute Button
-  function toggleMute(e) {
-    e.stopPropagation(); // Stop click from pausing video
-    if (videoRef.current) {
-        // Direct DOM manipulation guarantees the browser listens
-        videoRef.current.muted = !videoRef.current.muted;
-        setIsMutedUI(videoRef.current.muted);
-        if (!videoRef.current.muted) videoRef.current.volume = 1.0;
-    }
-  }
   
   const showMenu = openMenuId === glimpse.id;
 
@@ -286,20 +274,12 @@ function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, ope
         src={glimpse.media_url} 
         loop 
         playsInline 
-        // Essential: Use defaultMuted so React doesn't lock the property
         defaultMuted={true} 
         onClick={togglePlay} 
         style={{ height: "100%", width: "100%", objectFit: "cover", cursor:'pointer' }} 
       />
       
-      {/* MUTE TOGGLE (Top Left) */}
-      <button 
-        onClick={toggleMute} 
-        style={{position:'absolute', top:20, left:20, background:'rgba(0,0,0,0.4)', color:'white', border:'none', padding:'8px 12px', borderRadius:'20px', zIndex:5, cursor:'pointer', display:'flex', alignItems:'center', gap:'5px', backdropFilter:'blur(5px)'}}
-      >
-        <span style={{fontSize:'16px'}}>{isMutedUI ? "🔇" : "🔊"}</span>
-        <span style={{fontSize:'12px', fontWeight:'bold'}}>{isMutedUI ? "Tap to Unmute" : "On"}</span>
-      </button>
+      {/* NO MUTE BUTTON HERE ANYMORE */}
 
       {/* RIGHT SIDEBAR (ACTIONS) */}
       <div style={{ position: "absolute", right: "10px", bottom: "120px", display: "flex", flexDirection: "column", gap: "25px", alignItems: "center", zIndex: 5 }}>
