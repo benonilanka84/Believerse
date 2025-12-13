@@ -222,17 +222,15 @@ function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, ope
       
       {/* VIDEO */}
       <video 
-        ref={videoRef} 
-        src={glimpse.media_url} 
-        loop 
-        playsInline 
-        autoPlay 
-        // We removed 'muted={muted}' prop here to rely on the useEffect above, 
-        // but keeping 'muted' as a default attribute ensures autoplay works on load.
-        muted 
-        onClick={togglePlay} 
-        style={{ height: "100%", width: "100%", objectFit: "cover", cursor:'pointer' }} 
-      />
+  ref={videoRef} 
+  src={glimpse.media_url} 
+  loop 
+  playsInline 
+  autoPlay 
+  muted={muted} // <--- CHANGE TO THIS (Connects to your state)
+  onClick={togglePlay} 
+  style={{ height: "100%", width: "100%", objectFit: "cover", cursor:'pointer' }} 
+/>
       
       {/* MUTE TOGGLE (Top Left) */}
       <button 
