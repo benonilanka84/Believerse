@@ -36,14 +36,18 @@ export default function Dashboard() {
   const [editContent, setEditContent] = useState("");
   const [editTitle, setEditTitle] = useState("");
 
-  // Bless Modal
-  const [blessModalUser, setBlessModalUser] = useState(null);
+  // Modals
+  const [blessModalUser, setBlessModalUser] = useState(null); // For Creator
+  const [supportModalOpen, setSupportModalOpen] = useState(false); // For Platform
 
   // Widget Edit State
   const [editingPrayerId, setEditingPrayerId] = useState(null);
   const [prayerEditContent, setPrayerEditContent] = useState("");
 
   const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+  // Replace this with your actual platform UPI ID
+  const PLATFORM_UPI_ID = "your-platform-upi@okhdfcbank"; 
 
   useEffect(() => {
     setMounted(true);
@@ -95,7 +99,6 @@ export default function Dashboard() {
   }
 
   async function loadPrayerWall(userId) {
-    // 1. Get Friend IDs (Self + Friends)
     const { data: conns } = await supabase
       .from('connections')
       .select('user_a, user_b')
@@ -111,7 +114,6 @@ export default function Dashboard() {
       friendIds = Array.from(new Set(friendIds));
     }
 
-    // 2. Fetch Prayers
     const { data } = await supabase
       .from('posts')
       .select('id, content, user_id, profiles(full_name)')
@@ -126,10 +128,7 @@ export default function Dashboard() {
   async function deletePrayerFromWidget(prayerId) {
     if(!confirm("Delete this prayer request?")) return;
     await supabase.from('posts').delete().eq('id', prayerId);
-    
-    // Update Widget
     setPrayerRequests(prev => prev.filter(p => p.id !== prayerId));
-    // Update Main Feed if it's there (though now it won't be)
     setPosts(prev => prev.filter(p => p.id !== prayerId));
   }
 
@@ -175,14 +174,13 @@ export default function Dashboard() {
   }
 
   // --- 4. FEED (THE WALK) ---
-  // FIXED: Now excludes 'Prayer' so it doesn't duplicate content
   async function loadPosts(currentUserId, isRefresh = false) {
     if (!isRefresh) setLoadingPosts(true);
     const { data, error } = await supabase
       .from('posts')
       .select(`*, profiles (username, full_name, avatar_url, upi_id), amens (user_id)`)
       .neq('type', 'Glimpse')
-      .neq('type', 'Prayer') // <--- EXCLUDE PRAYERS FROM THE WALK
+      .neq('type', 'Prayer') 
       .order('created_at', { ascending: false });
 
     if (!error && data) {
@@ -242,11 +240,35 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard-wrapper">
-      <div style={{ background: "linear-gradient(135deg, #2e8b57 0%, #1d5d3a 100%)", padding: "20px 30px", borderRadius: "12px", color: "white", marginBottom: "20px" }}>
+      {/* HEADER: Welcome Message + Support Button */}
+      <div style={{ background: "linear-gradient(135deg, #2e8b57 0%, #1d5d3a 100%)", padding: "20px 30px", borderRadius: "12px", color: "white", marginBottom: "20px", display:'flex', justifyContent:'space-between', alignItems:'center' }}>
         <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
           <span style={{fontSize:'2rem'}}>🏠</span>
           <div><h2 style={{ margin: 0 }}>Welcome, {firstName}</h2><p style={{ margin: 0, opacity: 0.9 }}>Walking with God and fellow Believers</p></div>
         </div>
+        
+        {/* --- NEW SUPPORT BUTTON --- */}
+        <button 
+          onClick={() => setSupportModalOpen(true)}
+          style={{
+            background: 'rgba(255,255,255,0.2)', 
+            border: '1px solid rgba(255,255,255,0.4)', 
+            borderRadius: '20px', 
+            padding: '8px 16px', 
+            color: 'white', 
+            cursor: 'pointer', 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '8px', 
+            fontSize: '14px', 
+            fontWeight: '600',
+            transition: 'background 0.2s'
+          }}
+          onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
+          onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
+        >
+          <span style={{fontSize:'16px'}}>🕊️</span> Support
+        </button>
       </div>
 
       <div className="dashboard-grid">
@@ -406,7 +428,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* BLESS MODAL */}
+      {/* BLESS MODAL (For Creators) */}
       {blessModalUser && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: 'white', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '350px', textAlign: 'center' }}>
@@ -416,6 +438,21 @@ export default function Dashboard() {
             </div>
             <a href={`upi://pay?pa=${blessModalUser.upi_id}&pn=${encodeURIComponent(blessModalUser.full_name)}&cu=INR`} target="_blank" style={{ display: 'block', width: '100%', padding: '12px', background: '#2e8b57', color: 'white', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold', marginBottom: '10px' }}>Open Payment App</a>
             <button onClick={() => setBlessModalUser(null)} style={{ width: '100%', padding: '12px', background: '#f0f0f0', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Close</button>
+          </div>
+        </div>
+      )}
+
+      {/* SUPPORT MODAL (For Platform) */}
+      {supportModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: 'white', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '350px', textAlign: 'center' }}>
+            <h3 style={{ margin: '0 0 10px 0', color: '#0b2e4a' }}>🕊️ Support The Believerse</h3>
+            <p style={{fontSize:'13px', color:'#666', marginBottom:'20px'}}>Your gift keeps this community free and safe.</p>
+            <div style={{ background: '#f9f9f9', padding: '15px', borderRadius: '12px', marginBottom: '20px' }}>
+              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=${PLATFORM_UPI_ID}&pn=TheBelieverse&cu=INR`)}`} style={{ width: '100%', height: 'auto', borderRadius: '8px' }} />
+            </div>
+            <a href={`upi://pay?pa=${PLATFORM_UPI_ID}&pn=TheBelieverse&cu=INR`} target="_blank" style={{ display: 'block', width: '100%', padding: '12px', background: '#d4af37', color: 'white', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold', marginBottom: '10px' }}>Donate via UPI</a>
+            <button onClick={() => setSupportModalOpen(false)} style={{ width: '100%', padding: '12px', background: '#f0f0f0', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Close</button>
           </div>
         </div>
       )}
