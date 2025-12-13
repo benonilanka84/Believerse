@@ -28,51 +28,107 @@ export default function TermsPage() {
 
         <h3>3. Prohibited Financial Activities</h3>
         <p>
-          <strong>The Believerse strictly prohibits</strong> the following activities:
+          <strong>The Believerse strictly prohibits</strong> the following
+          activities:
         </p>
         <ul style={{ paddingLeft: "20px", lineHeight: "1.8" }}>
-          <li>Pyramid schemes, multi-level marketing (MLM), or chain referral schemes</li>
-          <li>Fraudulent investment opportunities or "get rich quick" schemes</li>
-          <li>Foreign fund transfer scams, advance-fee fraud, or romance scams</li>
+          <li>
+            Pyramid schemes, multi-level marketing (MLM), or chain referral
+            schemes
+          </li>
+          <li>
+            Fraudulent investment opportunities or "get rich quick" schemes
+          </li>
+          <li>
+            Foreign fund transfer scams, advance-fee fraud, or romance scams
+          </li>
           <li>Fake charity solicitations or misrepresentation of donations</li>
           <li>Phishing attempts, identity theft, or financial data harvesting</li>
           <li>Cryptocurrency scams or unregistered investment offerings</li>
           <li>Any form of financial manipulation, deception, or exploitation</li>
         </ul>
         <p>
-          Users found engaging in such activities will be <strong>immediately banned</strong> and 
-          reported to relevant authorities. We are committed to protecting our community from 
+          Users found engaging in such activities will be{" "}
+          <strong>immediately banned</strong> and reported to relevant
+          authorities. We are committed to protecting our community from
           financial fraud and exploitation.
         </p>
 
-        <h3>4. Privacy</h3>
+        {/* --- RAZORPAY COMPLIANCE SECTIONS START --- */}
+
+        <h3>4. Payments & Services</h3>
+        <p>
+          The Believerse may offer paid memberships, donations, or digital
+          services processed via third-party gateways (e.g., Razorpay). By
+          initiating a transaction, you agree to the pricing displayed at the
+          checkout. All transactions are processed securely. We do not store
+          your complete credit/debit card details on our servers.
+        </p>
+
+        <h3>5. Refund & Cancellation Policy</h3>
+        <p>
+          Since The Believerse provides digital access to community features and
+          content, <strong>all sales are generally final</strong>.
+        </p>
+        <ul style={{ paddingLeft: "20px", lineHeight: "1.8" }}>
+          <li>
+            <strong>Cancellations:</strong> You may cancel your subscription or
+            account at any time. Cancellation will prevent future billing, but
+            previous payments are non-refundable unless otherwise stated.
+          </li>
+          <li>
+            <strong>Refunds:</strong> Refunds are only processed in cases of
+            technical errors (e.g., double billing). If you believe a billing
+            error has occurred, please contact us immediately at{" "}
+            <strong>contact@thebelieverse.com</strong>.
+          </li>
+        </ul>
+
+        <h3>6. Shipping & Delivery Policy</h3>
+        <p>
+          As a digital platform, The Believerse does not ship physical products.
+          <strong>Delivery of Services:</strong> Upon successful payment, access
+          to premium features, content, or community areas is granted
+          immediately (or within a maximum of 24 hours in case of system
+          delays). Confirmation of your transaction will be sent via email.
+        </p>
+
+        {/* --- RAZORPAY COMPLIANCE SECTIONS END --- */}
+
+        <h3>7. Privacy</h3>
         <p>
           Your personal information (name, email, profile details) will never be
           shared publicly without your consent. You are responsible for keeping
           your login details safe.
         </p>
 
-        <h3>5. Uploaded Content</h3>
+        <h3>8. Uploaded Content</h3>
         <p>
           Any images, testimonies, or posts you upload must belong to you or be
           used with proper permission.
         </p>
 
-        <h3>6. Account Termination</h3>
+        <h3>9. Account Termination</h3>
         <p>
           The Believerse reserves the right to suspend or delete accounts that
           violate these terms.
         </p>
 
-        <h3>7. Changes to Terms</h3>
+        <h3>10. Changes to Terms</h3>
         <p>
           These terms may be updated occasionally. Continued use of the platform
           means you accept any updates.
         </p>
 
+        <hr style={{ margin: "30px 0", border: "1px solid #eee" }} />
+
+        <h3>Contact Us</h3>
         <p>
-          If you have questions, please contact our support team using the
-          official webpage.
+          For any questions regarding these Terms, payments, or account support,
+          please contact us at:
+        </p>
+        <p style={{ fontSize: "1.1rem", fontWeight: "bold", color: "#2d6be3" }}>
+          📧 contact@thebelieverse.com
         </p>
 
         <Link href="/dashboard" style={styles.link}>

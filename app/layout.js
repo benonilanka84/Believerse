@@ -1,5 +1,7 @@
 import "../styles/globals.css";
 import NavWrapper from "@/components/NavWrapper";
+// Assuming Footer is in src/components/Footer.js, using '@' is safer than relative paths
+import Footer from "@/components/Footer"; 
 
 export const metadata = {
   title: "The Believerse - One Family in Christ",
@@ -13,13 +15,17 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <head>
-        <link rel="icon" href="/images/final-logo.png" sizes="any" />
-        <link rel="apple-touch-icon" href="/images/final-logo.png" />
-      </head>
       <body>
+        {/* Navigation Bar at the top */}
         <NavWrapper />
-        {children}
+        
+        {/* Main Content Area */}
+        <div style={{ minHeight: "calc(100vh - 300px)" }}>
+            {children}
+        </div>
+        
+        {/* Footer at the bottom */}
+        <Footer />
       </body>
     </html>
   );
