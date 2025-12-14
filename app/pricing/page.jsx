@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase"; // Ensure you have this configured
+import { supabase } from "@/lib/supabase";
 
 export default function PricingPage() {
   
@@ -89,7 +89,8 @@ export default function PricingPage() {
     const amount = getPrice(planObj);
     
     try {
-      const response = await fetch("/app/api/razorpay", {
+      // FIX: URL must be /api/razorpay, NOT /app/api/razorpay
+      const response = await fetch("/api/razorpay", { 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -115,10 +116,9 @@ export default function PricingPage() {
           alert(`Payment Successful!\nPayment ID: ${response.razorpay_payment_id}`);
           
           // TODO: Call your "Success API" here to update the database
-          // await updateSubscriptionInDB(planName, billingCycle);
         },
         prefill: {
-          email: user.email, // Auto-fill user email
+          email: user.email, 
         },
         theme: { color: "#d4af37" },
       };
@@ -128,15 +128,15 @@ export default function PricingPage() {
 
     } catch (error) {
       console.error(error);
-      alert("Payment initialization failed. Please try again.");
+      alert("Payment initialization failed. Try checking your network or logging in again.");
     } finally {
       setProcessing(false);
     }
   };
 
-  // Handler for the "Inaugural Offer" (Simplified for testing)
+  // Handler for the "Inaugural Offer"
   const handleInauguralOffer = () => {
-    // For now, treating this as a 1 unit payment to test the flow
+    // Testing with a small amount
     handlePurchase("Gold Inaugural", { monthly: 1, yearly: 1 }); 
   };
 
