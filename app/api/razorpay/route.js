@@ -1,26 +1,34 @@
-import { NextResponse } from "next/server";
 import Razorpay from "razorpay";
-
-const razorpay = new Razorpay({
-  key_id: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+import { NextResponse } from "next/server";
 
 export async function POST(request) {
   try {
-    const { amount } = await request.json();
+    const { amount, currency } = await request.json();
 
+    // 1. Initialize Razorpay with your ENV variables
+    // Ensure these are set in your .env.local file
+    const razorpay = new Razorpay({
+      key_id: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET,
+    });
+
+    // 2. Create Order
     const options = {
-      amount: amount * 100, // Razorpay takes input in paise (₹1 = 100 paise)
-      currency: "INR",
+      // Razorpay expects amount in paise (e.g., 9900 paise = 99 INR)
+      amount: Math.round(amount * 100), 
+      currency: currency,
       receipt: "receipt_" + Math.random().toString(36).substring(7),
     };
 
     const order = await razorpay.orders.create(options);
 
-    return NextResponse.json({ id: order.id, currency: order.currency, amount: order.amount });
+    return NextResponse.json({ order }, { status: 200 });
+
   } catch (error) {
     console.error("Razorpay Error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { message: error.message || "Error creating order" },
+      { status: 500 }
+    );
   }
 }
