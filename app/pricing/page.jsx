@@ -2,12 +2,17 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase"; // Ensure you have this configured
 
 export default function PricingPage() {
   
   const [currency, setCurrency] = useState("USD"); // Default fallback
   const [billingCycle, setBillingCycle] = useState("monthly");
   const [loadingGeo, setLoadingGeo] = useState(true);
+  const [processing, setProcessing] = useState(false);
+  
+  const router = useRouter();
 
   // --- 1. PRICING CONFIGURATION ---
   const pricing = {
@@ -45,12 +50,94 @@ export default function PricingPage() {
 
   const activeGold = pricing.gold[currency];
   const activePlat = pricing.platinum[currency];
+  
+  // Helper: Get price number based on cycle
   const getPrice = (planObj) => billingCycle === "monthly" ? planObj.monthly : planObj.yearly;
 
-  // Handler for the "Inaugural Offer"
+  // --- 2. PAYMENT LOGIC ---
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handlePurchase = async (planName, planObj) => {
+    setProcessing(true);
+    
+    // 1. Check if user is logged in
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      alert("Please log in or sign up to upgrade your plan.");
+      router.push("/login");
+      setProcessing(false);
+      return;
+    }
+
+    // 2. Load Razorpay SDK
+    const res = await loadRazorpayScript();
+    if (!res) {
+      alert("Razorpay SDK failed to load. Please check your internet.");
+      setProcessing(false);
+      return;
+    }
+
+    // 3. Create Order via API
+    const amount = getPrice(planObj);
+    
+    try {
+      const response = await fetch("/app/api/razorpay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          amount: amount, 
+          currency: currency 
+        }), 
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Order creation failed");
+
+      // 4. Open Razorpay Checkout
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID, 
+        amount: data.order.amount,
+        currency: data.order.currency,
+        name: "The Believerse",
+        description: `${planName} Plan (${billingCycle})`,
+        image: "/images/final-logo.png",
+        order_id: data.order.id,
+        handler: async function (response) {
+          // SUCCESS!
+          alert(`Payment Successful!\nPayment ID: ${response.razorpay_payment_id}`);
+          
+          // TODO: Call your "Success API" here to update the database
+          // await updateSubscriptionInDB(planName, billingCycle);
+        },
+        prefill: {
+          email: user.email, // Auto-fill user email
+        },
+        theme: { color: "#d4af37" },
+      };
+
+      const paymentObject = new window.Razorpay(options);
+      paymentObject.open();
+
+    } catch (error) {
+      console.error(error);
+      alert("Payment initialization failed. Please try again.");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Handler for the "Inaugural Offer" (Simplified for testing)
   const handleInauguralOffer = () => {
-    alert(`Initiating 3-Month Trial for ${activeGold.symbol}1... \n(This will set up a recurring mandate starting Month 4)`);
-    // TODO: Trigger Razorpay Subscription API here
+    // For now, treating this as a 1 unit payment to test the flow
+    handlePurchase("Gold Inaugural", { monthly: 1, yearly: 1 }); 
   };
 
   return (
@@ -158,12 +245,20 @@ export default function PricingPage() {
           
           {/* INAUGURAL OFFER BUTTON */}
           {billingCycle === "monthly" ? (
-             <button onClick={handleInauguralOffer} style={{ width: "100%", padding: "14px", borderRadius: "10px", border: "none", background: "linear-gradient(90deg, #d4af37 0%, #e6c256 100%)", color: "white", fontWeight: "800", cursor: "pointer", boxShadow: "0 4px 15px rgba(212, 175, 55, 0.4)" }}>
-               Claim 3 Months for {activeGold?.symbol}1
+             <button 
+               onClick={handleInauguralOffer}
+               disabled={processing}
+               style={{ width: "100%", padding: "14px", borderRadius: "10px", border: "none", background: "linear-gradient(90deg, #d4af37 0%, #e6c256 100%)", color: "white", fontWeight: "800", cursor: processing ? "not-allowed" : "pointer", boxShadow: "0 4px 15px rgba(212, 175, 55, 0.4)" }}
+             >
+               {processing ? "Processing..." : `Claim 3 Months for ${activeGold?.symbol}1`}
              </button>
           ) : (
-             <button style={{ width: "100%", padding: "14px", borderRadius: "10px", border: "none", background: "#d4af37", color: "white", fontWeight: "700", cursor: "pointer" }}>
-               Get Gold Yearly
+             <button 
+               onClick={() => handlePurchase("Gold", activeGold)}
+               disabled={processing}
+               style={{ width: "100%", padding: "14px", borderRadius: "10px", border: "none", background: "#d4af37", color: "white", fontWeight: "700", cursor: processing ? "not-allowed" : "pointer" }}
+             >
+               {processing ? "Processing..." : "Get Gold Yearly"}
              </button>
           )}
         </div>
@@ -189,8 +284,12 @@ export default function PricingPage() {
             <li style={{ color: "#e0e0e0" }}>💙 Direct Line to Founders</li>
           </ul>
           
-          <button style={{ width: "100%", padding: "14px", borderRadius: "10px", border: "none", background: "#29b6f6", color: "#0b2e4a", fontWeight: "700", cursor: "pointer", boxShadow: "0 4px 10px rgba(41, 182, 246, 0.4)" }}>
-            Get Platinum
+          <button 
+            onClick={() => handlePurchase("Platinum", activePlat)}
+            disabled={processing}
+            style={{ width: "100%", padding: "14px", borderRadius: "10px", border: "none", background: "#29b6f6", color: "#0b2e4a", fontWeight: "700", cursor: processing ? "not-allowed" : "pointer", boxShadow: "0 4px 10px rgba(41, 182, 246, 0.4)" }}
+          >
+            {processing ? "Processing..." : "Get Platinum"}
           </button>
         </div>
 
