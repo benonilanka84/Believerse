@@ -5,18 +5,17 @@ import Link from "next/link";
 
 export default function PricingPage() {
   
-  const [showExplanation, setShowExplanation] = useState(false);
-  const [currency, setCurrency] = useState("USD"); // Default
+  const [currency, setCurrency] = useState("USD"); // Default fallback
   const [billingCycle, setBillingCycle] = useState("monthly");
   const [loadingGeo, setLoadingGeo] = useState(true);
 
   // --- 1. PRICING CONFIGURATION ---
   const pricing = {
     gold: {
-      INR: { monthly: 99, yearly: 999, symbol: "₹", label: "🇮🇳 India (INR)" },
-      GBP: { monthly: 8, yearly: 80, symbol: "£", label: "🇬🇧 UK (GBP)" },
-      SGD: { monthly: 10, yearly: 100, symbol: "S$", label: "🇸🇬 Singapore (SGD)" },
-      USD: { monthly: 4.99, yearly: 49.99, symbol: "$", label: "🇺🇸 Global (USD)" }
+      INR: { monthly: 99, yearly: 999, symbol: "₹" },
+      GBP: { monthly: 8, yearly: 80, symbol: "£" },
+      SGD: { monthly: 10, yearly: 100, symbol: "S$" },
+      USD: { monthly: 4.99, yearly: 49.99, symbol: "$" }
     },
     platinum: {
       INR: { monthly: 499, yearly: 4999, symbol: "₹" },
@@ -67,7 +66,7 @@ export default function PricingPage() {
         }}>
           <h3 style={{ margin: "0 0 5px 0", fontSize: "1.2rem" }}>🎉 Inaugural Launch Offer!</h3>
           <p style={{ margin: 0, fontSize: "0.95rem", fontWeight: "500" }}>
-            Get <strong>3 Months of Gold</strong> for just <strong>{activeGold.symbol}1</strong>. 
+            Get <strong>3 Months of Gold</strong> for just <strong>{activeGold?.symbol || "$"}1</strong>. 
             <br/><span style={{fontSize:"0.85rem", opacity:0.8}}>Cancel anytime. Standard pricing applies from Month 4.</span>
           </p>
         </div>
@@ -80,7 +79,7 @@ export default function PricingPage() {
         </h1>
         
         {/* MONTHLY / YEARLY TOGGLE */}
-        <div style={{ background: "#e0e0e0", borderRadius: "30px", padding: "4px", display: "inline-flex", marginBottom:"20px" }}>
+        <div style={{ background: "#e0e0e0", borderRadius: "30px", padding: "4px", display: "inline-flex" }}>
             <button 
                 onClick={() => setBillingCycle("monthly")}
                 style={{
@@ -106,60 +105,61 @@ export default function PricingPage() {
                 Yearly <span style={{fontSize:"10px", color:"#2e8b57", marginLeft:"4px"}}>(Save 17%)</span>
             </button>
         </div>
-
-        {/* REGION DETECTED */}
-        <div style={{ opacity: loadingGeo ? 0.5 : 1 }}>
-            <select
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value)}
-                style={{
-                    appearance: "none", background: "transparent", border: "none", 
-                    fontSize: "13px", fontWeight: "bold", color: "#666", cursor: "pointer", 
-                    textAlign: "center", textDecoration: "underline"
-                }}
-            >
-                {Object.keys(pricing.gold).map((code) => (
-                    <option key={code} value={code}>{pricing.gold[code].label}</option>
-                ))}
-            </select>
-        </div>
       </div>
 
-      {/* CARDS */}
+      {/* CARDS CONTAINER */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "25px", maxWidth: "1200px", margin: "0 auto 60px auto" }}>
 
-        {/* FREE PLAN */}
+        {/* --- FREE PLAN --- */}
         <div style={{ background: "white", borderRadius: "16px", padding: "35px", border: "1px solid #eee" }}>
-          <h3 style={{ color: "#666", fontSize: "1.4rem", fontWeight: "600" }}>Community</h3>
-          <div style={{ fontSize: "2.5rem", fontWeight: "800", color: "#333", marginBottom: "25px" }}>Free</div>
+          <h3 style={{ color: "#666", fontSize: "1.4rem", fontWeight: "600", marginBottom: "10px" }}>Community</h3>
+          <div style={{ fontSize: "2.5rem", fontWeight: "800", color: "#333", marginBottom: "20px" }}>Free</div>
+          
           <ul style={{ listStyle: "none", padding: 0, margin: "0 0 30px 0", lineHeight: "2.2", fontSize: "0.95rem" }}>
-            <li>📖 View All Content</li>
-            <li>🙏 Post Prayer Requests</li>
-            <li>💾 500 MB Storage</li>
-            <li style={{ color: "#999" }}>❌ No Long Videos</li>
+            <li style={{ color: "#333" }}>📖 <strong>View All Content</strong> (Unlimited)</li>
+            <li style={{ color: "#333" }}>🙏 Post Prayer Requests</li>
+            <li style={{ color: "#333" }}>🤝 Join 1 Fellowship Group</li>
+            <li style={{ color: "#333" }}>🛡️ <strong>100% Data Privacy</strong> (No Selling)</li>
+            <li style={{ color: "#333" }}>📹 Upload 15 Glimpses / Month</li>
+            <li style={{ color: "#333" }}>💾 <strong>500 MB</strong> Cloud Storage</li>
+            <li style={{ color: "#333" }}>✨ Standard Profile Badge</li>
+            <li style={{ color: "#999" }}>❌ Create Fellowships</li>
+            <li style={{ color: "#999" }}>❌ Long Video Uploads</li>
+            <li style={{ color: "#666", fontSize: "0.85rem", fontStyle: "italic" }}>ℹ️ Supported by non-intrusive ads</li>
           </ul>
-          <button style={{ width: "100%", padding: "14px", borderRadius: "10px", border: "1px solid #ccc", background: "white", color: "#666", fontWeight: "700" }}>Current Plan</button>
+          
+          <button style={{ width: "100%", padding: "14px", borderRadius: "10px", border: "1px solid #ccc", background: "white", color: "#666", fontWeight: "700", cursor: "default" }}>
+            Current Plan
+          </button>
         </div>
 
-        {/* GOLD PLAN */}
-        <div style={{ background: "white", borderRadius: "16px", padding: "35px", border: "2px solid #d4af37", position: "relative", boxShadow: "0 10px 30px rgba(212, 175, 55, 0.1)" }}>
-          <div style={{ position: "absolute", top: "-12px", left: "50%", transform: "translateX(-50%)", background: "#d4af37", color: "white", padding: "4px 12px", borderRadius: "20px", fontSize: "0.8rem", fontWeight: "bold" }}>CREATOR FAVORITE</div>
-          <h3 style={{ color: "#d4af37", fontSize: "1.4rem", fontWeight: "600" }}>Gold Supporter</h3>
-          <div style={{ fontSize: "2.5rem", fontWeight: "800", color: "#333", marginBottom: "5px" }}>
-            {activeGold.symbol}{getPrice(activeGold)} <span style={{ fontSize: "0.9rem", color: "#999", fontWeight: "500" }}>/{billingCycle === "monthly" ? "mo" : "yr"}</span>
+        {/* --- GOLD PLAN --- */}
+        <div style={{ background: "white", borderRadius: "16px", padding: "35px", border: "2px solid #d4af37", position: "relative", boxShadow: "0 10px 30px rgba(212, 175, 55, 0.15)" }}>
+          <div style={{ position: "absolute", top: "-12px", left: "50%", transform: "translateX(-50%)", background: "#d4af37", color: "white", padding: "4px 12px", borderRadius: "20px", fontSize: "0.8rem", fontWeight: "bold" }}>
+            CREATOR FAVORITE
+          </div>
+          <h3 style={{ color: "#d4af37", fontSize: "1.4rem", fontWeight: "600", marginBottom: "10px" }}>Gold Supporter</h3>
+          <div style={{ fontSize: "2.5rem", fontWeight: "800", color: "#333", marginBottom: "20px" }}>
+            {activeGold?.symbol}{getPrice(activeGold)} <span style={{ fontSize: "0.9rem", color: "#999", fontWeight: "500" }}>/{billingCycle === "monthly" ? "mo" : "yr"}</span>
           </div>
           
           <ul style={{ listStyle: "none", padding: 0, margin: "0 0 30px 0", lineHeight: "2.2", fontSize: "0.95rem" }}>
-            <li>🚫 <strong>Ad-Free</strong></li>
-            <li>📹 Unlimited Glimpses</li>
-            <li>💾 50 GB Storage</li>
-            <li>🎥 Long Videos (60 mins)</li>
+            <li style={{ color: "#333" }}>✅ <strong>Everything in Free</strong></li>
+            <li style={{ color: "#333" }}>🚫 <strong>Ad-Free Experience</strong></li>
+            <li style={{ color: "#333" }}>📹 <strong>Unlimited</strong> Glimpses</li>
+            <li style={{ color: "#333" }}>🎥 Upload Videos up to <strong>60 Mins</strong></li>
+            <li style={{ color: "#333" }}>💾 <strong>50 GB</strong> Cloud Storage</li>
+            <li style={{ color: "#333" }}>👥 <strong>Create & Lead</strong> Fellowships</li>
+            <li style={{ color: "#333" }}>🤝 Join Unlimited Groups</li>
+            <li style={{ color: "#333" }}>🥇 <strong>Gold Profile Badge</strong></li>
+            <li style={{ color: "#333" }}>📈 Creator Analytics (Coming Soon)</li>
+            <li style={{ color: "#333" }}>💌 Priority Support</li>
           </ul>
-
+          
           {/* INAUGURAL OFFER BUTTON */}
           {billingCycle === "monthly" ? (
              <button onClick={handleInauguralOffer} style={{ width: "100%", padding: "14px", borderRadius: "10px", border: "none", background: "linear-gradient(90deg, #d4af37 0%, #e6c256 100%)", color: "white", fontWeight: "800", cursor: "pointer", boxShadow: "0 4px 15px rgba(212, 175, 55, 0.4)" }}>
-               Claim 3 Months for {activeGold.symbol}1
+               Claim 3 Months for {activeGold?.symbol}1
              </button>
           ) : (
              <button style={{ width: "100%", padding: "14px", borderRadius: "10px", border: "none", background: "#d4af37", color: "white", fontWeight: "700", cursor: "pointer" }}>
@@ -168,53 +168,32 @@ export default function PricingPage() {
           )}
         </div>
 
-        {/* PLATINUM PLAN */}
-        <div style={{ background: "linear-gradient(145deg, #0b2e4a 0%, #1a4f7a 100%)", borderRadius: "16px", padding: "35px", position: "relative", color: "white" }}>
-          <h3 style={{ color: "#4fc3f7", fontSize: "1.4rem", fontWeight: "600" }}>Platinum Partner</h3>
-          <div style={{ fontSize: "2.5rem", fontWeight: "800", color: "white", marginBottom: "5px" }}>
-            {activePlat.symbol}{getPrice(activePlat)} <span style={{ fontSize: "0.9rem", color: "#81d4fa", fontWeight: "500" }}>/{billingCycle === "monthly" ? "mo" : "yr"}</span>
+        {/* --- PLATINUM PLAN --- */}
+        <div style={{ background: "linear-gradient(145deg, #0b2e4a 0%, #1a4f7a 100%)", borderRadius: "16px", padding: "35px", position: "relative", color: "white", boxShadow: "0 10px 40px rgba(11, 46, 74, 0.25)" }}>
+          <h3 style={{ color: "#4fc3f7", fontSize: "1.4rem", fontWeight: "600", marginBottom: "10px" }}>Platinum Partner</h3>
+          <div style={{ fontSize: "2.5rem", fontWeight: "800", color: "white", marginBottom: "20px" }}>
+            {activePlat?.symbol}{getPrice(activePlat)} <span style={{ fontSize: "0.9rem", color: "#81d4fa", fontWeight: "500" }}>/{billingCycle === "monthly" ? "mo" : "yr"}</span>
           </div>
+          {billingCycle === "yearly" && <div style={{color:"#4fc3f7", fontSize:"0.9rem", fontWeight:"bold", marginBottom:"20px"}}>2 Months Free!</div>}
+
           <ul style={{ listStyle: "none", padding: 0, margin: "0 0 30px 0", lineHeight: "2.2", fontSize: "0.95rem" }}>
-            <li>✅ Everything in Gold</li>
-            <li>💾 <strong>500 GB</strong> Storage</li>
-            <li>🎥 Long Videos (3 Hours)</li>
-            <li>💎 Verified Badge</li>
+            <li style={{ color: "#e0e0e0" }}>✅ <strong>Everything in Gold</strong></li>
+            <li style={{ color: "#e0e0e0" }}>🎥 Upload Videos up to <strong>3 Hours</strong></li>
+            <li style={{ color: "#e0e0e0" }}>💾 <strong>500 GB</strong> Massive Storage</li>
+            <li style={{ color: "#e0e0e0" }}>💎 <strong>Platinum Verification Badge</strong></li>
+            <li style={{ color: "#e0e0e0" }}>🌍 Featured on Homepage</li>
+            <li style={{ color: "#e0e0e0" }}>📺 4K Video Support</li>
+            <li style={{ color: "#e0e0e0" }}>📡 <strong>Live Streaming</strong> (Coming Soon)</li>
+            <li style={{ color: "#e0e0e0" }}>🏛️ Ministry Tools for Pastors</li>
+            <li style={{ color: "#e0e0e0" }}>⚡ Early Access to New Features</li>
+            <li style={{ color: "#e0e0e0" }}>💙 Direct Line to Founders</li>
           </ul>
-          <button style={{ width: "100%", padding: "14px", borderRadius: "10px", border: "none", background: "#29b6f6", color: "#0b2e4a", fontWeight: "700", cursor: "pointer" }}>
+          
+          <button style={{ width: "100%", padding: "14px", borderRadius: "10px", border: "none", background: "#29b6f6", color: "#0b2e4a", fontWeight: "700", cursor: "pointer", boxShadow: "0 4px 10px rgba(41, 182, 246, 0.4)" }}>
             Get Platinum
           </button>
         </div>
 
-      </div>
-
-      {/* BLESS SECTION */}
-      <div style={{ maxWidth: "800px", margin: "0 auto", textAlign: "center", background: "white", padding: "40px", borderRadius: "16px", boxShadow: "0 5px 20px rgba(0,0,0,0.05)" }}>
-        <h2 style={{ color: "#2e8b57", marginBottom: "15px" }}>🕊️ Bless The Believerse</h2>
-        <p style={{ color: "#666", marginBottom: "25px" }}>
-            {currency === "INR" 
-                ? "Use any UPI app to support the mission instantly with zero fees." 
-                : `International supporters in ${currency} can bless the platform using secure card payments.`}
-        </p>
-        
-        {currency === "INR" ? (
-            <div style={{ display: "flex", justifyContent: "center", gap: "15px", flexWrap: "wrap" }}>
-                <button style={{ padding: "12px 25px", borderRadius: "30px", border: "1px solid #2e8b57", background: "white", color: "#2e8b57", fontWeight: "600" }}>₹100</button>
-                <button style={{ padding: "12px 25px", borderRadius: "30px", border: "1px solid #2e8b57", background: "white", color: "#2e8b57", fontWeight: "600" }}>₹500</button>
-                <button style={{ padding: "12px 25px", borderRadius: "30px", border: "none", background: "#2e8b57", color: "white", fontWeight: "600" }}>Custom UPI</button>
-            </div>
-        ) : (
-            <div style={{ display: "flex", justifyContent: "center", gap: "15px", flexWrap: "wrap" }}>
-                <button style={{ padding: "12px 25px", borderRadius: "30px", border: "1px solid #0b2e4a", background: "white", color: "#0b2e4a", fontWeight: "600" }}>
-                   {activeGold.symbol}{currency === "USD" ? "5" : "5"}
-                </button>
-                <button style={{ padding: "12px 25px", borderRadius: "30px", border: "1px solid #0b2e4a", background: "white", color: "#0b2e4a", fontWeight: "600" }}>
-                   {activeGold.symbol}{currency === "USD" ? "10" : "10"}
-                </button>
-                <button style={{ padding: "12px 25px", borderRadius: "30px", border: "none", background: "#0b2e4a", color: "white", fontWeight: "600" }}>
-                   Custom Card
-                </button>
-            </div>
-        )}
       </div>
 
       <div style={{ textAlign: "center", marginTop: "40px" }}>
