@@ -240,34 +240,48 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard-wrapper">
-      {/* HEADER: Welcome Message + Support Button */}
+      
+      {/* --- HEADER --- */}
       <div style={{ background: "linear-gradient(135deg, #2e8b57 0%, #1d5d3a 100%)", padding: "20px 30px", borderRadius: "12px", color: "white", marginBottom: "20px", display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-        <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
-          <span style={{fontSize:'2rem'}}>🏠</span>
-          <div><h2 style={{ margin: 0 }}>Welcome, {firstName}</h2><p style={{ margin: 0, opacity: 0.9 }}>Walking with God and fellow Believers</p></div>
+        
+        {/* Left Side: Home Icon + Welcome */}
+        <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
+          <span style={{fontSize:'2.5rem'}}>🏠</span> {/* Increased size */}
+          <div>
+            <h2 style={{ margin: 0, fontSize: '24px' }}>Welcome, {firstName}</h2>
+            <p style={{ margin: 0, opacity: 0.9, fontSize: '14px' }}>Walking with God and fellow Believers</p>
+          </div>
         </div>
         
-        {/* --- NEW SUPPORT BUTTON --- */}
+        {/* Right Side: Partner Button (UPDATED) */}
         <button 
           onClick={() => setSupportModalOpen(true)}
           style={{
-            background: 'rgba(255,255,255,0.2)', 
-            border: '1px solid rgba(255,255,255,0.4)', 
-            borderRadius: '20px', 
-            padding: '8px 16px', 
+            background: 'rgba(255,255,255,0.15)', 
+            border: '2px solid rgba(255,255,255,0.6)', 
+            borderRadius: '30px', 
+            padding: '10px 24px', 
             color: 'white', 
             cursor: 'pointer', 
             display: 'flex', 
             alignItems: 'center', 
-            gap: '8px', 
-            fontSize: '14px', 
-            fontWeight: '600',
-            transition: 'background 0.2s'
+            gap: '12px', 
+            fontSize: '18px',  /* Increased Text Size */
+            fontWeight: '700', /* Made Bolder */
+            transition: 'all 0.2s ease',
+            boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
           }}
-          onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
-          onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
+          onMouseOver={(e) => {
+            e.currentTarget.style.background = 'rgba(255,255,255,0.25)';
+            e.currentTarget.style.transform = 'translateY(-2px)';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.background = 'rgba(255,255,255,0.15)';
+            e.currentTarget.style.transform = 'translateY(0)';
+          }}
         >
-          <span style={{fontSize:'16px'}}>🕊️</span> Support
+          <span style={{fontSize:'28px'}}>🕊️</span> {/* Increased Dove Size */}
+          Partner
         </button>
       </div>
 
@@ -446,7 +460,7 @@ export default function Dashboard() {
       {supportModalOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: 'white', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '350px', textAlign: 'center' }}>
-            <h3 style={{ margin: '0 0 10px 0', color: '#0b2e4a' }}>🕊️ Support The Believerse</h3>
+            <h3 style={{ margin: '0 0 10px 0', color: '#0b2e4a' }}>🕊️ Partner with Us</h3>
             <p style={{fontSize:'13px', color:'#666', marginBottom:'20px'}}>Your gift keeps this community free and safe.</p>
             <div style={{ background: '#f9f9f9', padding: '15px', borderRadius: '12px', marginBottom: '20px' }}>
               <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=${PLATFORM_UPI_ID}&pn=TheBelieverse&cu=INR`)}`} style={{ width: '100%', height: 'auto', borderRadius: '8px' }} />
