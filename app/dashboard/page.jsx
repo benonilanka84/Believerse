@@ -38,16 +38,14 @@ export default function Dashboard() {
 
   // Modals
   const [blessModalUser, setBlessModalUser] = useState(null); // For Creator
-  const [supportModalOpen, setSupportModalOpen] = useState(false); // For Platform
+  const [supportModalOpen, setSupportModalOpen] = useState(false); // For Platform (UPI)
 
   // Widget Edit State
   const [editingPrayerId, setEditingPrayerId] = useState(null);
   const [prayerEditContent, setPrayerEditContent] = useState("");
 
   const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-
-  // Replace this with your actual platform UPI ID
-  const PLATFORM_UPI_ID = "your-platform-upi@okhdfcbank"; 
+  const PLATFORM_UPI_ID = "your-platform-upi@okhdfcbank"; // REPLACE THIS
 
   useEffect(() => {
     setMounted(true);
@@ -68,6 +66,17 @@ export default function Dashboard() {
     getUser();
   }, [mounted]);
 
+  // Load Razorpay Script for Global Partners
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
   function loadAllData(uid) {
     loadPosts(uid);
     loadSuggestedBelievers(uid);
@@ -76,7 +85,7 @@ export default function Dashboard() {
     loadUpcomingEvents();
   }
 
-  // --- 1. VERSE LOGIC ---
+  // ... (Keep existing Verse, Widget, Event functions exactly the same) ...
   function generateDailyVisualVerse() {
     const verses = [
       { text: "I am the good shepherd. The good shepherd lays down his life for the sheep.", ref: "John 10:11", bg: "https://images.unsplash.com/photo-1484557985045-6f5c98486c90?auto=format&fit=crop&w=800&q=80" },
@@ -92,36 +101,16 @@ export default function Dashboard() {
     else { setVerseAmenCount(c => c + 1); setHasAmenedVerse(true); }
   }
 
-  // --- 2. WIDGETS ---
   async function loadSuggestedBelievers(userId) {
     const { data } = await supabase.from('profiles').select('*').neq('id', userId).limit(3);
     if (data) setSuggestedBelievers(data);
   }
 
   async function loadPrayerWall(userId) {
-    const { data: conns } = await supabase
-      .from('connections')
-      .select('user_a, user_b')
-      .or(`user_a.eq.${userId},user_b.eq.${userId}`)
-      .eq('status', 'connected');
-
+    const { data: conns } = await supabase.from('connections').select('user_a, user_b').or(`user_a.eq.${userId},user_b.eq.${userId}`).eq('status', 'connected');
     let friendIds = [userId]; 
-    if (conns) {
-      conns.forEach(c => {
-        if (c.user_a !== userId) friendIds.push(c.user_a);
-        if (c.user_b !== userId) friendIds.push(c.user_b);
-      });
-      friendIds = Array.from(new Set(friendIds));
-    }
-
-    const { data } = await supabase
-      .from('posts')
-      .select('id, content, user_id, profiles(full_name)')
-      .eq('type', 'Prayer')
-      .in('user_id', friendIds)
-      .order('created_at', { ascending: false })
-      .limit(5);
-    
+    if (conns) { conns.forEach(c => { if (c.user_a !== userId) friendIds.push(c.user_a); if (c.user_b !== userId) friendIds.push(c.user_b); }); friendIds = Array.from(new Set(friendIds)); }
+    const { data } = await supabase.from('posts').select('id, content, user_id, profiles(full_name)').eq('type', 'Prayer').in('user_id', friendIds).order('created_at', { ascending: false }).limit(5);
     setPrayerRequests(data || []);
   }
 
@@ -142,23 +131,13 @@ export default function Dashboard() {
     const { data: msgs } = await supabase.from('messages').select('sender_id, receiver_id').or(`sender_id.eq.${userId},receiver_id.eq.${userId}`).order('created_at', { ascending: false }).limit(20);
     if (!msgs) return;
     const partnerIds = new Set();
-    msgs.forEach(m => {
-      if (m.sender_id !== userId) partnerIds.add(m.sender_id);
-      if (m.receiver_id !== userId) partnerIds.add(m.receiver_id);
-    });
-    if (partnerIds.size > 0) {
-      const { data: profiles } = await supabase.from('profiles').select('*').in('id', Array.from(partnerIds)).limit(3);
-      setRecentChats(profiles || []);
-    }
+    msgs.forEach(m => { if (m.sender_id !== userId) partnerIds.add(m.sender_id); if (m.receiver_id !== userId) partnerIds.add(m.receiver_id); });
+    if (partnerIds.size > 0) { const { data: profiles } = await supabase.from('profiles').select('*').in('id', Array.from(partnerIds)).limit(3); setRecentChats(profiles || []); }
   }
 
-  // --- 3. EVENTS ---
   async function loadUpcomingEvents() {
     const { data } = await supabase.from('events').select('*').gte('event_date', new Date().toISOString().split('T')[0]).order('event_date', { ascending: true });
-    if (data) {
-      setEvents(data);
-      filterEventsByDate(selectedDate, data);
-    }
+    if (data) { setEvents(data); filterEventsByDate(selectedDate, data); }
   }
 
   function filterEventsByDate(date, allEvents) {
@@ -173,41 +152,98 @@ export default function Dashboard() {
     filterEventsByDate(newDate, events);
   }
 
-  // --- 4. FEED (THE WALK) ---
   async function loadPosts(currentUserId, isRefresh = false) {
     if (!isRefresh) setLoadingPosts(true);
-    const { data, error } = await supabase
-      .from('posts')
-      .select(`*, profiles (username, full_name, avatar_url, upi_id), amens (user_id)`)
-      .neq('type', 'Glimpse')
-      .neq('type', 'Prayer') 
-      .order('created_at', { ascending: false });
-
-    if (!error && data) {
-      const formatted = data.map(p => ({
-        ...p,
-        author: p.profiles,
-        amenCount: p.amens.length,
-        hasAmened: p.amens.some(a => a.user_id === currentUserId)
-      }));
-      setPosts(formatted);
-    }
+    const { data, error } = await supabase.from('posts').select(`*, profiles (username, full_name, avatar_url, upi_id), amens (user_id)`).neq('type', 'Glimpse').neq('type', 'Prayer').order('created_at', { ascending: false });
+    if (!error && data) { const formatted = data.map(p => ({ ...p, author: p.profiles, amenCount: p.amens.length, hasAmened: p.amens.some(a => a.user_id === currentUserId) })); setPosts(formatted); }
     setLoadingPosts(false);
   }
 
-  // --- 5. ACTIONS ---
-  function handleBlessClick(author) {
+  // --- ACTIONS (UPDATED LOGIC) ---
+
+  // 1. Check Location Helper
+  async function checkIsIndia() {
+    try {
+      const res = await fetch('https://ipapi.co/json/');
+      const data = await res.json();
+      return data.country_code === "IN";
+    } catch (e) {
+      return true; // Default to India on error to be safe (or false if you prefer)
+    }
+  }
+
+  // 2. Handle "Bless" (Creator)
+  async function handleBlessClick(author) {
     if (!author?.upi_id) { alert(`God bless! ${author.full_name} has not set up their UPI ID yet.`); return; }
-    setBlessModalUser(author);
+    
+    const isIndia = await checkIsIndia();
+    if (isIndia) {
+      setBlessModalUser(author); // Show UPI QR
+    } else {
+      alert("🌍 International Blessing is coming soon!\n\nCurrently, direct blessings are available for UPI (India) users only.");
+    }
+  }
+
+// 3. Handle "Partner" (Platform)
+  async function handlePartnerClick() {
+    const isIndia = await checkIsIndia();
+    
+    if (isIndia) {
+      setSupportModalOpen(true); // Show UPI QR (Zero Fees)
+    } else {
+      // GLOBAL: Ask for Donation Amount
+      // Using a simple prompt for now. We can make a pretty modal later if you wish.
+      let inputAmount = prompt("Enter the amount you wish to gift in USD ($):", "10");
+      
+      if (inputAmount === null) return; // User clicked Cancel
+      
+      const amount = parseFloat(inputAmount);
+      if (isNaN(amount) || amount < 1) {
+        alert("Please enter a valid amount (Minimum $1).");
+        return;
+      }
+
+      const res = await loadRazorpayScript();
+      if (!res) { alert("Payment gateway failed to load."); return; }
+
+      try {
+        // Create Order with the USER'S CHOSEN amount
+        const response = await fetch("/app/api/razorpay", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount: amount, currency: "USD" }), 
+        });
+        
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || "Order creation failed");
+
+        const options = {
+          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID, 
+          amount: data.order.amount,
+          currency: data.order.currency,
+          name: "The Believerse",
+          description: "Partner Contribution",
+          image: "/images/final-logo.png",
+          order_id: data.order.id,
+          handler: function (response) {
+            alert(`Thank you for your generous gift of $${amount}! \nPayment ID: ${response.razorpay_payment_id}`);
+          },
+          theme: { color: "#2e8b57" },
+        };
+        const paymentObject = new window.Razorpay(options);
+        paymentObject.open();
+
+      } catch (error) {
+        console.error(error);
+        alert("Unable to initiate international payment. Please try again.");
+      }
+    }
   }
 
   async function handleAmen(post, currentlyAmened) {
     setPosts(posts.map(p => p.id === post.id ? { ...p, hasAmened: !currentlyAmened, amenCount: currentlyAmened ? p.amenCount - 1 : p.amenCount + 1 } : p));
     if (currentlyAmened) await supabase.from('amens').delete().match({ user_id: user.id, post_id: post.id });
-    else {
-      await supabase.from('amens').insert({ user_id: user.id, post_id: post.id });
-      if (user && user.id !== post.user_id) await supabase.from('notifications').insert({ user_id: post.user_id, actor_id: user.id, type: 'amen', content: `${profile?.full_name} said Amen to your post.`, link: '/dashboard' });
-    }
+    else { await supabase.from('amens').insert({ user_id: user.id, post_id: post.id }); if (user && user.id !== post.user_id) await supabase.from('notifications').insert({ user_id: post.user_id, actor_id: user.id, type: 'amen', content: `${profile?.full_name} said Amen to your post.`, link: '/dashboard' }); }
   }
 
   async function handleDeletePost(postId) {
@@ -222,17 +258,8 @@ export default function Dashboard() {
     setEditingPost(null);
   }
 
-  function startEditing(post) {
-    setEditingPost(post.id);
-    setEditContent(post.content);
-    setEditTitle(post.title || '');
-    setOpenMenuId(null);
-  }
-
-  function handleShare(text) {
-    if (navigator.share) navigator.share({ title: 'The Believerse', text: text });
-    else alert("Link copied!");
-  }
+  function startEditing(post) { setEditingPost(post.id); setEditContent(post.content); setEditTitle(post.title || ''); setOpenMenuId(null); }
+  function handleShare(text) { if (navigator.share) navigator.share({ title: 'The Believerse', text: text }); else alert("Link copied!"); }
 
   if (!mounted) return null;
   const { daysInMonth, startingDayOfWeek } = getDaysInMonth(selectedDate);
@@ -241,53 +268,27 @@ export default function Dashboard() {
   return (
     <div className="dashboard-wrapper">
       
-      {/* --- HEADER --- */}
+      {/* HEADER */}
       <div style={{ background: "linear-gradient(135deg, #2e8b57 0%, #1d5d3a 100%)", padding: "20px 30px", borderRadius: "12px", color: "white", marginBottom: "20px", display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-        
-        {/* Left Side: Home Icon + Welcome */}
         <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
-          <span style={{fontSize:'2.5rem'}}>🏠</span> {/* Increased size */}
-          <div>
-            <h2 style={{ margin: 0, fontSize: '24px' }}>Welcome, {firstName}</h2>
-            <p style={{ margin: 0, opacity: 0.9, fontSize: '14px' }}>Walking with God and fellow Believers</p>
-          </div>
+          <span style={{fontSize:'2.5rem'}}>🏠</span>
+          <div><h2 style={{ margin: 0, fontSize: '24px' }}>Welcome, {firstName}</h2><p style={{ margin: 0, opacity: 0.9, fontSize: '14px' }}>Walking with God and fellow Believers</p></div>
         </div>
         
-        {/* Right Side: Partner Button (UPDATED) */}
+        {/* PARTNER BUTTON */}
         <button 
-          onClick={() => setSupportModalOpen(true)}
-          style={{
-            background: 'rgba(255,255,255,0.15)', 
-            border: '2px solid rgba(255,255,255,0.6)', 
-            borderRadius: '30px', 
-            padding: '10px 24px', 
-            color: 'white', 
-            cursor: 'pointer', 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '12px', 
-            fontSize: '18px',  /* Increased Text Size */
-            fontWeight: '700', /* Made Bolder */
-            transition: 'all 0.2s ease',
-            boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
-          }}
-          onMouseOver={(e) => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.25)';
-            e.currentTarget.style.transform = 'translateY(-2px)';
-          }}
-          onMouseOut={(e) => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.15)';
-            e.currentTarget.style.transform = 'translateY(0)';
-          }}
+          onClick={handlePartnerClick} // Calls the logic check
+          style={{ background: 'rgba(255,255,255,0.15)', border: '2px solid rgba(255,255,255,0.6)', borderRadius: '30px', padding: '10px 24px', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px', fontSize: '18px', fontWeight: '700', transition: 'all 0.2s ease', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}
+          onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.25)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+          onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.transform = 'translateY(0)'; }}
         >
-          <span style={{fontSize:'28px'}}>🕊️</span> {/* Increased Dove Size */}
-          Partner
+          <span style={{fontSize:'28px'}}>🕊️</span> Partner
         </button>
       </div>
 
       <div className="dashboard-grid">
         <div className="left-panel">
-          {/* DAILY BIBLE VERSE */}
+          {/* VERSE */}
           {verseData && (
             <div className="panel-card" style={{padding:0, overflow:'hidden', position:'relative', borderRadius:'12px', border:'none', background:'#000'}}>
               <div style={{padding:'10px 15px', background:'#0b2e4a', color:'white', fontWeight:'bold'}}>Daily Bible Verse</div>
@@ -305,7 +306,7 @@ export default function Dashboard() {
             </div>
           )}
           
-          {/* EVENTS WIDGET */}
+          {/* EVENTS */}
           <div className="panel-card">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}><h3 style={{ margin: 0, fontSize:'16px' }}>📅 Events</h3><Link href="/events" style={{ fontSize: "12px", color: "#2e8b57", fontWeight: "600", textDecoration:'none' }}>View All →</Link></div>
             <div style={{ background: "#f9f9f9", borderRadius: "8px", padding: "10px", marginBottom: "15px" }}>
@@ -314,15 +315,8 @@ export default function Dashboard() {
                 {["S","M","T","W","T","F","S"].map(d => <div key={d} style={{ fontSize: "10px", textAlign: "center", color: "#888" }}>{d}</div>)}
                 {Array.from({ length: startingDayOfWeek }).map((_, i) => <div key={`empty-${i}`} />)}
                 {Array.from({ length: daysInMonth }).map((_, i) => { 
-                  const day = i + 1; 
-                  const dateCheck = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day);
-                  const dateStr = `${dateCheck.getFullYear()}-${String(dateCheck.getMonth() + 1).padStart(2, '0')}-${String(dateCheck.getDate()).padStart(2, '0')}`;
-                  const isSelected = day === selectedDate.getDate();
-                  const hasEvent = events.some(e => e.event_date === dateStr);
-                  return (
-                    <div key={day} onClick={() => handleDateClick(day)} 
-                      style={{ textAlign: "center", padding: "6px", borderRadius: "6px", cursor: 'pointer', fontSize:'12px', background: isSelected ? "#2e8b57" : (hasEvent ? "#e8f5e9" : "transparent"), color: isSelected ? "white" : (hasEvent ? "#2e8b57" : "#333"), fontWeight: isSelected || hasEvent ? 'bold' : 'normal', border: hasEvent ? "1px solid #2e8b57" : "1px solid transparent" }}>{day}</div>
-                  );
+                  const day = i + 1; const dateCheck = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day); const dateStr = `${dateCheck.getFullYear()}-${String(dateCheck.getMonth() + 1).padStart(2, '0')}-${String(dateCheck.getDate()).padStart(2, '0')}`; const isSelected = day === selectedDate.getDate(); const hasEvent = events.some(e => e.event_date === dateStr);
+                  return (<div key={day} onClick={() => handleDateClick(day)} style={{ textAlign: "center", padding: "6px", borderRadius: "6px", cursor: 'pointer', fontSize:'12px', background: isSelected ? "#2e8b57" : (hasEvent ? "#e8f5e9" : "transparent"), color: isSelected ? "white" : (hasEvent ? "#2e8b57" : "#333"), fontWeight: isSelected || hasEvent ? 'bold' : 'normal', border: hasEvent ? "1px solid #2e8b57" : "1px solid transparent" }}>{day}</div>);
                 })}
               </div>
             </div>
@@ -331,7 +325,6 @@ export default function Dashboard() {
         </div>
 
         <div className="center-panel">
-          {/* CREATE POST - Triggers Refresh of both Feed AND Prayer Widget */}
           {user && <CreatePost user={user} onPostCreated={() => { loadPosts(user.id, true); loadPrayerWall(user.id); }} />}
           
           <div className="panel-card">
@@ -397,7 +390,6 @@ export default function Dashboard() {
             <Link href="/believers" style={{fontSize:'12px', color:'#2e8b57', fontWeight:'bold', display:'block', marginTop:'5px', textDecoration:'none'}}>Find More →</Link>
           </div>
           
-          {/* PRAYER WALL WIDGET */}
           <div className="panel-card" style={{background:'#fff9e6', borderLeft:'4px solid #d4af37'}}>
             <h3>🙏 Prayer Wall</h3>
             {prayerRequests.length === 0 ? <p style={{fontSize:'12px', color:'#666'}}>No requests from friends.</p> : 
@@ -442,7 +434,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* BLESS MODAL (For Creators) */}
+      {/* BLESS MODAL (CREATOR - UPI ONLY) */}
       {blessModalUser && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: 'white', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '350px', textAlign: 'center' }}>
@@ -456,7 +448,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* SUPPORT MODAL (For Platform) */}
+      {/* SUPPORT MODAL (PLATFORM - INDIA ONLY) */}
       {supportModalOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: 'white', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '350px', textAlign: 'center' }}>
