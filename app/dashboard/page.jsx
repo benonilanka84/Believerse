@@ -85,6 +85,38 @@ export default function Dashboard() {
     loadUpcomingEvents();
   }
 
+  // --- NEW: BADGE UI HELPER ---
+  const getBadgeUI = () => {
+    if (!profile?.subscription_tier) return null;
+    const tier = profile.subscription_tier.toLowerCase();
+    
+    if (tier === 'platinum') {
+      return (
+        <span style={{ 
+          background: "linear-gradient(45deg, #29b6f6, #0288d1)", 
+          color: "white", padding: "4px 10px", borderRadius: "12px", 
+          fontSize: "12px", fontWeight: "bold", display: "inline-flex", 
+          alignItems: "center", gap: "4px", marginLeft: "10px", boxShadow: "0 2px 5px rgba(41, 182, 246, 0.4)"
+        }}>
+          💎 Platinum Partner
+        </span>
+      );
+    }
+    if (tier === 'gold') {
+      return (
+        <span style={{ 
+          background: "linear-gradient(45deg, #d4af37, #f9d976)", 
+          color: "#0b2e4a", padding: "4px 10px", borderRadius: "12px", 
+          fontSize: "12px", fontWeight: "bold", display: "inline-flex", 
+          alignItems: "center", gap: "4px", marginLeft: "10px", boxShadow: "0 2px 5px rgba(212, 175, 55, 0.4)"
+        }}>
+          🥇 Gold Supporter
+        </span>
+      );
+    }
+    return null;
+  };
+
   // ... (Keep existing Verse, Widget, Event functions exactly the same) ...
   function generateDailyVisualVerse() {
     const verses = [
@@ -272,7 +304,14 @@ export default function Dashboard() {
       <div style={{ background: "linear-gradient(135deg, #2e8b57 0%, #1d5d3a 100%)", padding: "20px 30px", borderRadius: "12px", color: "white", marginBottom: "20px", display:'flex', justifyContent:'space-between', alignItems:'center' }}>
         <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
           <span style={{fontSize:'2.5rem'}}>🏠</span>
-          <div><h2 style={{ margin: 0, fontSize: '24px' }}>Welcome, {firstName}</h2><p style={{ margin: 0, opacity: 0.9, fontSize: '14px' }}>Walking with God and fellow Believers</p></div>
+          <div>
+            {/* UPDATED: Welcome Message with Badge */}
+            <h2 style={{ margin: 0, fontSize: '24px', display:'flex', alignItems:'center', gap:'5px' }}>
+               Welcome, {firstName} 
+               {getBadgeUI()} 
+            </h2>
+            <p style={{ margin: 0, opacity: 0.9, fontSize: '14px' }}>Walking with God and fellow Believers</p>
+          </div>
         </div>
         
         {/* PARTNER BUTTON */}
@@ -334,8 +373,19 @@ export default function Dashboard() {
              posts.map(post => (
                <div key={post.id} style={{border:'1px solid #eee', borderRadius:'12px', padding:'15px', marginBottom:'15px', background:'#fafafa'}}>
                  <div style={{display:'flex', alignItems:'center', gap:'10px', marginBottom:'10px'}}>
-                   <img src={post.author?.avatar_url || '/images/default-avatar.png'} style={{width:40, height:40, borderRadius:'50%', objectFit:'cover'}} />
-                   <div><div style={{fontWeight:'bold', color:'#0b2e4a'}}>{post.author?.full_name}</div><div style={{fontSize:'12px', color:'#666'}}>{new Date(post.created_at).toDateString()}</div></div>
+                   {/* UPDATED: Link around Avatar */}
+                   <Link href={`/profile/${post.user_id}`}>
+                      <img src={post.author?.avatar_url || '/images/default-avatar.png'} style={{width:40, height:40, borderRadius:'50%', objectFit:'cover', cursor: 'pointer'}} />
+                   </Link>
+                   
+                   <div>
+                      {/* UPDATED: Link around Author Name */}
+                      <Link href={`/profile/${post.user_id}`} style={{textDecoration:'none'}}>
+                        <div style={{fontWeight:'bold', color:'#0b2e4a', cursor: 'pointer'}}>{post.author?.full_name}</div>
+                      </Link>
+                      <div style={{fontSize:'12px', color:'#666'}}>{new Date(post.created_at).toDateString()}</div>
+                   </div>
+
                    {user?.id === post.user_id && (
                      <div style={{marginLeft:'auto', position:'relative'}}>
                        <button onClick={() => setOpenMenuId(openMenuId === post.id ? null : post.id)} style={{border:'none', background:'none', fontSize:'20px', cursor:'pointer'}}>⋮</button>
@@ -381,8 +431,13 @@ export default function Dashboard() {
             {suggestedBelievers.map(b => (
               <div key={b.id} style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'10px'}}>
                 <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
-                  <img src={b.avatar_url || '/images/default-avatar.png'} style={{width:30, height:30, borderRadius:'50%'}} />
-                  <span style={{fontSize:'13px', color:'#0b2e4a', fontWeight:'bold'}}>{b.full_name?.split(' ')[0]}</span>
+                  {/* UPDATED: Link around Avatar & Name */}
+                  <Link href={`/profile/${b.id}`}>
+                     <img src={b.avatar_url || '/images/default-avatar.png'} style={{width:30, height:30, borderRadius:'50%', cursor: 'pointer'}} />
+                  </Link>
+                  <Link href={`/profile/${b.id}`} style={{textDecoration:'none'}}>
+                     <span style={{fontSize:'13px', color:'#0b2e4a', fontWeight:'bold', cursor: 'pointer'}}>{b.full_name?.split(' ')[0]}</span>
+                  </Link>
                 </div>
                 <Link href={`/chat?uid=${b.id}`} style={{textDecoration:'none', fontSize:'16px'}}>💬</Link>
               </div>
