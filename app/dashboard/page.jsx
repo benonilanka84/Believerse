@@ -37,8 +37,8 @@ export default function Dashboard() {
   const [editTitle, setEditTitle] = useState("");
 
   // Modals
-  const [blessModalUser, setBlessModalUser] = useState(null); // For Creator
-  const [supportModalOpen, setSupportModalOpen] = useState(false); // For Platform (UPI)
+  const [blessModalUser, setBlessModalUser] = useState(null); 
+  const [supportModalOpen, setSupportModalOpen] = useState(false); 
 
   // Widget Edit State
   const [editingPrayerId, setEditingPrayerId] = useState(null);
@@ -66,7 +66,7 @@ export default function Dashboard() {
     getUser();
   }, [mounted]);
 
-  // Load Razorpay Script for Global Partners
+  // Razorpay Script Loader
   const loadRazorpayScript = () => {
     return new Promise((resolve) => {
       const script = document.createElement("script");
@@ -85,12 +85,15 @@ export default function Dashboard() {
     loadUpcomingEvents();
   }
 
-  // --- NEW: BADGE UI HELPER ---
+  // --- FIXED: BADGE UI HELPER (Using subscription_plan) ---
   const getBadgeUI = () => {
-    if (!profile?.subscription_tier) return null;
-    const tier = profile.subscription_tier.toLowerCase();
+    // Check against the correct column name: subscription_plan
+    if (!profile || !profile.subscription_plan) return null;
     
-    if (tier === 'platinum') {
+    // Normalize string (remove spaces, lowercase)
+    const plan = profile.subscription_plan.trim().toLowerCase();
+    
+    if (plan.includes('platinum')) {
       return (
         <span style={{ 
           background: "linear-gradient(45deg, #29b6f6, #0288d1)", 
@@ -102,7 +105,7 @@ export default function Dashboard() {
         </span>
       );
     }
-    if (tier === 'gold') {
+    if (plan.includes('gold')) {
       return (
         <span style={{ 
           background: "linear-gradient(45deg, #d4af37, #f9d976)", 
