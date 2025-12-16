@@ -21,7 +21,7 @@ export default function ProfilePage() {
       const { data: { user } } = await supabase.auth.getUser();
       setCurrentUser(user);
 
-      // 2. Fetch Profile Data
+      // 2. Fetch Profile Data (The user we are viewing)
       const { data: profileData, error } = await supabase
         .from('profiles')
         .select('*')
@@ -52,12 +52,15 @@ export default function ProfilePage() {
     setLoading(false);
   }
 
-  // --- BADGE UI HELPER ---
+  // --- FIXED: BADGE UI HELPER (Using subscription_plan) ---
   const getBadgeUI = () => {
-    if (!profile?.subscription_tier) return null;
-    const tier = profile.subscription_tier.toLowerCase();
+    // Check against the correct column name: subscription_plan
+    if (!profile || !profile.subscription_plan) return null;
     
-    if (tier === 'platinum') {
+    // Normalize string (remove spaces, lowercase)
+    const plan = profile.subscription_plan.trim().toLowerCase();
+    
+    if (plan.includes('platinum')) {
       return (
         <span style={{ 
           background: "linear-gradient(45deg, #29b6f6, #0288d1)", 
@@ -69,7 +72,7 @@ export default function ProfilePage() {
         </span>
       );
     }
-    if (tier === 'gold') {
+    if (plan.includes('gold')) {
       return (
         <span style={{ 
           background: "linear-gradient(45deg, #d4af37, #f9d976)", 
@@ -88,7 +91,7 @@ export default function ProfilePage() {
   const filteredPosts = posts.filter(p => {
     if (activeTab === 'glimpses') return p.type === 'Glimpse';
     if (activeTab === 'prayers') return p.type === 'Prayer';
-    return p.type !== 'Glimpse'; // 'all' usually excludes glimpses in main feed, or you can include everything
+    return p.type !== 'Glimpse'; // 'all' excludes glimpses from main feed usually
   });
 
   if (loading) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>Loading Profile...</div>;
@@ -120,9 +123,9 @@ export default function ProfilePage() {
           </div>
 
           {/* Name & Badge */}
-          <h1 style={{ margin: "0 0 5px 0", fontSize: "1.8rem", color: "#0b2e4a", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <h1 style={{ margin: "0 0 5px 0", fontSize: "1.8rem", color: "#0b2e4a", display: "flex", alignItems: "center", justifyContent: "center", flexWrap: "wrap" }}>
             {profile.full_name}
-            {getBadgeUI()}
+            {getBadgeUI()} {/* <-- Badge is now visible here */}
           </h1>
           <p style={{ color: "#666", fontSize: "0.95rem", margin: "0 0 20px 0" }}>@{profile.username || "believer"}</p>
 
