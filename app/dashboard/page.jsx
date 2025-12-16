@@ -85,12 +85,79 @@ export default function Dashboard() {
     loadUpcomingEvents();
   }
 
-  // --- FIXED: BADGE UI HELPER (Using subscription_plan) ---
-  const getBadgeUI = () => {
-    // Check against the correct column name: subscription_plan
-    if (!profile || !profile.subscription_plan) return null;
+  // --- NEW: DAILY VERSE LOGIC ---
+  const backgroundBank = [
+    // 1. Mountains & Hills
+    "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1519681393797-a1e97d77c9c8?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1486870591958-9b9d0d1dda99?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=800&q=80",
     
-    // Normalize string (remove spaces, lowercase)
+    // 2. Skies & Clouds
+    "https://images.unsplash.com/photo-1513002749550-c59d786b8e6c?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1534088568595-a066f410bcda?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1499346030926-9a72daac6ea6?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1500485035595-cbe6f645feb1?auto=format&fit=crop&w=800&q=80",
+
+    // 3. Water & Oceans
+    "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1505118380757-91f5f5632de0?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1518837695005-2083093ee35b?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1437482078695-73f5ca6c96e2?auto=format&fit=crop&w=800&q=80",
+
+    // 4. Forests & Trees
+    "https://images.unsplash.com/photo-1448375240586-dfd8d395ea6c?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1473448912268-2022ce9509d8?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1542273917363-3b1817f69a2d?auto=format&fit=crop&w=800&q=80",
+
+    // 5. Abstract & Light
+    "https://images.unsplash.com/photo-1484557985045-6f5c98486c90?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1519834785169-98be25ec3f84?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?auto=format&fit=crop&w=800&q=80"
+  ];
+
+  async function generateDailyVisualVerse() {
+    // 1. Get Today's Date in YYYY-MM-DD format
+    const today = new Date().toISOString().split('T')[0];
+
+    // 2. Fetch from Supabase
+    const { data, error } = await supabase
+      .from('daily_verses')
+      .select('*')
+      .eq('verse_date', today)
+      .single();
+
+    if (data) {
+      // 3. Smart Background Selection
+      const dayIndex = new Date().getDate() % backgroundBank.length;
+      
+      setVerseData({
+        text: data.verse_text,
+        ref: data.verse_ref,
+        bg: backgroundBank[dayIndex]
+      });
+    } else {
+      // 4. Fallback (If no verse in DB for today)
+      const verses = [
+        { text: "I am the good shepherd. The good shepherd lays down his life for the sheep.", ref: "John 10:11", bg: backgroundBank[0] },
+        { text: "The Lord is my light and my salvation; whom shall I fear?", ref: "Psalm 27:1", bg: backgroundBank[1] },
+        { text: "He leads me beside still waters.", ref: "Psalm 23:2", bg: backgroundBank[2] }
+      ];
+      const fallbackIndex = new Date().getDate() % verses.length;
+      setVerseData(verses[fallbackIndex]);
+    }
+  }
+
+  function handleVerseAmen() {
+    if (hasAmenedVerse) { setVerseAmenCount(c => c - 1); setHasAmenedVerse(false); }
+    else { setVerseAmenCount(c => c + 1); setHasAmenedVerse(true); }
+  }
+
+  // --- BADGE UI HELPER ---
+  const getBadgeUI = () => {
+    if (!profile || !profile.subscription_plan) return null;
     const plan = profile.subscription_plan.trim().toLowerCase();
     
     if (plan.includes('platinum')) {
@@ -119,22 +186,6 @@ export default function Dashboard() {
     }
     return null;
   };
-
-  // ... (Keep existing Verse, Widget, Event functions exactly the same) ...
-  function generateDailyVisualVerse() {
-    const verses = [
-      { text: "I am the good shepherd. The good shepherd lays down his life for the sheep.", ref: "John 10:11", bg: "https://images.unsplash.com/photo-1484557985045-6f5c98486c90?auto=format&fit=crop&w=800&q=80" },
-      { text: "The Lord is my light and my salvation; whom shall I fear?", ref: "Psalm 27:1", bg: "https://images.unsplash.com/photo-1505322022379-7c3353ee6291?auto=format&fit=crop&w=800&q=80" },
-      { text: "He leads me beside still waters.", ref: "Psalm 23:2", bg: "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=800&q=80" }
-    ];
-    const dayIndex = new Date().getDate() % verses.length;
-    setVerseData(verses[dayIndex]);
-  }
-
-  function handleVerseAmen() {
-    if (hasAmenedVerse) { setVerseAmenCount(c => c - 1); setHasAmenedVerse(false); }
-    else { setVerseAmenCount(c => c + 1); setHasAmenedVerse(true); }
-  }
 
   async function loadSuggestedBelievers(userId) {
     const { data } = await supabase.from('profiles').select('*').neq('id', userId).limit(3);
@@ -194,61 +245,43 @@ export default function Dashboard() {
     setLoadingPosts(false);
   }
 
-  // --- ACTIONS (UPDATED LOGIC) ---
+  // --- ACTIONS ---
 
-  // 1. Check Location Helper
   async function checkIsIndia() {
     try {
       const res = await fetch('https://ipapi.co/json/');
       const data = await res.json();
       return data.country_code === "IN";
     } catch (e) {
-      return true; // Default to India on error to be safe (or false if you prefer)
+      return true; 
     }
   }
 
-  // 2. Handle "Bless" (Creator)
   async function handleBlessClick(author) {
     if (!author?.upi_id) { alert(`God bless! ${author.full_name} has not set up their UPI ID yet.`); return; }
-    
     const isIndia = await checkIsIndia();
-    if (isIndia) {
-      setBlessModalUser(author); // Show UPI QR
-    } else {
-      alert("🌍 International Blessing is coming soon!\n\nCurrently, direct blessings are available for UPI (India) users only.");
-    }
+    if (isIndia) { setBlessModalUser(author); } 
+    else { alert("🌍 International Blessing is coming soon!\n\nCurrently, direct blessings are available for UPI (India) users only."); }
   }
 
-// 3. Handle "Partner" (Platform)
   async function handlePartnerClick() {
     const isIndia = await checkIsIndia();
-    
     if (isIndia) {
-      setSupportModalOpen(true); // Show UPI QR (Zero Fees)
+      setSupportModalOpen(true);
     } else {
-      // GLOBAL: Ask for Donation Amount
-      // Using a simple prompt for now. We can make a pretty modal later if you wish.
       let inputAmount = prompt("Enter the amount you wish to gift in USD ($):", "10");
-      
-      if (inputAmount === null) return; // User clicked Cancel
-      
+      if (inputAmount === null) return;
       const amount = parseFloat(inputAmount);
-      if (isNaN(amount) || amount < 1) {
-        alert("Please enter a valid amount (Minimum $1).");
-        return;
-      }
-
+      if (isNaN(amount) || amount < 1) { alert("Please enter a valid amount (Minimum $1)."); return; }
+      
       const res = await loadRazorpayScript();
       if (!res) { alert("Payment gateway failed to load."); return; }
-
+      
       try {
-        // Create Order with the USER'S CHOSEN amount
-        const response = await fetch("/app/api/razorpay", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+        const response = await fetch("/api/razorpay", {
+          method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ amount: amount, currency: "USD" }), 
         });
-        
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || "Order creation failed");
 
@@ -267,11 +300,7 @@ export default function Dashboard() {
         };
         const paymentObject = new window.Razorpay(options);
         paymentObject.open();
-
-      } catch (error) {
-        console.error(error);
-        alert("Unable to initiate international payment. Please try again.");
-      }
+      } catch (error) { console.error(error); alert("Unable to initiate international payment. Please try again."); }
     }
   }
 
@@ -308,18 +337,16 @@ export default function Dashboard() {
         <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
           <span style={{fontSize:'2.5rem'}}>🏠</span>
           <div>
-            {/* UPDATED: Welcome Message with Badge */}
             <h2 style={{ margin: 0, fontSize: '24px', display:'flex', alignItems:'center', gap:'5px' }}>
-               Welcome, {firstName} 
-               {getBadgeUI()} 
+              Welcome, {firstName} 
+              {getBadgeUI()}
             </h2>
             <p style={{ margin: 0, opacity: 0.9, fontSize: '14px' }}>Walking with God and fellow Believers</p>
           </div>
         </div>
         
-        {/* PARTNER BUTTON */}
         <button 
-          onClick={handlePartnerClick} // Calls the logic check
+          onClick={handlePartnerClick} 
           style={{ background: 'rgba(255,255,255,0.15)', border: '2px solid rgba(255,255,255,0.6)', borderRadius: '30px', padding: '10px 24px', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px', fontSize: '18px', fontWeight: '700', transition: 'all 0.2s ease', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}
           onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.25)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
           onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.transform = 'translateY(0)'; }}
@@ -330,7 +357,8 @@ export default function Dashboard() {
 
       <div className="dashboard-grid">
         <div className="left-panel">
-          {/* VERSE */}
+          
+          {/* VERSE (Now using new logic) */}
           {verseData && (
             <div className="panel-card" style={{padding:0, overflow:'hidden', position:'relative', borderRadius:'12px', border:'none', background:'#000'}}>
               <div style={{padding:'10px 15px', background:'#0b2e4a', color:'white', fontWeight:'bold'}}>Daily Bible Verse</div>
@@ -348,7 +376,6 @@ export default function Dashboard() {
             </div>
           )}
           
-          {/* EVENTS */}
           <div className="panel-card">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}><h3 style={{ margin: 0, fontSize:'16px' }}>📅 Events</h3><Link href="/events" style={{ fontSize: "12px", color: "#2e8b57", fontWeight: "600", textDecoration:'none' }}>View All →</Link></div>
             <div style={{ background: "#f9f9f9", borderRadius: "8px", padding: "10px", marginBottom: "15px" }}>
@@ -376,19 +403,15 @@ export default function Dashboard() {
              posts.map(post => (
                <div key={post.id} style={{border:'1px solid #eee', borderRadius:'12px', padding:'15px', marginBottom:'15px', background:'#fafafa'}}>
                  <div style={{display:'flex', alignItems:'center', gap:'10px', marginBottom:'10px'}}>
-                   {/* UPDATED: Link around Avatar */}
                    <Link href={`/profile/${post.user_id}`}>
                       <img src={post.author?.avatar_url || '/images/default-avatar.png'} style={{width:40, height:40, borderRadius:'50%', objectFit:'cover', cursor: 'pointer'}} />
                    </Link>
-                   
                    <div>
-                      {/* UPDATED: Link around Author Name */}
                       <Link href={`/profile/${post.user_id}`} style={{textDecoration:'none'}}>
                         <div style={{fontWeight:'bold', color:'#0b2e4a', cursor: 'pointer'}}>{post.author?.full_name}</div>
                       </Link>
                       <div style={{fontSize:'12px', color:'#666'}}>{new Date(post.created_at).toDateString()}</div>
                    </div>
-
                    {user?.id === post.user_id && (
                      <div style={{marginLeft:'auto', position:'relative'}}>
                        <button onClick={() => setOpenMenuId(openMenuId === post.id ? null : post.id)} style={{border:'none', background:'none', fontSize:'20px', cursor:'pointer'}}>⋮</button>
@@ -434,7 +457,6 @@ export default function Dashboard() {
             {suggestedBelievers.map(b => (
               <div key={b.id} style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'10px'}}>
                 <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
-                  {/* UPDATED: Link around Avatar & Name */}
                   <Link href={`/profile/${b.id}`}>
                      <img src={b.avatar_url || '/images/default-avatar.png'} style={{width:30, height:30, borderRadius:'50%', cursor: 'pointer'}} />
                   </Link>
@@ -492,7 +514,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* BLESS MODAL (CREATOR - UPI ONLY) */}
+      {/* BLESS MODAL */}
       {blessModalUser && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: 'white', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '350px', textAlign: 'center' }}>
@@ -506,7 +528,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* SUPPORT MODAL (PLATFORM - INDIA ONLY) */}
+      {/* PARTNER MODAL */}
       {supportModalOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: 'white', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '350px', textAlign: 'center' }}>
