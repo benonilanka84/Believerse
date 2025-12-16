@@ -12,12 +12,16 @@ export default function FellowshipsPage() {
   // Views: 'discover' | 'active_group'
   const [view, setView] = useState("discover"); 
   const [activeGroup, setActiveGroup] = useState(null);
+  const [groupTab, setGroupTab] = useState("feed"); // 'feed' | 'members'
 
   // Data
   const [allFellowships, setAllFellowships] = useState([]);
-  const [myMemberships, setMyMemberships] = useState([]); // Group IDs I'm in
+  const [myMemberships, setMyMemberships] = useState([]); // Group IDs
   const [groupPosts, setGroupPosts] = useState([]);
   const [groupMembers, setGroupMembers] = useState([]);
+  
+  // Current User's Role in the Active Group ('admin' | 'member' | null)
+  const [myRole, setMyRole] = useState(null);
 
   // Create Modal
   const [showCreate, setShowCreate] = useState(false);
@@ -59,14 +63,24 @@ export default function FellowshipsPage() {
   async function openGroup(group) {
     setActiveGroup(group);
     setView("active_group");
+    setGroupTab("feed"); // Default to feed
     loadGroupData(group.id);
   }
 
   async function loadGroupData(groupId) {
-    // Load Posts
+    // 1. Determine MY Role
+    const { data: roleData } = await supabase
+      .from('fellowship_members')
+      .select('role')
+      .match({ fellowship_id: groupId, user_id: user.id })
+      .single();
+    
+    setMyRole(roleData?.role || null);
+
+    // 2. Load Posts
     const { data: posts } = await supabase
       .from('posts')
-      .select(`*, profiles(full_name, avatar_url), amens(user_id)`)
+      .select(`*, profiles(full_name, avatar_url, id), amens(user_id)`)
       .eq('fellowship_id', groupId)
       .order('created_at', { ascending: false });
     
@@ -78,13 +92,12 @@ export default function FellowshipsPage() {
     })) || [];
     setGroupPosts(formatted);
 
-    // Load Members
+    // 3. Load Members (Full list for management)
     const { data: mems } = await supabase
       .from('fellowship_members')
-      .select('profiles(full_name, avatar_url, church)')
-      .eq('fellowship_id', groupId)
-      .limit(10);
-    setGroupMembers(mems?.map(m => m.profiles) || []);
+      .select('role, user_id, profiles(full_name, avatar_url, username)')
+      .eq('fellowship_id', groupId);
+    setGroupMembers(mems || []);
   }
 
   // --- ACTIONS ---
@@ -98,7 +111,7 @@ export default function FellowshipsPage() {
 
     if (error) alert("Error: " + error.message);
     else {
-      // Auto-join creator
+      // Auto-join creator as ADMIN
       await supabase.from('fellowship_members').insert({ fellowship_id: data.id, user_id: user.id, role: 'admin' });
       alert("✅ Fellowship Created!");
       setShowCreate(false);
@@ -106,17 +119,11 @@ export default function FellowshipsPage() {
     }
   }
 
-  // NEW: Delete Fellowship (Creator Only)
   async function handleDeleteFellowship(groupId) {
-    if (!confirm("Are you sure you want to delete this Fellowship? This cannot be undone and all posts will be lost.")) return;
-
+    if (!confirm("Are you sure? All posts and member data will be lost.")) return;
     const { error } = await supabase.from('fellowships').delete().eq('id', groupId);
-    
-    if (error) {
-      alert("Error deleting: " + error.message);
-    } else {
-      alert("Fellowship deleted.");
-      // Refresh local state
+    if (error) alert(error.message);
+    else {
       setAllFellowships(prev => prev.filter(f => f.id !== groupId));
       setView("discover");
       setActiveGroup(null);
@@ -126,16 +133,60 @@ export default function FellowshipsPage() {
   async function toggleJoin(groupId) {
     const isMember = myMemberships.includes(groupId);
     if (isMember) {
-      // Leave
       if(!confirm("Leave this Fellowship?")) return;
       await supabase.from('fellowship_members').delete().match({ fellowship_id: groupId, user_id: user.id });
       setMyMemberships(myMemberships.filter(id => id !== groupId));
       if(activeGroup?.id === groupId) setView("discover");
     } else {
-      // Join
-      await supabase.from('fellowship_members').insert({ fellowship_id: groupId, user_id: user.id });
+      await supabase.from('fellowship_members').insert({ fellowship_id: groupId, user_id: user.id, role: 'member' }); // Default role: member
       setMyMemberships([...myMemberships, groupId]);
       alert("You have joined the Fellowship!");
+      if(activeGroup?.id === groupId) loadGroupData(groupId); // Refresh if looking at page
+    }
+  }
+
+  // --- MODERATION ACTIONS ---
+
+  async function deletePost(postId) {
+    if(!confirm("Admin: Delete this post?")) return;
+    const { error } = await supabase.from('posts').delete().eq('id', postId);
+    if (!error) {
+      setGroupPosts(prev => prev.filter(p => p.id !== postId));
+    }
+  }
+
+  async function reportPost(postId) {
+    const reason = prompt("Why are you reporting this post?");
+    if(reason) {
+      // Assuming you have a 'reports' table. If not, this is a placeholder.
+      // await supabase.from('reports').insert({ post_id: postId, reason, reporter: user.id });
+      alert("Report sent to Fellowship Admins.");
+    }
+  }
+
+  async function promoteMember(targetUserId) {
+    if(!confirm("Promote this user to Admin?")) return;
+    const { error } = await supabase
+      .from('fellowship_members')
+      .update({ role: 'admin' })
+      .match({ fellowship_id: activeGroup.id, user_id: targetUserId });
+    
+    if(!error) {
+      loadGroupData(activeGroup.id); // Refresh list
+      alert("User promoted!");
+    }
+  }
+
+  async function kickMember(targetUserId) {
+    if(!confirm("Remove this user from the Fellowship?")) return;
+    const { error } = await supabase
+      .from('fellowship_members')
+      .delete()
+      .match({ fellowship_id: activeGroup.id, user_id: targetUserId });
+
+    if(!error) {
+      loadGroupData(activeGroup.id);
+      alert("User removed.");
     }
   }
 
@@ -144,8 +195,8 @@ export default function FellowshipsPage() {
   return (
     <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto", display: "grid", gridTemplateColumns: "300px 1fr", gap: "20px", alignItems:'start' }}>
       
-      {/* LEFT SIDEBAR: MY GROUPS */}
-      <div style={{ background: "white", padding: "20px", borderRadius: "12px", height: 'fit-content', boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+      {/* LEFT SIDEBAR */}
+      <div style={{ background: "white", padding: "20px", borderRadius: "12px", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
         <h2 style={{ margin: "0 0 15px 0", color: "#0b2e4a", fontSize: "18px" }}>👥 Fellowships</h2>
         
         <button onClick={() => setView("discover")} style={{ width: '100%', padding: '10px', textAlign: 'left', background: view === 'discover' ? '#e8f5e9' : 'transparent', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', color: '#2e8b57', marginBottom: '5px' }}>
@@ -207,61 +258,96 @@ export default function FellowshipsPage() {
                   <p style={{ color: "#666" }}>{activeGroup.description}</p>
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
-                  {/* Join/Leave Button */}
                   {myMemberships.includes(activeGroup.id) ? (
-                    <button onClick={() => toggleJoin(activeGroup.id)} style={{ padding: "8px 20px", background: "white", color: "red", border: "1px solid red", borderRadius: "6px", cursor: "pointer", fontWeight: 'bold' }}>
-                      Leave Fellowship
-                    </button>
+                    <button onClick={() => toggleJoin(activeGroup.id)} style={{ padding: "8px 20px", background: "white", color: "red", border: "1px solid red", borderRadius: "6px", cursor: "pointer", fontWeight: 'bold' }}>Leave</button>
                   ) : (
-                    <button onClick={() => toggleJoin(activeGroup.id)} style={{ padding: "8px 20px", background: "#2e8b57", color: "white", border: "none", borderRadius: "6px", cursor: "pointer" }}>
-                      Join Fellowship
-                    </button>
+                    <button onClick={() => toggleJoin(activeGroup.id)} style={{ padding: "8px 20px", background: "#2e8b57", color: "white", border: "none", borderRadius: "6px", cursor: "pointer" }}>Join</button>
                   )}
-
-                  {/* Creator Delete Button */}
+                  {/* Global Delete (Only Creator) */}
                   {user?.id === activeGroup.created_by && (
-                    <button onClick={() => handleDeleteFellowship(activeGroup.id)} style={{ padding: "8px 20px", background: "#d32f2f", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight:'bold' }}>
-                      Delete
-                    </button>
+                    <button onClick={() => handleDeleteFellowship(activeGroup.id)} style={{ padding: "8px 20px", background: "#d32f2f", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight:'bold' }}>Delete Group</button>
                   )}
                 </div>
               </div>
               
-              {/* Members Preview */}
-              <div style={{ marginTop: '20px', display: 'flex', gap: '5px', alignItems: 'center' }}>
-                {groupMembers.map((m, i) => (
-                  <img key={i} src={m.avatar_url || '/images/default-avatar.png'} style={{ width: 30, height: 30, borderRadius: '50%', border: '2px solid white' }} title={m.full_name} />
-                ))}
-                <span style={{ fontSize: '12px', color: '#666', marginLeft: '10px' }}>{groupMembers.length} Members active</span>
+              <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
+                 <button onClick={() => setGroupTab('feed')} style={{ border: 'none', background: 'none', borderBottom: groupTab === 'feed' ? '2px solid #2e8b57' : 'none', fontWeight: 'bold', color: groupTab === 'feed' ? '#2e8b57' : '#666', cursor: 'pointer', paddingBottom: '5px' }}>Feed</button>
+                 <button onClick={() => setGroupTab('members')} style={{ border: 'none', background: 'none', borderBottom: groupTab === 'members' ? '2px solid #2e8b57' : 'none', fontWeight: 'bold', color: groupTab === 'members' ? '#2e8b57' : '#666', cursor: 'pointer', paddingBottom: '5px' }}>Members ({groupMembers.length})</button>
               </div>
             </div>
 
-            {/* Content Area */}
-            {myMemberships.includes(activeGroup.id) ? (
-              <>
-                <CreatePost user={user} onPostCreated={() => loadGroupData(activeGroup.id)} fellowshipId={activeGroup.id} />
-                
-                {groupPosts.length === 0 ? <p style={{textAlign:'center', padding:20, color:'#666'}}>No posts in this fellowship yet.</p> : 
-                  groupPosts.map(post => (
-                    <div key={post.id} style={{ background: "white", padding: "20px", borderRadius: "12px", marginBottom: "15px", border: "1px solid #eee" }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                        <img src={post.author?.avatar_url || '/images/default-avatar.png'} style={{ width: 40, height: 40, borderRadius: '50%' }} />
-                        <div>
-                          <div style={{ fontWeight: 'bold', color: '#0b2e4a' }}>{post.author?.full_name}</div>
-                          <div style={{ fontSize: '12px', color: '#999' }}>{new Date(post.created_at).toLocaleDateString()}</div>
+            {/* --- TAB: FEED --- */}
+            {groupTab === 'feed' && (
+              myMemberships.includes(activeGroup.id) ? (
+                <>
+                  <CreatePost user={user} onPostCreated={() => loadGroupData(activeGroup.id)} fellowshipId={activeGroup.id} />
+                  
+                  {groupPosts.length === 0 ? <p style={{textAlign:'center', padding:20, color:'#666'}}>No posts yet. Be the first!</p> : 
+                    groupPosts.map(post => (
+                      <div key={post.id} style={{ background: "white", padding: "20px", borderRadius: "12px", marginBottom: "15px", border: "1px solid #eee" }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                            <img src={post.author?.avatar_url || '/images/default-avatar.png'} style={{ width: 40, height: 40, borderRadius: '50%' }} />
+                            <div>
+                              <div style={{ fontWeight: 'bold', color: '#0b2e4a' }}>{post.author?.full_name}</div>
+                              <div style={{ fontSize: '12px', color: '#999' }}>{new Date(post.created_at).toLocaleDateString()}</div>
+                            </div>
+                          </div>
+                          
+                          {/* MODERATION BUTTONS */}
+                          <div style={{ display:'flex', gap:'10px' }}>
+                            {/* Delete: Only if I am the Author OR I am an Admin */}
+                            {(user.id === post.user_id || myRole === 'admin') && (
+                              <button onClick={() => deletePost(post.id)} style={{ border:'none', background:'none', color:'red', cursor:'pointer', fontSize:'12px' }}>🗑️ Delete</button>
+                            )}
+                            {/* Report: Only if I am NOT the author */}
+                            {user.id !== post.user_id && (
+                              <button onClick={() => reportPost(post.id)} style={{ border:'none', background:'none', color:'#d4af37', cursor:'pointer', fontSize:'12px' }}>🚩 Report</button>
+                            )}
+                          </div>
                         </div>
+
+                        <p>{post.content}</p>
+                        {post.media_url && <img src={post.media_url} style={{ width: '100%', borderRadius: '8px', marginTop: '10px' }} />}
                       </div>
-                      <p>{post.content}</p>
-                      {post.media_url && <img src={post.media_url} style={{ width: '100%', borderRadius: '8px', marginTop: '10px' }} />}
+                    ))
+                  }
+                </>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '50px', background: 'white', borderRadius: '12px' }}>🔒 <h3>Join to see posts</h3></div>
+              )
+            )}
+
+            {/* --- TAB: MEMBERS (MANAGEMENT) --- */}
+            {groupTab === 'members' && (
+              <div style={{ background: 'white', borderRadius: '12px', padding: '20px' }}>
+                {groupMembers.map(m => (
+                  <div key={m.user_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #f0f0f0' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <img src={m.profiles?.avatar_url || '/images/default-avatar.png'} style={{ width: 40, height: 40, borderRadius: '50%' }} />
+                      <div>
+                        <div style={{ fontWeight: 'bold', color: '#333' }}>
+                          {m.profiles?.full_name} 
+                          {m.role === 'admin' && <span style={{ marginLeft: '5px', fontSize: '10px', background: '#d4af37', color: 'white', padding: '2px 5px', borderRadius: '4px' }}>ADMIN</span>}
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#999' }}>@{m.profiles?.username}</div>
+                      </div>
                     </div>
-                  ))
-                }
-              </>
-            ) : (
-              <div style={{ textAlign: 'center', padding: '50px', background: 'white', borderRadius: '12px' }}>
-                🔒 <h3>Join this Fellowship to see posts and interact.</h3>
+
+                    {/* ADMIN CONTROLS (Only visible if *I* am an Admin, and targeting someone else) */}
+                    {myRole === 'admin' && m.user_id !== user.id && (
+                      <div style={{ display: 'flex', gap: '5px' }}>
+                        {m.role !== 'admin' && (
+                          <button onClick={() => promoteMember(m.user_id)} style={{ fontSize:'12px', padding: '5px 10px', background: '#e0f2f1', color: '#00695c', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Promote</button>
+                        )}
+                        <button onClick={() => kickMember(m.user_id)} style={{ fontSize:'12px', padding: '5px 10px', background: '#ffebee', color: '#c62828', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Remove</button>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
+
           </div>
         )}
 

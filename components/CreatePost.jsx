@@ -36,15 +36,14 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
       }
 
       // 2. Insert Post
-      const { error } = await supabase.from('posts').insert({
-        user_id: user.id,
-        title: title,
-        content: content,
-        type: type,
-        media_url: mediaUrl,
-        media_type: mediaType,
-        fellowship_id: fellowshipId // <--- COMMA FIXED HERE
-      });
+const { error } = await supabase.from('posts').insert({
+    user_id: user.id,
+    content: content,
+    title: title,
+    media_url: finalMediaUrl,
+    type: finalType,
+    fellowship_id: fellowshipId // <--- ADD THIS LINE
+  });
 
       if (error) throw error;
 
