@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import EditProfileModal from "@/components/EditProfileModal"; // <--- IMPORT THIS
 
 export default function ProfilePage() {
   const { id } = useParams();
@@ -15,15 +14,14 @@ export default function ProfilePage() {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
-  const [isEditing, setIsEditing] = useState(false); // <--- NEW STATE
+  // New state for cover photo upload
+  const [coverUploading, setCoverUploading] = useState(false);
 
-  // 1. Fetch Data Wrapper so we can re-call it after editing
+  // 1. Fetch Data Wrapper
   async function loadProfileData() {
-    // Get Current User
     const { data: { user } } = await supabase.auth.getUser();
     setCurrentUser(user);
 
-    // Get Profile
     const { data: profileData, error } = await supabase
       .from('profiles')
       .select('*')
@@ -37,7 +35,6 @@ export default function ProfilePage() {
     }
     setProfile(profileData);
 
-    // Get Posts
     const { data: postData } = await supabase
       .from('posts')
       .select('*, amens(count)')
@@ -51,6 +48,48 @@ export default function ProfilePage() {
   useEffect(() => {
     loadProfileData();
   }, [id]);
+
+  // --- NEW: HANDLE COVER PHOTO UPLOAD ---
+  async function handleCoverUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setCoverUploading(true);
+    try {
+      // 1. Upload to 'covers' bucket
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${currentUser.id}-${Math.random()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('covers')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // 2. Get Public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('covers')
+        .getPublicUrl(filePath);
+
+      // 3. Update Profile in Database
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ cover_url: publicUrl })
+        .eq('id', currentUser.id);
+
+      if (updateError) throw updateError;
+
+      alert("Cover photo updated successfully!");
+      loadProfileData(); // Refresh the page data
+
+    } catch (error) {
+      console.error(error);
+      alert("Error uploading cover photo: " + error.message);
+    } finally {
+      setCoverUploading(false);
+    }
+  }
 
   // --- BADGE HELPER ---
   const getBadgeUI = () => {
@@ -74,18 +113,50 @@ export default function ProfilePage() {
 
   if (loading) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>Loading Profile...</div>;
 
+  const isOwner = currentUser && currentUser.id === profile.id;
+
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafd", paddingBottom: "40px" }}>
       
       {/* --- HEADER / COVER PHOTO --- */}
       <div style={{ 
-        height: "250px", // Made it slightly taller to look better
+        height: "400px", // UPDATED: Increased height
         background: profile.cover_url ? `url(${profile.cover_url}) center/cover` : "linear-gradient(135deg, #0b2e4a, #2e8b57)",
         position: "relative"
       }}>
+        {/* Back Button (Top Left) */}
         <Link href="/dashboard" style={{ position: "absolute", top: "20px", left: "20px", background: "rgba(0,0,0,0.5)", color: "white", padding: "8px 16px", borderRadius: "20px", textDecoration: "none", fontSize: "14px", zIndex: 10 }}>
           ⬅ Back to Dashboard
         </Link>
+
+        {/* UPDATED: Upload Cover Button (Top Right - Owner Only) */}
+        {isOwner && (
+          <label style={{ 
+            position: "absolute", 
+            top: "20px", 
+            right: "20px", 
+            background: "rgba(0,0,0,0.5)", 
+            color: "white", 
+            padding: "8px 16px", 
+            borderRadius: "20px", 
+            cursor: coverUploading ? "not-allowed" : "pointer", 
+            fontSize: "14px", 
+            zIndex: 10,
+            display: "flex",
+            alignItems: "center",
+            gap: "5px"
+          }}>
+            <span style={{fontSize: '16px'}}>📷</span> 
+            {coverUploading ? "Uploading..." : "Update Cover"}
+            <input 
+              type="file" 
+              accept="image/*" 
+              onChange={handleCoverUpload} 
+              disabled={coverUploading}
+              style={{ display: "none" }} // Hide the actual file input
+            />
+          </label>
+        )}
       </div>
 
       {/* --- PROFILE INFO --- */}
@@ -110,23 +181,14 @@ export default function ProfilePage() {
             <div><div style={{ fontWeight: "800", fontSize: "1.2rem", color: "#0b2e4a" }}>0</div><div style={{ fontSize: "12px", color: "#888" }}>Connections</div></div>
           </div>
 
-          {currentUser && currentUser.id !== profile.id && (
+          {!isOwner && (
             <div style={{ display: "flex", justifyContent: "center", gap: "10px" }}>
               <button style={{ padding: "10px 20px", background: "#2e8b57", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}>Connect</button>
               <Link href={`/chat?uid=${profile.id}`} style={{ padding: "10px 20px", background: "#f0f0f0", color: "#333", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", textDecoration: "none" }}>Message</Link>
             </div>
           )}
            
-          {/* UPDATED: Edit Button now triggers the Modal */}
-          {currentUser && currentUser.id === profile.id && (
-             <button 
-               onClick={() => setIsEditing(true)}
-               style={{ padding: "10px 20px", background: "#f0f0f0", color: "#333", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}
-             >
-               Edit Profile
-             </button>
-          )}
-
+          {/* UPDATED: Removed the "Edit Profile" button */}
         </div>
       </div>
 
@@ -157,16 +219,6 @@ export default function ProfilePage() {
           ))}
         </div>
       </div>
-
-      {/* --- RENDER MODAL --- */}
-      {isEditing && (
-        <EditProfileModal 
-          user={profile} 
-          onClose={() => setIsEditing(false)} 
-          onUpdate={loadProfileData} // This makes the page refresh data after save
-        />
-      )}
-
     </div>
   );
 }
