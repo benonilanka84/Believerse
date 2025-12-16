@@ -85,25 +85,23 @@ export default function Dashboard() {
     loadUpcomingEvents();
   }
 
-// --- NEW: DYNAMIC LOCAL IMAGE BANK (30 IMAGES) ---
-  // This automatically creates a list from "/verses/1.jpg" to "/verses/30.jpg"
+// --- DYNAMIC LOCAL IMAGE BANK ---
+  // Ensure your files are named 1.jpg, 2.jpg ... 30.jpg inside public/verses/
   const backgroundBank = Array.from({ length: 30 }, (_, i) => `/verses/${i + 1}.jpg`);
 
   async function generateDailyVisualVerse() {
-    // 1. Get Today's Date
     const today = new Date().toISOString().split('T')[0];
-    const dayOfMonth = new Date().getDate(); // Returns 1 to 31
+    const dayOfMonth = new Date().getDate(); 
 
-    // 2. Fetch from Supabase
+    // Fetch Text
     const { data, error } = await supabase
       .from('daily_verses')
       .select('*')
       .eq('verse_date', today)
       .single();
 
-    // 3. Select Background based on Day of Month
-    // (Day 1 -> 1.jpg, Day 30 -> 30.jpg, Day 31 -> 1.jpg)
-    // We subtract 1 because Arrays start at 0
+    // Select Background (Day 1 = 1.jpg)
+    // We use (dayOfMonth - 1) because array starts at 0, but files start at 1
     const bgIndex = (dayOfMonth - 1) % backgroundBank.length;
     const selectedBg = backgroundBank[bgIndex];
 
@@ -114,18 +112,17 @@ export default function Dashboard() {
         bg: selectedBg
       });
     } else {
-      // 4. Fallback Logic
+      // Fallback
       const verses = [
-        { text: "I am the good shepherd. The good shepherd lays down his life for the sheep.", ref: "John 10:11" },
-        { text: "The Lord is my light and my salvation; whom shall I fear?", ref: "Psalm 27:1" },
+        { text: "I am the good shepherd.", ref: "John 10:11" },
+        { text: "The Lord is my light.", ref: "Psalm 27:1" },
         { text: "He leads me beside still waters.", ref: "Psalm 23:2" }
       ];
-      // Rotate fallback text based on date too
       const fallbackIndex = dayOfMonth % verses.length;
       
       setVerseData({
         ...verses[fallbackIndex],
-        bg: selectedBg // Still use the correct daily image
+        bg: selectedBg
       });
     }
   }
@@ -338,20 +335,43 @@ export default function Dashboard() {
       <div className="dashboard-grid">
         <div className="left-panel">
           
-          {/* VERSE (Now using new logic) */}
+{/* VERSE WIDGET */}
           {verseData && (
             <div className="panel-card" style={{padding:0, overflow:'hidden', position:'relative', borderRadius:'12px', border:'none', background:'#000'}}>
               <div style={{padding:'10px 15px', background:'#0b2e4a', color:'white', fontWeight:'bold'}}>Daily Bible Verse</div>
-              <div style={{ backgroundImage: `url(${verseData.bg})`, backgroundSize: 'cover', height: '200px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '20px', textAlign: 'center', color: 'white', position: 'relative' }}>
-                <div style={{position:'absolute', inset:0, background:'rgba(0,0,0,0.5)'}} />
+              
+              {/* UPDATED: Height increased to 350px for vertical look */}
+              <div style={{ 
+                backgroundImage: `url('${verseData.bg}')`, 
+                backgroundSize: 'cover', 
+                backgroundPosition: 'center',
+                height: '350px',  /* <--- CHANGED FROM 200px TO 350px */
+                display: 'flex', 
+                flexDirection: 'column', 
+                justifyContent: 'center', 
+                alignItems: 'center', 
+                padding: '30px', /* Increased padding for better text spacing */
+                textAlign: 'center', 
+                color: 'white', 
+                position: 'relative' 
+              }}>
+                {/* Dark Overlay for Readability */}
+                <div style={{position:'absolute', inset:0, background:'rgba(0,0,0,0.4)'}} />
+                
+                {/* Text Content */}
                 <div style={{position:'relative', zIndex:2, textShadow: '0 2px 8px black'}}>
-                  <p style={{fontSize:'16px', fontWeight:'bold', fontFamily:'Georgia'}}>"{verseData.text}"</p>
-                  <p style={{marginTop:'10px', fontSize:'13px'}}>{verseData.ref}</p>
+                  <p style={{fontSize:'22px', fontWeight:'bold', fontFamily:'Georgia', lineHeight:'1.5'}}>
+                    "{verseData.text}"
+                  </p>
+                  <p style={{marginTop:'15px', fontSize:'16px', color:'#eee'}}>
+                    {verseData.ref}
+                  </p>
                 </div>
               </div>
+
               <div style={{display:'flex', borderTop:'1px solid #333', background:'white'}}>
-                <button onClick={handleVerseAmen} style={{flex:1, padding:'10px', border:'none', background:'transparent', cursor:'pointer', borderRight:'1px solid #eee', color: hasAmenedVerse ? '#2e8b57' : '#555', fontWeight:'bold'}}>🙏 Amen ({verseAmenCount})</button>
-                <button onClick={() => handleShare(verseData.text)} style={{flex:1, padding:'10px', border:'none', background:'transparent', cursor:'pointer', color:'#0b2e4a', fontWeight:'bold'}}>📢 Spread</button>
+                <button onClick={handleVerseAmen} style={{flex:1, padding:'12px', border:'none', background:'transparent', cursor:'pointer', borderRight:'1px solid #eee', color: hasAmenedVerse ? '#2e8b57' : '#555', fontWeight:'bold', fontSize:'14px'}}>🙏 Amen ({verseAmenCount})</button>
+                <button onClick={() => handleShare(verseData.text)} style={{flex:1, padding:'12px', border:'none', background:'transparent', cursor:'pointer', color:'#0b2e4a', fontWeight:'bold', fontSize:'14px'}}>📢 Spread</button>
               </div>
             </div>
           )}
