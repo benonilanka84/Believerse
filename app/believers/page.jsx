@@ -3,132 +3,133 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 export default function BelieversPage() {
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
 
-  // 1. Get Current User on Mount
   useEffect(() => {
-    async function getUser() {
-      const { data: { user } } = await supabase.auth.getUser();
-      setCurrentUser(user);
-      fetchBelievers("", user?.id); // Load initial list
-    }
-    getUser();
+    fetchUsers();
   }, []);
 
-  // 2. The Search Logic
-  async function fetchBelievers(searchQuery, currentUserId) {
+  async function fetchUsers() {
     setLoading(true);
     
-    let dbQuery = supabase
+    // 1. Get Current User ID
+    const { data: { user } } = await supabase.auth.getUser();
+    setCurrentUser(user);
+
+    // 2. Fetch Profiles (Default: Latest 50 members)
+    let query = supabase
       .from('profiles')
-      .select('*');
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(50);
 
-    // FIX #1: Exclude System Admin & Current User
-    // Assuming admin username is 'admin' or 'system'. Adjust if your admin email is specific.
-    if (currentUserId) {
-      dbQuery = dbQuery.neq('id', currentUserId);
+    // 3. Exclude System Admin & Current User (Safety Filters)
+    if (user) {
+      query = query.neq('id', user.id);
     }
-    dbQuery = dbQuery.neq('username', 'admin'); 
-    dbQuery = dbQuery.neq('full_name', 'System Admin'); 
+    query = query.neq('username', 'admin');
+    // Add any other specific exclusions here if needed
 
-    // FIX #2: Search Both Name AND Username (Case Insensitive)
-    if (searchQuery.trim().length > 0) {
-      // Syntax: column.operator.value
-      // We use 'or' to check if EITHER full_name OR username matches
-      dbQuery = dbQuery.or(`full_name.ilike.%${searchQuery}%,username.ilike.%${searchQuery}%`);
-    } else {
-      // If search is empty, limit to 20 recent users so we don't load the whole database
-      dbQuery = dbQuery.limit(20).order('created_at', { ascending: false });
-    }
-
-    const { data, error } = await dbQuery;
-    
-    if (error) {
-      console.error("Search Error:", error);
-    } else {
-      setResults(data || []);
-    }
+    const { data, error } = await query;
+    if (error) console.error("Error fetching believers:", error);
+    else setUsers(data || []);
     
     setLoading(false);
   }
 
-  // 3. Handle Typing (Debounced slightly for performance)
-  const handleSearch = (e) => {
-    const val = e.target.value;
-    setQuery(val);
-    fetchBelievers(val, currentUser?.id);
-  };
+  // --- FILTER LOGIC (Client Side for speed) ---
+  const filteredUsers = users.filter(u => {
+    const term = search.toLowerCase();
+    const nameMatch = u.full_name?.toLowerCase().includes(term);
+    const usernameMatch = u.username?.toLowerCase().includes(term);
+    return nameMatch || usernameMatch;
+  });
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafd", padding: "20px" }}>
       
-      {/* HEADER */}
-      <div style={{ maxWidth: "600px", margin: "0 auto 30px auto" }}>
-        <Link href="/dashboard" style={{ textDecoration: "none", color: "#666", fontSize: "14px", display: "flex", alignItems: "center", gap: "5px", marginBottom: "20px" }}>
+      {/* HEADER SECTION */}
+      <div style={{ maxWidth: "800px", margin: "0 auto 30px auto" }}>
+        <Link href="/dashboard" style={{ textDecoration: "none", color: "#666", display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '15px', fontSize: '14px' }}>
           ⬅ Back to Dashboard
         </Link>
-        <h1 style={{ color: "#0b2e4a", fontSize: "1.8rem", marginBottom: "10px" }}>Seek Believers</h1>
-        <p style={{ color: "#666", fontSize: "0.9rem" }}>Find friends, mentors, and prayer partners.</p>
         
-        {/* SEARCH BAR */}
-        <input 
-          type="text" 
-          placeholder="Search by name or username..." 
-          value={query}
-          onChange={handleSearch}
-          style={{ 
-            width: "100%", padding: "15px", borderRadius: "12px", border: "1px solid #ddd", 
-            fontSize: "16px", boxShadow: "0 4px 10px rgba(0,0,0,0.05)", outline: "none"
-          }}
-        />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
+          <div>
+            <h1 style={{ color: "#0b2e4a", fontSize: "2rem", margin: "0 0 5px 0" }}>Believers</h1>
+            <p style={{ color: "#666", margin: 0 }}>Discover the growing family of Christ.</p>
+          </div>
+          
+          {/* SEARCH BAR */}
+          <input 
+            type="text" 
+            placeholder="🔍 Find a friend..." 
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ 
+              padding: "12px 20px", borderRadius: "30px", border: "1px solid #ddd", 
+              width: "250px", outline: "none", boxShadow: "0 2px 10px rgba(0,0,0,0.05)"
+            }}
+          />
+        </div>
       </div>
 
-      {/* RESULTS GRID */}
-      <div style={{ maxWidth: "600px", margin: "0 auto", display: "grid", gap: "15px" }}>
+      {/* BELIEVERS GRID */}
+      <div style={{ 
+        maxWidth: "800px", margin: "0 auto", 
+        display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: "20px" 
+      }}>
+        
         {loading ? (
-          <div style={{ textAlign: "center", color: "#999", padding: "20px" }}>Searching...</div>
-        ) : results.length === 0 ? (
-          <div style={{ textAlign: "center", color: "#999", padding: "20px" }}>No believers found.</div>
+          <div style={{ gridColumn: "1/-1", textAlign: "center", color: "#999", padding: "40px" }}>Loading community...</div>
+        ) : filteredUsers.length === 0 ? (
+          <div style={{ gridColumn: "1/-1", textAlign: "center", color: "#999", padding: "40px" }}>
+            No believers found matching "{search}".
+          </div>
         ) : (
-          results.map(user => (
-            <Link key={user.id} href={`/profile/${user.id}`} style={{ textDecoration: "none" }}>
+          filteredUsers.map(profile => (
+            <Link key={profile.id} href={`/profile/${profile.id}`} style={{ textDecoration: "none" }}>
               <div style={{ 
-                background: "white", padding: "15px", borderRadius: "12px", border: "1px solid #eee", 
-                display: "flex", alignItems: "center", gap: "15px", transition: "transform 0.2s",
-                cursor: "pointer"
-              }}>
+                background: "white", borderRadius: "16px", padding: "20px", 
+                textAlign: "center", border: "1px solid #eee", transition: "transform 0.2s, box-shadow 0.2s",
+                cursor: "pointer", boxShadow: "0 4px 10px rgba(0,0,0,0.02)"
+              }}
+              onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = "0 8px 20px rgba(0,0,0,0.08)"; }}
+              onMouseOut={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 4px 10px rgba(0,0,0,0.02)"; }}
+              >
+                {/* Avatar */}
                 <img 
-                  src={user.avatar_url || '/images/default-avatar.png'} 
-                  style={{ width: "50px", height: "50px", borderRadius: "50%", objectFit: "cover" }} 
+                  src={profile.avatar_url || '/images/default-avatar.png'} 
+                  style={{ width: "80px", height: "80px", borderRadius: "50%", objectFit: "cover", marginBottom: "10px", border: "3px solid #f8fafd" }} 
                 />
                 
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: "bold", color: "#0b2e4a", display: "flex", alignItems: "center", gap: "5px" }}>
-                    {user.full_name}
-                    {/* Badge Logic Inline */}
-                    {user.subscription_plan?.toLowerCase().includes('platinum') && (
-                      <span style={{ fontSize: "10px", background: "#29b6f6", color: "white", padding: "2px 6px", borderRadius: "10px" }}>💎</span>
-                    )}
-                    {user.subscription_plan?.toLowerCase().includes('gold') && (
-                      <span style={{ fontSize: "10px", background: "#d4af37", color: "white", padding: "2px 6px", borderRadius: "10px" }}>🥇</span>
-                    )}
-                  </div>
-                  <div style={{ fontSize: "13px", color: "#888" }}>@{user.username || "believer"}</div>
-                </div>
-
-                <div style={{ color: "#2e8b57", fontSize: "20px" }}>➔</div>
+                {/* Name & Badge */}
+                <h3 style={{ margin: "0 0 5px 0", color: "#0b2e4a", fontSize: "1.1rem", display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
+                  {profile.full_name}
+                  {profile.subscription_plan?.toLowerCase().includes('platinum') && <span title="Platinum Partner" style={{fontSize:'14px'}}>💎</span>}
+                  {profile.subscription_plan?.toLowerCase().includes('gold') && <span title="Gold Supporter" style={{fontSize:'14px'}}>🥇</span>}
+                </h3>
+                
+                {/* Username */}
+                <p style={{ color: "#999", fontSize: "0.9rem", margin: "0 0 15px 0" }}>@{profile.username || "believer"}</p>
+                
+                {/* Connect Button (Visual Only) */}
+                <button style={{ 
+                  width: "100%", padding: "8px", borderRadius: "8px", border: "1px solid #eee", 
+                  background: "transparent", color: "#0b2e4a", fontSize: "0.85rem", fontWeight: "bold", cursor: "pointer" 
+                }}>
+                  View Profile
+                </button>
               </div>
             </Link>
           ))
         )}
       </div>
-
     </div>
   );
 }
