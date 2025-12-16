@@ -3,243 +3,132 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function BelieversPage() {
-  const [mounted, setMounted] = useState(false);
-  const [user, setUser] = useState(null);
-  const [activeTab, setActiveTab] = useState("my_believers"); // 'my_believers', 'seek', 'requests'
-  
-  // Data
-  const [myBelievers, setMyBelievers] = useState([]);
-  const [seekResults, setSeekResults] = useState([]);
-  const [requests, setRequests] = useState([]);
-  
-  // Status Map (To fix the "Already Connected" issue)
-  // Format: { 'userId': 'connected' | 'pending' | 'none' }
-  const [connectionStatus, setConnectionStatus] = useState({});
-
-  const [searchQuery, setSearchQuery] = useState("");
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
 
+  // 1. Get Current User on Mount
   useEffect(() => {
-    setMounted(true);
-    checkUser();
+    async function getUser() {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUser(user);
+      fetchBelievers("", user?.id); // Load initial list
+    }
+    getUser();
   }, []);
 
-  async function checkUser() {
-    const { data } = await supabase.auth.getUser();
-    if (data?.user) {
-      setUser(data.user);
-      loadMyBelievers(data.user.id);
-      loadRequests(data.user.id);
-      loadSeek(data.user.id); // Initial load of suggestions
-    }
-  }
-
-  // --- 1. LOAD MY BELIEVERS (Connected Friends) ---
-  async function loadMyBelievers(userId) {
-    const { data: conns } = await supabase
-      .from('connections')
-      .select('*')
-      .or(`user_a.eq.${userId},user_b.eq.${userId}`)
-      .eq('status', 'connected');
-
-    if (!conns) return;
-
-    const friendIds = conns.map(c => c.user_a === userId ? c.user_b : c.user_a);
-    if (friendIds.length > 0) {
-      const { data: friends } = await supabase.from('profiles').select('*').in('id', friendIds);
-      setMyBelievers(friends || []);
-    } else {
-      setMyBelievers([]);
-    }
-  }
-
-  // --- 2. LOAD SEEK (Directory with Status Check) ---
-  async function loadSeek(userId, queryTerm = "") {
+  // 2. The Search Logic
+  async function fetchBelievers(searchQuery, currentUserId) {
     setLoading(true);
     
-    // A. Fetch All Connections first (to determine status)
-    const { data: myConns } = await supabase
-      .from('connections')
-      .select('*')
-      .or(`user_a.eq.${userId},user_b.eq.${userId}`);
-    
-    // Create a Status Map for quick lookup
-    const statusMap = {};
-    if (myConns) {
-      myConns.forEach(c => {
-        const otherId = c.user_a === userId ? c.user_b : c.user_a;
-        statusMap[otherId] = c.status; // 'connected' or 'pending'
-      });
-    }
-    setConnectionStatus(statusMap);
-
-    // B. Build Profile Query
-    let query = supabase
+    let dbQuery = supabase
       .from('profiles')
-      .select('*')
-      .neq('id', userId)
-      .limit(50);
+      .select('*');
 
-    if (queryTerm) {
-      // Search Name, Username, Email, Church
-      query = query.or(`full_name.ilike.%${queryTerm}%,username.ilike.%${queryTerm}%,email.ilike.%${queryTerm}%,church.ilike.%${queryTerm}%`);
+    // FIX #1: Exclude System Admin & Current User
+    // Assuming admin username is 'admin' or 'system'. Adjust if your admin email is specific.
+    if (currentUserId) {
+      dbQuery = dbQuery.neq('id', currentUserId);
+    }
+    dbQuery = dbQuery.neq('username', 'admin'); 
+    dbQuery = dbQuery.neq('full_name', 'System Admin'); 
+
+    // FIX #2: Search Both Name AND Username (Case Insensitive)
+    if (searchQuery.trim().length > 0) {
+      // Syntax: column.operator.value
+      // We use 'or' to check if EITHER full_name OR username matches
+      dbQuery = dbQuery.or(`full_name.ilike.%${searchQuery}%,username.ilike.%${searchQuery}%`);
+    } else {
+      // If search is empty, limit to 20 recent users so we don't load the whole database
+      dbQuery = dbQuery.limit(20).order('created_at', { ascending: false });
     }
 
-    const { data: profiles } = await query;
-    setSeekResults(profiles || []);
+    const { data, error } = await dbQuery;
+    
+    if (error) {
+      console.error("Search Error:", error);
+    } else {
+      setResults(data || []);
+    }
+    
     setLoading(false);
   }
 
-  // --- 3. LOAD REQUESTS ---
-  async function loadRequests(userId) {
-    const { data: reqs } = await supabase
-      .from('connections')
-      .select('*, profiles:user_a(*)') // Fetch sender details
-      .eq('user_b', userId)
-      .eq('status', 'pending');
-    
-    if (reqs) setRequests(reqs);
-  }
-
-  // --- ACTIONS ---
-
-  async function handleSearch() {
-    if (!user) return;
-    loadSeek(user.id, searchQuery);
-  }
-
-  async function handleConnect(targetUserId) {
-    if (!user) return;
-    
-    // Optimistic Update
-    setConnectionStatus(prev => ({ ...prev, [targetUserId]: 'pending' }));
-
-    const { error } = await supabase.from('connections').insert({
-      user_a: user.id,
-      user_b: targetUserId,
-      status: 'pending' 
-    });
-    
-    if (error) {
-      alert("Error: " + error.message);
-      // Revert on error
-      setConnectionStatus(prev => ({ ...prev, [targetUserId]: 'none' }));
-    }
-  }
-
-  async function handleAccept(connectionId) {
-    const { error } = await supabase
-      .from('connections')
-      .update({ status: 'connected' })
-      .eq('id', connectionId);
-
-    if (!error) {
-      alert("✅ Connected!");
-      loadRequests(user.id); // Remove from requests
-      loadMyBelievers(user.id); // Add to friends
-    }
-  }
-
-  if (!mounted) return null;
+  // 3. Handle Typing (Debounced slightly for performance)
+  const handleSearch = (e) => {
+    const val = e.target.value;
+    setQuery(val);
+    fetchBelievers(val, currentUser?.id);
+  };
 
   return (
-    <div style={{ padding: "20px", maxWidth: "1000px", margin: "0 auto" }}>
-      <div style={{ background: "linear-gradient(135deg, #2e8b57 0%, #1d5d3a 100%)", padding: "30px", borderRadius: "16px", color: "white", marginBottom: "30px" }}>
-        <h1 style={{ margin: 0 }}>🤝 Believers</h1>
-        <p style={{ opacity: 0.9 }}>Connect with the family of God</p>
+    <div style={{ minHeight: "100vh", background: "#f8fafd", padding: "20px" }}>
+      
+      {/* HEADER */}
+      <div style={{ maxWidth: "600px", margin: "0 auto 30px auto" }}>
+        <Link href="/dashboard" style={{ textDecoration: "none", color: "#666", fontSize: "14px", display: "flex", alignItems: "center", gap: "5px", marginBottom: "20px" }}>
+          ⬅ Back to Dashboard
+        </Link>
+        <h1 style={{ color: "#0b2e4a", fontSize: "1.8rem", marginBottom: "10px" }}>Seek Believers</h1>
+        <p style={{ color: "#666", fontSize: "0.9rem" }}>Find friends, mentors, and prayer partners.</p>
+        
+        {/* SEARCH BAR */}
+        <input 
+          type="text" 
+          placeholder="Search by name or username..." 
+          value={query}
+          onChange={handleSearch}
+          style={{ 
+            width: "100%", padding: "15px", borderRadius: "12px", border: "1px solid #ddd", 
+            fontSize: "16px", boxShadow: "0 4px 10px rgba(0,0,0,0.05)", outline: "none"
+          }}
+        />
       </div>
 
-      {/* 3 TABS */}
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '30px' }}>
-        <button onClick={() => setActiveTab("my_believers")} style={{ flex: 1, padding: "12px", borderRadius: "8px", border: "none", background: activeTab === "my_believers" ? "#0b2e4a" : "white", color: activeTab === "my_believers" ? "white" : "#333", fontWeight: "bold", cursor:'pointer' }}>
-          👥 My Believers ({myBelievers.length})
-        </button>
-        <button onClick={() => setActiveTab("seek")} style={{ flex: 1, padding: "12px", borderRadius: "8px", border: "none", background: activeTab === "seek" ? "#0b2e4a" : "white", color: activeTab === "seek" ? "white" : "#333", fontWeight: "bold", cursor:'pointer' }}>
-          🔍 Seek
-        </button>
-        <button onClick={() => setActiveTab("requests")} style={{ flex: 1, padding: "12px", borderRadius: "8px", border: "none", background: activeTab === "requests" ? "#0b2e4a" : "white", color: activeTab === "requests" ? "white" : "#333", fontWeight: "bold", cursor:'pointer' }}>
-          📩 Requests ({requests.length})
-        </button>
-      </div>
-
-      {/* TAB CONTENT: MY BELIEVERS */}
-      {activeTab === "my_believers" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "20px" }}>
-          {myBelievers.length === 0 ? <p style={{gridColumn:'1/-1', textAlign:'center', color:'#666'}}>You haven't connected with anyone yet.</p> : 
-            myBelievers.map(b => (
-              <div key={b.id} style={{ background: "white", padding: "20px", borderRadius: "12px", textAlign: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
-                <img src={b.avatar_url || "/images/default-avatar.png"} style={{ width: 80, height: 80, borderRadius: "50%", objectFit: "cover", margin: "0 auto 10px auto" }} />
-                <h3 style={{ fontSize: "16px", margin: "0 0 5px 0", color: "#0b2e4a" }}>{b.full_name}</h3>
-                <Link href={`/chat?uid=${b.id}`} style={{ display:'block', padding:'8px', background:'#f0f0f0', borderRadius:'6px', textDecoration:'none', color:'#333', fontSize:'13px', fontWeight:'bold' }}>💬 Message</Link>
-              </div>
-            ))
-          }
-        </div>
-      )}
-
-      {/* TAB CONTENT: SEEK */}
-      {activeTab === "seek" && (
-        <>
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '30px' }}>
-            <input 
-              type="text" 
-              placeholder="Search by Name, Username, Email, or Church Name..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              style={{ flex: 1, padding: "15px", borderRadius: "12px", border: "1px solid #ddd", fontSize: "16px" }}
-            />
-            <button onClick={handleSearch} style={{ padding: "0 25px", background: "#0b2e4a", color: "white", borderRadius: "12px", border: "none", cursor: "pointer", fontWeight: "bold" }}>Search</button>
-          </div>
-
-          {loading ? <p>Loading...</p> : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "20px" }}>
-              {seekResults.map(b => {
-                const status = connectionStatus[b.id]; // 'connected', 'pending', or undefined
-                return (
-                  <div key={b.id} style={{ background: "white", padding: "20px", borderRadius: "12px", textAlign: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
-                    <img src={b.avatar_url || "/images/default-avatar.png"} style={{ width: 80, height: 80, borderRadius: "50%", objectFit: "cover", margin: "0 auto 10px auto" }} />
-                    <h3 style={{ fontSize: "16px", margin: "0 0 5px 0", color: "#0b2e4a" }}>{b.full_name}</h3>
-                    <p style={{fontSize:'12px', color:'#666', marginBottom:'10px'}}>{b.church || "Believer"}</p>
-                    
-                    {/* BUTTON LOGIC */}
-                    {status === 'connected' ? (
-                      <button disabled style={{ width:'100%', padding: "8px", background: "#e8f5e9", color: "#2e8b57", border: "none", borderRadius: "6px", fontWeight: "bold", cursor:'default' }}>✅ Connected</button>
-                    ) : status === 'pending' ? (
-                      <button disabled style={{ width:'100%', padding: "8px", background: "#fff9c4", color: "#fbc02d", border: "none", borderRadius: "6px", fontWeight: "bold", cursor:'default' }}>🕒 Pending</button>
-                    ) : (
-                      <button onClick={() => handleConnect(b.id)} style={{ width:'100%', padding: "8px", background: "#2e8b57", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }}>➕ Connect</button>
+      {/* RESULTS GRID */}
+      <div style={{ maxWidth: "600px", margin: "0 auto", display: "grid", gap: "15px" }}>
+        {loading ? (
+          <div style={{ textAlign: "center", color: "#999", padding: "20px" }}>Searching...</div>
+        ) : results.length === 0 ? (
+          <div style={{ textAlign: "center", color: "#999", padding: "20px" }}>No believers found.</div>
+        ) : (
+          results.map(user => (
+            <Link key={user.id} href={`/profile/${user.id}`} style={{ textDecoration: "none" }}>
+              <div style={{ 
+                background: "white", padding: "15px", borderRadius: "12px", border: "1px solid #eee", 
+                display: "flex", alignItems: "center", gap: "15px", transition: "transform 0.2s",
+                cursor: "pointer"
+              }}>
+                <img 
+                  src={user.avatar_url || '/images/default-avatar.png'} 
+                  style={{ width: "50px", height: "50px", borderRadius: "50%", objectFit: "cover" }} 
+                />
+                
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: "bold", color: "#0b2e4a", display: "flex", alignItems: "center", gap: "5px" }}>
+                    {user.full_name}
+                    {/* Badge Logic Inline */}
+                    {user.subscription_plan?.toLowerCase().includes('platinum') && (
+                      <span style={{ fontSize: "10px", background: "#29b6f6", color: "white", padding: "2px 6px", borderRadius: "10px" }}>💎</span>
+                    )}
+                    {user.subscription_plan?.toLowerCase().includes('gold') && (
+                      <span style={{ fontSize: "10px", background: "#d4af37", color: "white", padding: "2px 6px", borderRadius: "10px" }}>🥇</span>
                     )}
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </>
-      )}
-
-      {/* TAB CONTENT: REQUESTS */}
-      {activeTab === "requests" && (
-        <div>
-          {requests.length === 0 ? <p style={{textAlign:'center', color:'#666'}}>No pending requests.</p> : (
-            <div style={{ display: "grid", gap: "15px" }}>
-              {requests.map(req => (
-                <div key={req.id} style={{ background: "white", padding: "15px", borderRadius: "12px", display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                  <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
-                    <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#2e8b57", display:'flex', alignItems:'center', justifyContent:'center', color:'white', fontWeight:'bold' }}>
-                      {req.profiles?.full_name?.[0]}
-                    </div>
-                    <span style={{fontWeight:'bold'}}>{req.profiles?.full_name}</span>
-                  </div>
-                  <button onClick={() => handleAccept(req.id)} style={{ padding: "8px 16px", background: "#2e8b57", color: "white", border: "none", borderRadius: "6px", cursor: "pointer" }}>✅ Accept</button>
+                  <div style={{ fontSize: "13px", color: "#888" }}>@{user.username || "believer"}</div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+
+                <div style={{ color: "#2e8b57", fontSize: "20px" }}>➔</div>
+              </div>
+            </Link>
+          ))
+        )}
+      </div>
+
     </div>
   );
 }

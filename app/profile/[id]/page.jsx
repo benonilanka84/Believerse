@@ -4,94 +4,72 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import EditProfileModal from "@/components/EditProfileModal"; // <--- IMPORT THIS
 
 export default function ProfilePage() {
-  const { id } = useParams(); // Get the User ID from the URL
+  const { id } = useParams();
   const router = useRouter();
   
   const [profile, setProfile] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("all"); // 'all', 'glimpses', 'prayers'
+  const [activeTab, setActiveTab] = useState("all");
+  const [isEditing, setIsEditing] = useState(false); // <--- NEW STATE
 
-  useEffect(() => {
-    async function getData() {
-      // 1. Get Current Logged In User
-      const { data: { user } } = await supabase.auth.getUser();
-      setCurrentUser(user);
+  // 1. Fetch Data Wrapper so we can re-call it after editing
+  async function loadProfileData() {
+    // Get Current User
+    const { data: { user } } = await supabase.auth.getUser();
+    setCurrentUser(user);
 
-      // 2. Fetch Profile Data (The user we are viewing)
-      const { data: profileData, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', id)
-        .single();
+    // Get Profile
+    const { data: profileData, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', id)
+      .single();
 
-      if (error || !profileData) {
-        alert("User not found");
-        router.push("/dashboard");
-        return;
-      }
-      setProfile(profileData);
-
-      // 3. Fetch User's Content
-      fetchPosts(id);
+    if (error || !profileData) {
+      alert("User not found");
+      router.push("/dashboard");
+      return;
     }
-    getData();
-  }, [id]);
+    setProfile(profileData);
 
-  async function fetchPosts(userId) {
-    const { data } = await supabase
+    // Get Posts
+    const { data: postData } = await supabase
       .from('posts')
       .select('*, amens(count)')
-      .eq('user_id', userId)
+      .eq('user_id', id)
       .order('created_at', { ascending: false });
     
-    if (data) setPosts(data);
+    if (postData) setPosts(postData);
     setLoading(false);
   }
 
-  // --- FIXED: BADGE UI HELPER (Using subscription_plan) ---
+  useEffect(() => {
+    loadProfileData();
+  }, [id]);
+
+  // --- BADGE HELPER ---
   const getBadgeUI = () => {
-    // Check against the correct column name: subscription_plan
     if (!profile || !profile.subscription_plan) return null;
-    
-    // Normalize string (remove spaces, lowercase)
     const plan = profile.subscription_plan.trim().toLowerCase();
     
     if (plan.includes('platinum')) {
-      return (
-        <span style={{ 
-          background: "linear-gradient(45deg, #29b6f6, #0288d1)", 
-          color: "white", padding: "4px 10px", borderRadius: "12px", 
-          fontSize: "12px", fontWeight: "bold", display: "inline-flex", 
-          alignItems: "center", gap: "4px", marginLeft: "8px", boxShadow: "0 2px 5px rgba(41, 182, 246, 0.4)"
-        }}>
-          💎 Platinum Partner
-        </span>
-      );
+      return <span style={{ background: "linear-gradient(45deg, #29b6f6, #0288d1)", color: "white", padding: "4px 10px", borderRadius: "12px", fontSize: "12px", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "4px", marginLeft: "8px" }}>💎 Platinum Partner</span>;
     }
     if (plan.includes('gold')) {
-      return (
-        <span style={{ 
-          background: "linear-gradient(45deg, #d4af37, #f9d976)", 
-          color: "#0b2e4a", padding: "4px 10px", borderRadius: "12px", 
-          fontSize: "12px", fontWeight: "bold", display: "inline-flex", 
-          alignItems: "center", gap: "4px", marginLeft: "8px", boxShadow: "0 2px 5px rgba(212, 175, 55, 0.4)"
-        }}>
-          🥇 Gold Supporter
-        </span>
-      );
+      return <span style={{ background: "linear-gradient(45deg, #d4af37, #f9d976)", color: "#0b2e4a", padding: "4px 10px", borderRadius: "12px", fontSize: "12px", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "4px", marginLeft: "8px" }}>🥇 Gold Supporter</span>;
     }
     return null;
   };
 
-  // Filter content based on tabs
   const filteredPosts = posts.filter(p => {
     if (activeTab === 'glimpses') return p.type === 'Glimpse';
     if (activeTab === 'prayers') return p.type === 'Prayer';
-    return p.type !== 'Glimpse'; // 'all' excludes glimpses from main feed usually
+    return p.type !== 'Glimpse';
   });
 
   if (loading) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>Loading Profile...</div>;
@@ -101,11 +79,11 @@ export default function ProfilePage() {
       
       {/* --- HEADER / COVER PHOTO --- */}
       <div style={{ 
-        height: "200px", 
+        height: "250px", // Made it slightly taller to look better
         background: profile.cover_url ? `url(${profile.cover_url}) center/cover` : "linear-gradient(135deg, #0b2e4a, #2e8b57)",
         position: "relative"
       }}>
-        <Link href="/dashboard" style={{ position: "absolute", top: "20px", left: "20px", background: "rgba(0,0,0,0.5)", color: "white", padding: "8px 16px", borderRadius: "20px", textDecoration: "none", fontSize: "14px" }}>
+        <Link href="/dashboard" style={{ position: "absolute", top: "20px", left: "20px", background: "rgba(0,0,0,0.5)", color: "white", padding: "8px 16px", borderRadius: "20px", textDecoration: "none", fontSize: "14px", zIndex: 10 }}>
           ⬅ Back to Dashboard
         </Link>
       </div>
@@ -114,41 +92,24 @@ export default function ProfilePage() {
       <div style={{ maxWidth: "800px", margin: "0 auto", padding: "0 20px", position: "relative", marginTop: "-60px" }}>
         <div style={{ background: "white", borderRadius: "16px", padding: "20px", boxShadow: "0 4px 15px rgba(0,0,0,0.05)", textAlign: "center" }}>
           
-          {/* Avatar */}
           <div style={{ marginTop: "-80px", marginBottom: "15px" }}>
-            <img 
-              src={profile.avatar_url || '/images/default-avatar.png'} 
-              style={{ width: "120px", height: "120px", borderRadius: "50%", border: "4px solid white", boxShadow: "0 4px 10px rgba(0,0,0,0.1)", objectFit: "cover", background: "white" }} 
-            />
+            <img src={profile.avatar_url || '/images/default-avatar.png'} style={{ width: "120px", height: "120px", borderRadius: "50%", border: "4px solid white", boxShadow: "0 4px 10px rgba(0,0,0,0.1)", objectFit: "cover", background: "white" }} />
           </div>
 
-          {/* Name & Badge */}
           <h1 style={{ margin: "0 0 5px 0", fontSize: "1.8rem", color: "#0b2e4a", display: "flex", alignItems: "center", justifyContent: "center", flexWrap: "wrap" }}>
             {profile.full_name}
-            {getBadgeUI()} {/* <-- Badge is now visible here */}
+            {getBadgeUI()}
           </h1>
           <p style={{ color: "#666", fontSize: "0.95rem", margin: "0 0 20px 0" }}>@{profile.username || "believer"}</p>
 
-          {/* Bio (Optional) */}
           {profile.bio && <p style={{ color: "#333", fontStyle: "italic", marginBottom: "20px" }}>"{profile.bio}"</p>}
 
-          {/* Stats Row */}
           <div style={{ display: "flex", justifyContent: "center", gap: "30px", marginBottom: "25px", borderTop: "1px solid #eee", borderBottom: "1px solid #eee", padding: "15px 0" }}>
-            <div>
-              <div style={{ fontWeight: "800", fontSize: "1.2rem", color: "#0b2e4a" }}>{posts.filter(p => p.type !== 'Glimpse').length}</div>
-              <div style={{ fontSize: "12px", color: "#888" }}>Posts</div>
-            </div>
-            <div>
-              <div style={{ fontWeight: "800", fontSize: "1.2rem", color: "#0b2e4a" }}>{posts.filter(p => p.type === 'Glimpse').length}</div>
-              <div style={{ fontSize: "12px", color: "#888" }}>Glimpses</div>
-            </div>
-            <div>
-              <div style={{ fontWeight: "800", fontSize: "1.2rem", color: "#0b2e4a" }}>0</div>
-              <div style={{ fontSize: "12px", color: "#888" }}>Connections</div>
-            </div>
+            <div><div style={{ fontWeight: "800", fontSize: "1.2rem", color: "#0b2e4a" }}>{posts.filter(p => p.type !== 'Glimpse').length}</div><div style={{ fontSize: "12px", color: "#888" }}>Posts</div></div>
+            <div><div style={{ fontWeight: "800", fontSize: "1.2rem", color: "#0b2e4a" }}>{posts.filter(p => p.type === 'Glimpse').length}</div><div style={{ fontSize: "12px", color: "#888" }}>Glimpses</div></div>
+            <div><div style={{ fontWeight: "800", fontSize: "1.2rem", color: "#0b2e4a" }}>0</div><div style={{ fontSize: "12px", color: "#888" }}>Connections</div></div>
           </div>
 
-          {/* Action Buttons */}
           {currentUser && currentUser.id !== profile.id && (
             <div style={{ display: "flex", justifyContent: "center", gap: "10px" }}>
               <button style={{ padding: "10px 20px", background: "#2e8b57", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}>Connect</button>
@@ -156,8 +117,14 @@ export default function ProfilePage() {
             </div>
           )}
            
+          {/* UPDATED: Edit Button now triggers the Modal */}
           {currentUser && currentUser.id === profile.id && (
-             <button style={{ padding: "10px 20px", background: "#f0f0f0", color: "#333", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}>Edit Profile</button>
+             <button 
+               onClick={() => setIsEditing(true)}
+               style={{ padding: "10px 20px", background: "#f0f0f0", color: "#333", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}
+             >
+               Edit Profile
+             </button>
           )}
 
         </div>
@@ -171,24 +138,15 @@ export default function ProfilePage() {
           <button onClick={() => setActiveTab('prayers')} style={{ flex: 1, padding: "15px", background: "none", border: "none", borderBottom: activeTab === 'prayers' ? "3px solid #0b2e4a" : "3px solid transparent", color: activeTab === 'prayers' ? "#0b2e4a" : "#999", fontWeight: "bold", cursor: "pointer" }}>Prayers</button>
         </div>
 
-        {/* --- CONTENT GRID --- */}
         <div style={{ display: "grid", gridTemplateColumns: activeTab === 'glimpses' ? "repeat(auto-fill, minmax(150px, 1fr))" : "1fr", gap: "15px" }}>
-          
-          {filteredPosts.length === 0 && (
-            <div style={{ textAlign: "center", padding: "40px", color: "#999", gridColumn: "1 / -1" }}>
-              No content shared yet.
-            </div>
-          )}
-
+          {filteredPosts.length === 0 && <div style={{ textAlign: "center", padding: "40px", color: "#999", gridColumn: "1 / -1" }}>No content shared yet.</div>}
           {filteredPosts.map(post => (
             activeTab === 'glimpses' ? (
-              // GRID VIEW FOR VIDEOS
               <div key={post.id} style={{ aspectRatio: "9/16", background: "black", borderRadius: "8px", overflow: "hidden", position: "relative" }}>
                  <video src={post.media_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                  <div style={{ position: "absolute", bottom: "5px", left: "5px", color: "white", fontSize: "10px", fontWeight: "bold" }}>▶ {post.amens?.[0]?.count || 0}</div>
               </div>
             ) : (
-              // LIST VIEW FOR POSTS/PRAYERS
               <div key={post.id} style={{ background: "white", padding: "20px", borderRadius: "12px", border: "1px solid #eee", marginBottom: "10px" }}>
                  <div style={{ fontSize: "12px", color: "#999", marginBottom: "5px" }}>{new Date(post.created_at).toDateString()}</div>
                  {post.title && <h3 style={{ margin: "0 0 10px 0", color: "#0b2e4a" }}>{post.title}</h3>}
@@ -199,6 +157,15 @@ export default function ProfilePage() {
           ))}
         </div>
       </div>
+
+      {/* --- RENDER MODAL --- */}
+      {isEditing && (
+        <EditProfileModal 
+          user={profile} 
+          onClose={() => setIsEditing(false)} 
+          onUpdate={loadProfileData} // This makes the page refresh data after save
+        />
+      )}
 
     </div>
   );
