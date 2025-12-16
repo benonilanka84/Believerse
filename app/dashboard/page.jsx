@@ -85,42 +85,14 @@ export default function Dashboard() {
     loadUpcomingEvents();
   }
 
-  // --- NEW: DAILY VERSE LOGIC ---
-  const backgroundBank = [
-    // 1. Mountains & Hills
-    "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1519681393797-a1e97d77c9c8?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1486870591958-9b9d0d1dda99?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=800&q=80",
-    
-    // 2. Skies & Clouds
-    "https://images.unsplash.com/photo-1513002749550-c59d786b8e6c?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1534088568595-a066f410bcda?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1499346030926-9a72daac6ea6?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1500485035595-cbe6f645feb1?auto=format&fit=crop&w=800&q=80",
-
-    // 3. Water & Oceans
-    "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1505118380757-91f5f5632de0?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1518837695005-2083093ee35b?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1437482078695-73f5ca6c96e2?auto=format&fit=crop&w=800&q=80",
-
-    // 4. Forests & Trees
-    "https://images.unsplash.com/photo-1448375240586-dfd8d395ea6c?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1473448912268-2022ce9509d8?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1542273917363-3b1817f69a2d?auto=format&fit=crop&w=800&q=80",
-
-    // 5. Abstract & Light
-    "https://images.unsplash.com/photo-1484557985045-6f5c98486c90?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1519834785169-98be25ec3f84?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?auto=format&fit=crop&w=800&q=80"
-  ];
+// --- NEW: DYNAMIC LOCAL IMAGE BANK (30 IMAGES) ---
+  // This automatically creates a list from "/verses/1.jpg" to "/verses/30.jpg"
+  const backgroundBank = Array.from({ length: 30 }, (_, i) => `/verses/${i + 1}.jpg`);
 
   async function generateDailyVisualVerse() {
-    // 1. Get Today's Date in YYYY-MM-DD format
+    // 1. Get Today's Date
     const today = new Date().toISOString().split('T')[0];
+    const dayOfMonth = new Date().getDate(); // Returns 1 to 31
 
     // 2. Fetch from Supabase
     const { data, error } = await supabase
@@ -129,24 +101,32 @@ export default function Dashboard() {
       .eq('verse_date', today)
       .single();
 
+    // 3. Select Background based on Day of Month
+    // (Day 1 -> 1.jpg, Day 30 -> 30.jpg, Day 31 -> 1.jpg)
+    // We subtract 1 because Arrays start at 0
+    const bgIndex = (dayOfMonth - 1) % backgroundBank.length;
+    const selectedBg = backgroundBank[bgIndex];
+
     if (data) {
-      // 3. Smart Background Selection
-      const dayIndex = new Date().getDate() % backgroundBank.length;
-      
       setVerseData({
         text: data.verse_text,
         ref: data.verse_ref,
-        bg: backgroundBank[dayIndex]
+        bg: selectedBg
       });
     } else {
-      // 4. Fallback (If no verse in DB for today)
+      // 4. Fallback Logic
       const verses = [
-        { text: "I am the good shepherd. The good shepherd lays down his life for the sheep.", ref: "John 10:11", bg: backgroundBank[0] },
-        { text: "The Lord is my light and my salvation; whom shall I fear?", ref: "Psalm 27:1", bg: backgroundBank[1] },
-        { text: "He leads me beside still waters.", ref: "Psalm 23:2", bg: backgroundBank[2] }
+        { text: "I am the good shepherd. The good shepherd lays down his life for the sheep.", ref: "John 10:11" },
+        { text: "The Lord is my light and my salvation; whom shall I fear?", ref: "Psalm 27:1" },
+        { text: "He leads me beside still waters.", ref: "Psalm 23:2" }
       ];
-      const fallbackIndex = new Date().getDate() % verses.length;
-      setVerseData(verses[fallbackIndex]);
+      // Rotate fallback text based on date too
+      const fallbackIndex = dayOfMonth % verses.length;
+      
+      setVerseData({
+        ...verses[fallbackIndex],
+        bg: selectedBg // Still use the correct daily image
+      });
     }
   }
 
