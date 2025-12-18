@@ -15,7 +15,8 @@ export default function EditProfilePage() {
     date_of_birth: "",
     gender: "",
     about: "",
-    faith_journey: ""
+    faith_journey: "",
+    upi_id: "" // Added UPI ID to state
   });
   const fileInputRef = useRef(null);
   const router = useRouter();
@@ -72,7 +73,6 @@ export default function EditProfilePage() {
   async function handleRemovePhoto() {
     if (!confirm("Are you sure you want to remove your profile photo?")) return;
     setLoading(true);
-    // We don't delete the file from storage, just unlink it from the profile.
     const { error } = await supabase.from("profiles").update({ avatar_url: null }).eq("id", user.id);
     
     if (!error) {
@@ -104,7 +104,7 @@ export default function EditProfilePage() {
         }
     }
 
-    // 2. Update Profile with all new fields
+    // 2. Update Profile with all new fields including UPI ID
     const { error } = await supabase.from("profiles").update({ 
       full_name: profile.full_name, 
       username: profile.username,
@@ -112,7 +112,8 @@ export default function EditProfilePage() {
       date_of_birth: profile.date_of_birth,
       gender: profile.gender,
       about: profile.about,
-      faith_journey: profile.faith_journey
+      faith_journey: profile.faith_journey,
+      upi_id: profile.upi_id
     }).eq("id", user.id);
 
     setLoading(false);
@@ -149,7 +150,6 @@ export default function EditProfilePage() {
           </button>
           <input type="file" ref={fileInputRef} hidden accept="image/*" onChange={handleAvatarUpload} />
           
-          {/* Remove Photo Button - Only shows if photo exists */}
           {profile.avatar_url && (
             <button onClick={handleRemovePhoto} disabled={loading} style={{ padding: "8px 18px", background: "transparent", border: "none", color: "#e74c3c", cursor: "pointer", fontSize: "14px", fontWeight: "500", textAlign: "left" }}>
               Remove Photo
@@ -165,7 +165,7 @@ export default function EditProfilePage() {
         </div>
         <div>
           <label style={labelStyle}>Username (Unique)</label>
-          <input type="text" value={profile.username || ""} onChange={e => setProfile({...profile, username: e.target.value.toLowerCase().replace(/\s/g, '')})} placeholder="e.g. benonilanka" style={{ ...inputStyle, background:'#f9f9f9' }} />
+          <input type="text" value={profile.username || ""} onChange={e => setProfile({...profile, username: e.target.value.toLowerCase().replace(/\s/g, '')})} placeholder="e.g. johndoe" style={{ ...inputStyle, background:'#f9f9f9' }} />
         </div>
       </div>
 
@@ -189,6 +189,19 @@ export default function EditProfilePage() {
       <div style={{ marginBottom: "20px" }}>
         <label style={labelStyle}>Church / Ministry</label>
         <input type="text" value={profile.church || ""} onChange={e => setProfile({...profile, church: e.target.value})} style={inputStyle} />
+      </div>
+
+      {/* UPI ID Field */}
+      <div style={{ marginBottom: "20px" }}>
+        <label style={labelStyle}>UPI ID (For Blessings)</label>
+        <input 
+            type="text" 
+            placeholder="e.g. yourname@okhdfcbank" 
+            value={profile.upi_id || ""} 
+            onChange={(e) => setProfile({ ...profile, upi_id: e.target.value })}
+            style={inputStyle} 
+        />
+        <p style={{ fontSize: "12px", color: "#666", marginTop: "5px" }}>Required to receive financial blessings from other believers.</p>
       </div>
 
       <div style={{ marginBottom: "20px" }}>

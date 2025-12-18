@@ -15,8 +15,7 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
     if (!content.trim() && !mediaFile) return;
     setLoading(true);
 
-    let mediaUrl = null;
-    let mediaType = null;
+    let uploadedUrl = null; 
 
     try {
       // 1. Upload Media
@@ -31,19 +30,18 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
         if (uploadError) throw uploadError;
 
         const { data: urlData } = supabase.storage.from("posts").getPublicUrl(fileName);
-        mediaUrl = urlData.publicUrl;
-        mediaType = mediaFile.type.startsWith('video') ? 'video' : 'image';
+        uploadedUrl = urlData.publicUrl;
       }
 
       // 2. Insert Post
-const { error } = await supabase.from('posts').insert({
-    user_id: user.id,
-    content: content,
-    title: title,
-    media_url: finalMediaUrl,
-    type: finalType,
-    fellowship_id: fellowshipId // <--- ADD THIS LINE
-  });
+      const { error } = await supabase.from('posts').insert({
+        user_id: user.id,
+        content: content,
+        title: title,
+        media_url: uploadedUrl, 
+        type: type,
+        fellowship_id: fellowshipId 
+      });
 
       if (error) throw error;
 
@@ -89,7 +87,8 @@ const { error } = await supabase.from('posts').insert({
       </div>
 
       <select 
-        value={type} onChange={e => setType(e.target.value)}
+        value={type}
+        onChange={e => setType(e.target.value)}
         style={{ padding: "8px", borderRadius: "6px", border: "1px solid #ddd", marginBottom: "10px", fontSize: "14px" }}
       >
         <option value="Testimony">💬 Testimony</option>

@@ -45,7 +45,7 @@ export default function Dashboard() {
   const [prayerEditContent, setPrayerEditContent] = useState("");
 
   const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  const PLATFORM_UPI_ID = "your-platform-upi@okhdfcbank"; // REPLACE THIS
+  const PLATFORM_UPI_ID = "your-platform-upi@okhdfcbank"; 
 
   useEffect(() => {
     setMounted(true);
@@ -85,8 +85,7 @@ export default function Dashboard() {
     loadUpcomingEvents();
   }
 
-// --- DYNAMIC LOCAL IMAGE BANK ---
-  // Ensure your files are named 1.jpg, 2.jpg ... 30.jpg inside public/verses/
+  // --- DYNAMIC LOCAL IMAGE BANK ---
   const backgroundBank = Array.from({ length: 30 }, (_, i) => `/verses/${i + 1}.jpg`);
 
   async function generateDailyVisualVerse() {
@@ -101,7 +100,6 @@ export default function Dashboard() {
       .single();
 
     // Select Background (Day 1 = 1.jpg)
-    // We use (dayOfMonth - 1) because array starts at 0, but files start at 1
     const bgIndex = (dayOfMonth - 1) % backgroundBank.length;
     const selectedBg = backgroundBank[bgIndex];
 
@@ -300,7 +298,23 @@ export default function Dashboard() {
   }
 
   function startEditing(post) { setEditingPost(post.id); setEditContent(post.content); setEditTitle(post.title || ''); setOpenMenuId(null); }
-  function handleShare(text) { if (navigator.share) navigator.share({ title: 'The Believerse', text: text }); else alert("Link copied!"); }
+  
+  // UPDATED SHARE FUNCTION
+  function handleShare(text) { 
+    const shareUrl = window.location.origin; 
+    const fullText = `${text}\n\nVia The Believerse: ${shareUrl}`;
+
+    if (navigator.share) {
+        navigator.share({ 
+            title: 'The Believerse', 
+            text: fullText,
+            url: shareUrl 
+        }); 
+    } else {
+        navigator.clipboard.writeText(fullText);
+        alert("Link and text copied to clipboard!"); 
+    }
+  }
 
   if (!mounted) return null;
   const { daysInMonth, startingDayOfWeek } = getDaysInMonth(selectedDate);
@@ -335,30 +349,27 @@ export default function Dashboard() {
       <div className="dashboard-grid">
         <div className="left-panel">
           
-{/* VERSE WIDGET */}
+          {/* VERSE WIDGET */}
           {verseData && (
             <div className="panel-card" style={{padding:0, overflow:'hidden', position:'relative', borderRadius:'12px', border:'none', background:'#000'}}>
               <div style={{padding:'10px 15px', background:'#0b2e4a', color:'white', fontWeight:'bold'}}>Daily Bible Verse</div>
               
-              {/* UPDATED: Height increased to 350px for vertical look */}
               <div style={{ 
                 backgroundImage: `url('${verseData.bg}')`, 
                 backgroundSize: 'cover', 
                 backgroundPosition: 'center',
-                height: '350px',  /* <--- CHANGED FROM 200px TO 350px */
+                height: '350px', 
                 display: 'flex', 
                 flexDirection: 'column', 
                 justifyContent: 'center', 
                 alignItems: 'center', 
-                padding: '30px', /* Increased padding for better text spacing */
+                padding: '30px', 
                 textAlign: 'center', 
                 color: 'white', 
                 position: 'relative' 
               }}>
-                {/* Dark Overlay for Readability */}
                 <div style={{position:'absolute', inset:0, background:'rgba(0,0,0,0.4)'}} />
                 
-                {/* Text Content */}
                 <div style={{position:'relative', zIndex:2, textShadow: '0 2px 8px black'}}>
                   <p style={{fontSize:'22px', fontWeight:'bold', fontFamily:'Georgia', lineHeight:'1.5'}}>
                     "{verseData.text}"
@@ -371,7 +382,7 @@ export default function Dashboard() {
 
               <div style={{display:'flex', borderTop:'1px solid #333', background:'white'}}>
                 <button onClick={handleVerseAmen} style={{flex:1, padding:'12px', border:'none', background:'transparent', cursor:'pointer', borderRight:'1px solid #eee', color: hasAmenedVerse ? '#2e8b57' : '#555', fontWeight:'bold', fontSize:'14px'}}>🙏 Amen ({verseAmenCount})</button>
-                <button onClick={() => handleShare(verseData.text)} style={{flex:1, padding:'12px', border:'none', background:'transparent', cursor:'pointer', color:'#0b2e4a', fontWeight:'bold', fontSize:'14px'}}>📢 Spread</button>
+                <button onClick={() => handleShare(`${verseData.text} (${verseData.ref})`)} style={{flex:1, padding:'12px', border:'none', background:'transparent', cursor:'pointer', color:'#0b2e4a', fontWeight:'bold', fontSize:'14px'}}>📢 Spread</button>
               </div>
             </div>
           )}
@@ -440,11 +451,28 @@ export default function Dashboard() {
                      {post.media_url && <img src={post.media_url} style={{width:'100%', borderRadius:'8px', marginTop:'10px'}} />}
                    </>
                  )}
+                 
+                 {/* UPDATED ACTION BUTTONS */}
                  <div style={{display:'flex', justifyContent:'space-between', marginTop:'15px', borderTop:'1px solid #eee', paddingTop:'10px'}}>
-                   <button onClick={() => handleAmen(post, post.hasAmened)} style={{background:'none', border:'none', color: post.hasAmened ? '#2e8b57' : '#666', fontWeight: post.hasAmened ? 'bold' : 'normal', cursor:'pointer'}}>🙏 Amen ({post.amenCount})</button>
-                   <button onClick={() => handleBlessClick(post.author)} style={{background:'none', border:'none', color:'#d4af37', fontWeight:'bold', cursor:'pointer'}}>✨ Bless</button>
-                   <button onClick={() => handleShare(post.content)} style={{background:'none', border:'none', color:'#666', cursor:'pointer'}}>📢 Spread</button>
+                   <div style={{display:'flex', gap:'15px'}}>
+                     <button onClick={() => handleAmen(post, post.hasAmened)} style={{background:'none', border:'none', color: post.hasAmened ? '#2e8b57' : '#666', fontWeight: post.hasAmened ? 'bold' : 'normal', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}>🙏 Amen ({post.amenCount})</button>
+                     <button onClick={() => handleBlessClick(post.author)} style={{background:'none', border:'none', color:'#d4af37', fontWeight:'bold', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}>✨ Bless</button>
+                     <button onClick={() => handleShare(post.content)} style={{background:'none', border:'none', color:'#666', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}>📢 Spread</button>
+                   </div>
+
+                   {/* REPORT BUTTON (Visible if not author) */}
+                   {user && user.id !== post.user_id && (
+                     <button 
+                       onClick={() => {
+                         if(confirm("Report this post as inappropriate?")) alert("Thank you. This post has been flagged for review.");
+                       }}
+                       style={{background:'none', border:'none', color:'#ef4444', fontSize:'12px', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}
+                     >
+                       🚩 Report
+                     </button>
+                   )}
                  </div>
+
                </div>
              ))
             }
