@@ -20,6 +20,11 @@ export default function FellowshipsPage() {
   const [groupPosts, setGroupPosts] = useState([]);
   const [groupMembers, setGroupMembers] = useState([]);
   
+  // Interactions
+  const [activeCommentPostId, setActiveCommentPostId] = useState(null);
+  const [newComment, setNewComment] = useState("");
+  const [comments, setComments] = useState({});
+
   // Current User's Role in the Active Group ('admin' | 'member' | null)
   const [myRole, setMyRole] = useState(null);
 
@@ -42,13 +47,11 @@ export default function FellowshipsPage() {
 
   // --- LOADERS ---
   async function loadFellowships(userId) {
-    // 1. Get All Groups
     const { data: groups } = await supabase
       .from('fellowships')
       .select('*')
       .order('created_at', { ascending: false });
     
-    // 2. Get My Memberships
     const { data: members } = await supabase
       .from('fellowship_members')
       .select('fellowship_id')
@@ -63,7 +66,7 @@ export default function FellowshipsPage() {
   async function openGroup(group) {
     setActiveGroup(group);
     setView("active_group");
-    setGroupTab("feed"); // Default to feed
+    setGroupTab("feed"); 
     loadGroupData(group.id);
   }
 
@@ -92,7 +95,7 @@ export default function FellowshipsPage() {
     })) || [];
     setGroupPosts(formatted);
 
-    // 3. Load Members (Full list for management)
+    // 3. Load Members
     const { data: mems } = await supabase
       .from('fellowship_members')
       .select('role, user_id, profiles(full_name, avatar_url, username)')
@@ -111,7 +114,6 @@ export default function FellowshipsPage() {
 
     if (error) alert("Error: " + error.message);
     else {
-      // Auto-join creator as ADMIN
       await supabase.from('fellowship_members').insert({ fellowship_id: data.id, user_id: user.id, role: 'admin' });
       alert("✅ Fellowship Created!");
       setShowCreate(false);
@@ -138,15 +140,50 @@ export default function FellowshipsPage() {
       setMyMemberships(myMemberships.filter(id => id !== groupId));
       if(activeGroup?.id === groupId) setView("discover");
     } else {
-      await supabase.from('fellowship_members').insert({ fellowship_id: groupId, user_id: user.id, role: 'member' }); // Default role: member
+      await supabase.from('fellowship_members').insert({ fellowship_id: groupId, user_id: user.id, role: 'member' });
       setMyMemberships([...myMemberships, groupId]);
       alert("You have joined the Fellowship!");
-      if(activeGroup?.id === groupId) loadGroupData(groupId); // Refresh if looking at page
+      if(activeGroup?.id === groupId) loadGroupData(groupId); 
     }
   }
 
-  // --- MODERATION ACTIONS ---
+  // --- INTERACTIONS (AMEN / COMMENT) ---
+  async function handleAmen(post, currentlyAmened) {
+    setGroupPosts(groupPosts.map(p => p.id === post.id ? { ...p, hasAmened: !currentlyAmened, amenCount: currentlyAmened ? p.amenCount - 1 : p.amenCount + 1 } : p));
+    if (currentlyAmened) await supabase.from('amens').delete().match({ user_id: user.id, post_id: post.id });
+    else await supabase.from('amens').insert({ user_id: user.id, post_id: post.id }); 
+  }
 
+  async function toggleComments(postId) {
+    if (activeCommentPostId === postId) {
+      setActiveCommentPostId(null);
+    } else {
+      setActiveCommentPostId(postId);
+      if (!comments[postId]) {
+        const { data } = await supabase
+          .from('comments')
+          .select('*, profiles(full_name, avatar_url)')
+          .eq('post_id', postId)
+          .order('created_at', { ascending: true });
+        setComments(prev => ({ ...prev, [postId]: data || [] }));
+      }
+    }
+  }
+
+  async function postComment(postId) {
+    if (!newComment.trim()) return;
+    const tempComment = { id: Date.now(), post_id: postId, content: newComment, created_at: new Date().toISOString(), profiles: { full_name: 'You', avatar_url: '' } }; // Simplistic optimistic update
+    
+    setComments(prev => ({ ...prev, [postId]: [...(prev[postId] || []), tempComment] }));
+    setNewComment("");
+
+    await supabase.from('comments').insert({ post_id: postId, user_id: user.id, content: tempComment.content });
+    // Reload to get real profile data
+    const { data } = await supabase.from('comments').select('*, profiles(full_name, avatar_url)').eq('post_id', postId).order('created_at', { ascending: true });
+    setComments(prev => ({ ...prev, [postId]: data || [] }));
+  }
+
+  // --- MODERATION ACTIONS ---
   async function deletePost(postId) {
     if(!confirm("Admin: Delete this post?")) return;
     const { error } = await supabase.from('posts').delete().eq('id', postId);
@@ -157,37 +194,19 @@ export default function FellowshipsPage() {
 
   async function reportPost(postId) {
     const reason = prompt("Why are you reporting this post?");
-    if(reason) {
-      // Assuming you have a 'reports' table. If not, this is a placeholder.
-      // await supabase.from('reports').insert({ post_id: postId, reason, reporter: user.id });
-      alert("Report sent to Fellowship Admins.");
-    }
+    if(reason) alert("Report sent to Fellowship Admins.");
   }
 
   async function promoteMember(targetUserId) {
     if(!confirm("Promote this user to Admin?")) return;
-    const { error } = await supabase
-      .from('fellowship_members')
-      .update({ role: 'admin' })
-      .match({ fellowship_id: activeGroup.id, user_id: targetUserId });
-    
-    if(!error) {
-      loadGroupData(activeGroup.id); // Refresh list
-      alert("User promoted!");
-    }
+    const { error } = await supabase.from('fellowship_members').update({ role: 'admin' }).match({ fellowship_id: activeGroup.id, user_id: targetUserId });
+    if(!error) { loadGroupData(activeGroup.id); alert("User promoted!"); }
   }
 
   async function kickMember(targetUserId) {
     if(!confirm("Remove this user from the Fellowship?")) return;
-    const { error } = await supabase
-      .from('fellowship_members')
-      .delete()
-      .match({ fellowship_id: activeGroup.id, user_id: targetUserId });
-
-    if(!error) {
-      loadGroupData(activeGroup.id);
-      alert("User removed.");
-    }
+    const { error } = await supabase.from('fellowship_members').delete().match({ fellowship_id: activeGroup.id, user_id: targetUserId });
+    if(!error) { loadGroupData(activeGroup.id); alert("User removed."); }
   }
 
   if (!mounted) return null;
@@ -198,21 +217,14 @@ export default function FellowshipsPage() {
       {/* LEFT SIDEBAR */}
       <div style={{ background: "white", padding: "20px", borderRadius: "12px", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
         <h2 style={{ margin: "0 0 15px 0", color: "#0b2e4a", fontSize: "18px" }}>👥 Fellowships</h2>
-        
-        <button onClick={() => setView("discover")} style={{ width: '100%', padding: '10px', textAlign: 'left', background: view === 'discover' ? '#e8f5e9' : 'transparent', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', color: '#2e8b57', marginBottom: '5px' }}>
-          🔍 Discover All
-        </button>
-
+        <button onClick={() => setView("discover")} style={{ width: '100%', padding: '10px', textAlign: 'left', background: view === 'discover' ? '#e8f5e9' : 'transparent', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', color: '#2e8b57', marginBottom: '5px' }}>🔍 Discover All</button>
         <h3 style={{ fontSize: "14px", color: "#666", marginTop: "20px", marginBottom: "10px" }}>My Fellowships</h3>
         {allFellowships.filter(g => myMemberships.includes(g.id)).map(g => (
           <div key={g.id} onClick={() => openGroup(g)} style={{ padding: '10px', cursor: 'pointer', background: activeGroup?.id === g.id ? '#f0f0f0' : 'transparent', borderRadius: '8px', marginBottom: '5px' }}>
             <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#333' }}>{g.name}</div>
           </div>
         ))}
-
-        <button onClick={() => setShowCreate(true)} style={{ width: "100%", padding: "10px", marginTop: "20px", background: "#0b2e4a", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "bold" }}>
-          + Create New
-        </button>
+        <button onClick={() => setShowCreate(true)} style={{ width: "100%", padding: "10px", marginTop: "20px", background: "#0b2e4a", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "bold" }}>+ Create New</button>
       </div>
 
       {/* CENTER CONTENT */}
@@ -225,7 +237,6 @@ export default function FellowshipsPage() {
               <h1 style={{ margin: 0 }}>Find Your Tribe</h1>
               <p style={{ opacity: 0.9 }}>Join a fellowship to grow together in Christ.</p>
             </div>
-
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: "15px" }}>
               {allFellowships.map(g => {
                 const isMember = myMemberships.includes(g.id);
@@ -236,9 +247,7 @@ export default function FellowshipsPage() {
                     <p style={{ fontSize: "13px", color: "#666", height: "40px", overflow: "hidden" }}>{g.description}</p>
                     <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
                       <button onClick={() => openGroup(g)} style={{ flex: 1, padding: "8px", background: "#f0f0f0", border: "none", borderRadius: "6px", cursor: "pointer" }}>View</button>
-                      <button onClick={() => toggleJoin(g.id)} style={{ flex: 1, padding: "8px", background: isMember ? "#fff" : "#2e8b57", color: isMember ? "red" : "white", border: isMember ? "1px solid red" : "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }}>
-                        {isMember ? "Leave" : "Join"}
-                      </button>
+                      <button onClick={() => toggleJoin(g.id)} style={{ flex: 1, padding: "8px", background: isMember ? "#fff" : "#2e8b57", color: isMember ? "red" : "white", border: isMember ? "1px solid red" : "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }}>{isMember ? "Leave" : "Join"}</button>
                     </div>
                   </div>
                 );
@@ -253,23 +262,16 @@ export default function FellowshipsPage() {
             {/* Header */}
             <div style={{ background: "white", padding: "25px", borderRadius: "16px", marginBottom: "20px", borderLeft: "5px solid #2e8b57" }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                <div>
-                  <h1 style={{ margin: "0 0 5px 0", color: "#0b2e4a" }}>{activeGroup.name}</h1>
-                  <p style={{ color: "#666" }}>{activeGroup.description}</p>
-                </div>
+                <div><h1 style={{ margin: "0 0 5px 0", color: "#0b2e4a" }}>{activeGroup.name}</h1><p style={{ color: "#666" }}>{activeGroup.description}</p></div>
                 <div style={{ display: 'flex', gap: '10px' }}>
                   {myMemberships.includes(activeGroup.id) ? (
                     <button onClick={() => toggleJoin(activeGroup.id)} style={{ padding: "8px 20px", background: "white", color: "red", border: "1px solid red", borderRadius: "6px", cursor: "pointer", fontWeight: 'bold' }}>Leave</button>
                   ) : (
                     <button onClick={() => toggleJoin(activeGroup.id)} style={{ padding: "8px 20px", background: "#2e8b57", color: "white", border: "none", borderRadius: "6px", cursor: "pointer" }}>Join</button>
                   )}
-                  {/* Global Delete (Only Creator) */}
-                  {user?.id === activeGroup.created_by && (
-                    <button onClick={() => handleDeleteFellowship(activeGroup.id)} style={{ padding: "8px 20px", background: "#d32f2f", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight:'bold' }}>Delete Group</button>
-                  )}
+                  {user?.id === activeGroup.created_by && <button onClick={() => handleDeleteFellowship(activeGroup.id)} style={{ padding: "8px 20px", background: "#d32f2f", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight:'bold' }}>Delete Group</button>}
                 </div>
               </div>
-              
               <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
                  <button onClick={() => setGroupTab('feed')} style={{ border: 'none', background: 'none', borderBottom: groupTab === 'feed' ? '2px solid #2e8b57' : 'none', fontWeight: 'bold', color: groupTab === 'feed' ? '#2e8b57' : '#666', cursor: 'pointer', paddingBottom: '5px' }}>Feed</button>
                  <button onClick={() => setGroupTab('members')} style={{ border: 'none', background: 'none', borderBottom: groupTab === 'members' ? '2px solid #2e8b57' : 'none', fontWeight: 'bold', color: groupTab === 'members' ? '#2e8b57' : '#666', cursor: 'pointer', paddingBottom: '5px' }}>Members ({groupMembers.length})</button>
@@ -288,27 +290,45 @@ export default function FellowshipsPage() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
                             <img src={post.author?.avatar_url || '/images/default-avatar.png'} style={{ width: 40, height: 40, borderRadius: '50%' }} />
-                            <div>
-                              <div style={{ fontWeight: 'bold', color: '#0b2e4a' }}>{post.author?.full_name}</div>
-                              <div style={{ fontSize: '12px', color: '#999' }}>{new Date(post.created_at).toLocaleDateString()}</div>
-                            </div>
+                            <div><div style={{ fontWeight: 'bold', color: '#0b2e4a' }}>{post.author?.full_name}</div><div style={{ fontSize: '12px', color: '#999' }}>{new Date(post.created_at).toLocaleDateString()}</div></div>
                           </div>
                           
-                          {/* MODERATION BUTTONS */}
                           <div style={{ display:'flex', gap:'10px' }}>
-                            {/* Delete: Only if I am the Author OR I am an Admin */}
-                            {(user.id === post.user_id || myRole === 'admin') && (
-                              <button onClick={() => deletePost(post.id)} style={{ border:'none', background:'none', color:'red', cursor:'pointer', fontSize:'12px' }}>🗑️ Delete</button>
-                            )}
-                            {/* Report: Only if I am NOT the author */}
-                            {user.id !== post.user_id && (
-                              <button onClick={() => reportPost(post.id)} style={{ border:'none', background:'none', color:'#d4af37', cursor:'pointer', fontSize:'12px' }}>🚩 Report</button>
-                            )}
+                            {(user.id === post.user_id || myRole === 'admin') && <button onClick={() => deletePost(post.id)} style={{ border:'none', background:'none', color:'red', cursor:'pointer', fontSize:'12px' }}>🗑️ Delete</button>}
+                            {user.id !== post.user_id && <button onClick={() => reportPost(post.id)} style={{ border:'none', background:'none', color:'#d4af37', cursor:'pointer', fontSize:'12px' }}>🚩 Report</button>}
                           </div>
                         </div>
 
                         <p>{post.content}</p>
                         {post.media_url && <img src={post.media_url} style={{ width: '100%', borderRadius: '8px', marginTop: '10px' }} />}
+
+                        {/* FELLOWSHIP INTERACTIONS (AMEN / COMMENT) */}
+                        <div style={{ display:'flex', gap:'20px', marginTop:'15px', borderTop:'1px solid #eee', paddingTop:'10px' }}>
+                           <button onClick={() => handleAmen(post, post.hasAmened)} style={{background:'none', border:'none', color: post.hasAmened ? '#2e8b57' : '#666', fontWeight: post.hasAmened ? 'bold' : 'normal', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}>🙏 Amen ({post.amenCount})</button>
+                           <button onClick={() => toggleComments(post.id)} style={{background:'none', border:'none', color:'#666', fontWeight:'bold', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}>💬 Comment</button>
+                        </div>
+
+                        {/* COMMENTS SECTION */}
+                        {activeCommentPostId === post.id && (
+                           <div style={{marginTop:'15px', background:'#f9f9f9', padding:'10px', borderRadius:'8px'}}>
+                             <div style={{maxHeight:'200px', overflowY:'auto', marginBottom:'10px'}}>
+                               {comments[post.id]?.length > 0 ? comments[post.id].map(c => (
+                                 <div key={c.id} style={{display:'flex', gap:'10px', marginBottom:'8px'}}>
+                                   <img src={c.profiles?.avatar_url || '/images/default-avatar.png'} style={{width:25, height:25, borderRadius:'50%'}} />
+                                   <div style={{background:'white', padding:'5px 10px', borderRadius:'10px', fontSize:'13px', flex:1}}>
+                                     <div style={{fontWeight:'bold', fontSize:'12px'}}>{c.profiles?.full_name}</div>
+                                     {c.content}
+                                   </div>
+                                 </div>
+                               )) : <p style={{fontSize:'12px', color:'#999'}}>No comments yet.</p>}
+                             </div>
+                             <div style={{display:'flex', gap:'10px'}}>
+                               <input type="text" placeholder="Write a comment..." value={newComment} onChange={e => setNewComment(e.target.value)} style={{flex:1, padding:'8px', borderRadius:'20px', border:'1px solid #ddd', fontSize:'13px'}} onKeyDown={e => e.key === 'Enter' && postComment(post.id)} />
+                               <button onClick={() => postComment(post.id)} style={{background:'#0b2e4a', color:'white', border:'none', borderRadius:'50%', width:'35px', height:'35px', cursor:'pointer'}}>➤</button>
+                             </div>
+                           </div>
+                        )}
+
                       </div>
                     ))
                   }
@@ -318,7 +338,7 @@ export default function FellowshipsPage() {
               )
             )}
 
-            {/* --- TAB: MEMBERS (MANAGEMENT) --- */}
+            {/* --- TAB: MEMBERS --- */}
             {groupTab === 'members' && (
               <div style={{ background: 'white', borderRadius: '12px', padding: '20px' }}>
                 {groupMembers.map(m => (
@@ -326,20 +346,13 @@ export default function FellowshipsPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <img src={m.profiles?.avatar_url || '/images/default-avatar.png'} style={{ width: 40, height: 40, borderRadius: '50%' }} />
                       <div>
-                        <div style={{ fontWeight: 'bold', color: '#333' }}>
-                          {m.profiles?.full_name} 
-                          {m.role === 'admin' && <span style={{ marginLeft: '5px', fontSize: '10px', background: '#d4af37', color: 'white', padding: '2px 5px', borderRadius: '4px' }}>ADMIN</span>}
-                        </div>
+                        <div style={{ fontWeight: 'bold', color: '#333' }}>{m.profiles?.full_name} {m.role === 'admin' && <span style={{ marginLeft: '5px', fontSize: '10px', background: '#d4af37', color: 'white', padding: '2px 5px', borderRadius: '4px' }}>ADMIN</span>}</div>
                         <div style={{ fontSize: '12px', color: '#999' }}>@{m.profiles?.username}</div>
                       </div>
                     </div>
-
-                    {/* ADMIN CONTROLS (Only visible if *I* am an Admin, and targeting someone else) */}
                     {myRole === 'admin' && m.user_id !== user.id && (
                       <div style={{ display: 'flex', gap: '5px' }}>
-                        {m.role !== 'admin' && (
-                          <button onClick={() => promoteMember(m.user_id)} style={{ fontSize:'12px', padding: '5px 10px', background: '#e0f2f1', color: '#00695c', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Promote</button>
-                        )}
+                        {m.role !== 'admin' && <button onClick={() => promoteMember(m.user_id)} style={{ fontSize:'12px', padding: '5px 10px', background: '#e0f2f1', color: '#00695c', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Promote</button>}
                         <button onClick={() => kickMember(m.user_id)} style={{ fontSize:'12px', padding: '5px 10px', background: '#ffebee', color: '#c62828', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Remove</button>
                       </div>
                     )}

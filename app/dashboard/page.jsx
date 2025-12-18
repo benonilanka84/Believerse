@@ -36,6 +36,11 @@ export default function Dashboard() {
   const [editContent, setEditContent] = useState("");
   const [editTitle, setEditTitle] = useState("");
 
+  // Comments State
+  const [activeCommentPostId, setActiveCommentPostId] = useState(null);
+  const [newComment, setNewComment] = useState("");
+  const [comments, setComments] = useState({}); // { [postId]: [comments...] }
+
   // Modals
   const [blessModalUser, setBlessModalUser] = useState(null); 
   const [supportModalOpen, setSupportModalOpen] = useState(false); 
@@ -299,7 +304,6 @@ export default function Dashboard() {
 
   function startEditing(post) { setEditingPost(post.id); setEditContent(post.content); setEditTitle(post.title || ''); setOpenMenuId(null); }
   
-  // UPDATED SHARE FUNCTION
   function handleShare(text) { 
     const shareUrl = window.location.origin; 
     const fullText = `${text}\n\nVia The Believerse: ${shareUrl}`;
@@ -314,6 +318,51 @@ export default function Dashboard() {
         navigator.clipboard.writeText(fullText);
         alert("Link and text copied to clipboard!"); 
     }
+  }
+
+  // --- COMMENTS LOGIC ---
+  async function toggleComments(postId) {
+    if (activeCommentPostId === postId) {
+      setActiveCommentPostId(null);
+    } else {
+      setActiveCommentPostId(postId);
+      // Load comments for this post if not already loaded
+      if (!comments[postId]) {
+        const { data } = await supabase
+          .from('comments')
+          .select('*, profiles(full_name, avatar_url)')
+          .eq('post_id', postId)
+          .order('created_at', { ascending: true });
+        setComments(prev => ({ ...prev, [postId]: data || [] }));
+      }
+    }
+  }
+
+  async function postComment(postId) {
+    if (!newComment.trim()) return;
+    
+    // Optimistic Update
+    const tempComment = {
+      id: Date.now(),
+      post_id: postId,
+      content: newComment,
+      created_at: new Date().toISOString(),
+      profiles: { full_name: profile.full_name, avatar_url: profile.avatar_url }
+    };
+    
+    setComments(prev => ({
+      ...prev,
+      [postId]: [...(prev[postId] || []), tempComment]
+    }));
+    setNewComment("");
+
+    const { error } = await supabase.from('comments').insert({
+      post_id: postId,
+      user_id: user.id,
+      content: tempComment.content
+    });
+
+    if (error) alert("Failed to post comment");
   }
 
   if (!mounted) return null;
@@ -413,6 +462,7 @@ export default function Dashboard() {
              posts.length === 0 ? <div style={{textAlign:'center', padding:'40px', color:'#666'}}>The Walk is quiet. Be the first to share!</div> :
              posts.map(post => (
                <div key={post.id} style={{border:'1px solid #eee', borderRadius:'12px', padding:'15px', marginBottom:'15px', background:'#fafafa'}}>
+                 {/* Post Header (User Info) */}
                  <div style={{display:'flex', alignItems:'center', gap:'10px', marginBottom:'10px'}}>
                    <Link href={`/profile/${post.user_id}`}>
                       <img src={post.author?.avatar_url || '/images/default-avatar.png'} style={{width:40, height:40, borderRadius:'50%', objectFit:'cover', cursor: 'pointer'}} />
@@ -435,6 +485,8 @@ export default function Dashboard() {
                      </div>
                    )}
                  </div>
+
+                 {/* Post Content */}
                  {editingPost === post.id ? (
                    <div style={{marginBottom:'10px'}}>
                      <input type="text" value={editTitle} onChange={e => setEditTitle(e.target.value)} placeholder="Title" style={{width:'100%', padding:'8px', marginBottom:'5px', borderRadius:'4px', border:'1px solid #ddd'}} />
@@ -452,15 +504,22 @@ export default function Dashboard() {
                    </>
                  )}
                  
-                 {/* UPDATED ACTION BUTTONS */}
-                 <div style={{display:'flex', justifyContent:'space-between', marginTop:'15px', borderTop:'1px solid #eee', paddingTop:'10px'}}>
-                   <div style={{display:'flex', gap:'15px'}}>
+                 {/* UPDATED ACTION BUTTONS WITH COMMENTS */}
+                 <div style={{
+                    display:'flex', 
+                    justifyContent:'space-between', 
+                    marginTop:'15px', 
+                    borderTop:'1px solid #eee', 
+                    paddingTop:'10px'
+                 }}>
+                   <div style={{display:'flex', gap:'20px'}}> {/* INCREASED GAP for better spacing */}
                      <button onClick={() => handleAmen(post, post.hasAmened)} style={{background:'none', border:'none', color: post.hasAmened ? '#2e8b57' : '#666', fontWeight: post.hasAmened ? 'bold' : 'normal', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}>🙏 Amen ({post.amenCount})</button>
+                     <button onClick={() => toggleComments(post.id)} style={{background:'none', border:'none', color:'#666', fontWeight:'bold', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}>💬 Comment</button>
                      <button onClick={() => handleBlessClick(post.author)} style={{background:'none', border:'none', color:'#d4af37', fontWeight:'bold', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}>✨ Bless</button>
                      <button onClick={() => handleShare(post.content)} style={{background:'none', border:'none', color:'#666', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}>📢 Spread</button>
                    </div>
 
-                   {/* REPORT BUTTON (Visible if not author) */}
+                   {/* REPORT BUTTON */}
                    {user && user.id !== post.user_id && (
                      <button 
                        onClick={() => {
@@ -472,6 +531,37 @@ export default function Dashboard() {
                      </button>
                    )}
                  </div>
+
+                 {/* COMMENTS SECTION (Toggled) */}
+                 {activeCommentPostId === post.id && (
+                   <div style={{marginTop:'15px', background:'#f9f9f9', padding:'10px', borderRadius:'8px'}}>
+                     {/* Comment List */}
+                     <div style={{maxHeight:'200px', overflowY:'auto', marginBottom:'10px'}}>
+                       {comments[post.id]?.length > 0 ? comments[post.id].map(c => (
+                         <div key={c.id} style={{display:'flex', gap:'10px', marginBottom:'8px'}}>
+                           <img src={c.profiles?.avatar_url || '/images/default-avatar.png'} style={{width:25, height:25, borderRadius:'50%'}} />
+                           <div style={{background:'white', padding:'5px 10px', borderRadius:'10px', fontSize:'13px', flex:1}}>
+                             <div style={{fontWeight:'bold', fontSize:'12px'}}>{c.profiles?.full_name}</div>
+                             {c.content}
+                           </div>
+                         </div>
+                       )) : <p style={{fontSize:'12px', color:'#999'}}>No comments yet. Be the first!</p>}
+                     </div>
+                     
+                     {/* Comment Input */}
+                     <div style={{display:'flex', gap:'10px'}}>
+                       <input 
+                         type="text" 
+                         placeholder="Write a comment..." 
+                         value={newComment} 
+                         onChange={e => setNewComment(e.target.value)} 
+                         style={{flex:1, padding:'8px', borderRadius:'20px', border:'1px solid #ddd', fontSize:'13px'}}
+                         onKeyDown={e => e.key === 'Enter' && postComment(post.id)}
+                       />
+                       <button onClick={() => postComment(post.id)} style={{background:'#0b2e4a', color:'white', border:'none', borderRadius:'50%', width:'35px', height:'35px', cursor:'pointer'}}>➤</button>
+                     </div>
+                   </div>
+                 )}
 
                </div>
              ))
