@@ -39,7 +39,7 @@ export default function Dashboard() {
   // Comments State
   const [activeCommentPostId, setActiveCommentPostId] = useState(null);
   const [newComment, setNewComment] = useState("");
-  const [comments, setComments] = useState({}); // { [postId]: [comments...] }
+  const [comments, setComments] = useState({}); 
 
   // Modals
   const [blessModalUser, setBlessModalUser] = useState(null); 
@@ -104,7 +104,7 @@ export default function Dashboard() {
       .eq('verse_date', today)
       .single();
 
-    // Select Background (Day 1 = 1.jpg)
+    // Select Background
     const bgIndex = (dayOfMonth - 1) % backgroundBank.length;
     const selectedBg = backgroundBank[bgIndex];
 
@@ -462,7 +462,7 @@ export default function Dashboard() {
              posts.length === 0 ? <div style={{textAlign:'center', padding:'40px', color:'#666'}}>The Walk is quiet. Be the first to share!</div> :
              posts.map(post => (
                <div key={post.id} style={{border:'1px solid #eee', borderRadius:'12px', padding:'15px', marginBottom:'15px', background:'#fafafa'}}>
-                 {/* Post Header (User Info) */}
+                 {/* Post Header */}
                  <div style={{display:'flex', alignItems:'center', gap:'10px', marginBottom:'10px'}}>
                    <Link href={`/profile/${post.user_id}`}>
                       <img src={post.author?.avatar_url || '/images/default-avatar.png'} style={{width:40, height:40, borderRadius:'50%', objectFit:'cover', cursor: 'pointer'}} />
@@ -473,17 +473,26 @@ export default function Dashboard() {
                       </Link>
                       <div style={{fontSize:'12px', color:'#666'}}>{new Date(post.created_at).toDateString()}</div>
                    </div>
-                   {user?.id === post.user_id && (
-                     <div style={{marginLeft:'auto', position:'relative'}}>
-                       <button onClick={() => setOpenMenuId(openMenuId === post.id ? null : post.id)} style={{border:'none', background:'none', fontSize:'20px', cursor:'pointer'}}>⋮</button>
+                   
+                   {/* UPDATED: Kebab Menu for Everyone (Author: Edit/Delete, Viewer: Report) */}
+                   <div style={{marginLeft:'auto', position:'relative'}}>
+                       <button onClick={() => setOpenMenuId(openMenuId === post.id ? null : post.id)} style={{border:'none', background:'none', fontSize:'20px', cursor:'pointer', padding:'5px', color:'#666'}}>⋮</button>
                        {openMenuId === post.id && (
-                         <div style={{position:'absolute', right:0, top:'25px', background:'white', border:'1px solid #eee', boxShadow:'0 4px 12px rgba(0,0,0,0.1)', borderRadius:'8px', zIndex:10, width:'120px'}}>
-                           <button onClick={() => startEditing(post)} style={{width:'100%', padding:'8px', textAlign:'left', border:'none', background:'white', cursor:'pointer', fontSize:'13px', color:'#333'}}>📝 Edit</button>
-                           <button onClick={() => handleDeletePost(post.id)} style={{width:'100%', padding:'8px', textAlign:'left', border:'none', background:'white', cursor:'pointer', color:'red', fontSize:'13px'}}>🗑️ Delete</button>
+                         <div style={{position:'absolute', right:0, top:'30px', background:'white', border:'1px solid #eee', boxShadow:'0 4px 12px rgba(0,0,0,0.1)', borderRadius:'8px', zIndex:10, width:'150px', overflow:'hidden'}}>
+                           {user?.id === post.user_id ? (
+                             <>
+                               <button onClick={() => startEditing(post)} style={{width:'100%', padding:'10px', textAlign:'left', border:'none', background:'white', cursor:'pointer', fontSize:'13px', color:'#333', borderBottom:'1px solid #f5f5f5'}}>📝 Edit</button>
+                               <button onClick={() => handleDeletePost(post.id)} style={{width:'100%', padding:'10px', textAlign:'left', border:'none', background:'white', cursor:'pointer', color:'red', fontSize:'13px'}}>🗑️ Delete</button>
+                             </>
+                           ) : (
+                             <button onClick={() => {
+                                 if(confirm("Report this post?")) alert("Reported.");
+                                 setOpenMenuId(null);
+                             }} style={{width:'100%', padding:'10px', textAlign:'left', border:'none', background:'white', cursor:'pointer', color:'#d4af37', fontSize:'13px'}}>🚩 Report</button>
+                           )}
                          </div>
                        )}
-                     </div>
-                   )}
+                   </div>
                  </div>
 
                  {/* Post Content */}
@@ -504,35 +513,23 @@ export default function Dashboard() {
                    </>
                  )}
                  
-                 {/* UPDATED ACTION BUTTONS WITH COMMENTS */}
+                 {/* UPDATED FOOTER: Space Between Alignment */}
                  <div style={{
                     display:'flex', 
                     justifyContent:'space-between', 
+                    alignItems:'center',
                     marginTop:'15px', 
                     borderTop:'1px solid #eee', 
-                    paddingTop:'10px'
+                    paddingTop:'10px',
+                    width:'100%'
                  }}>
-                   <div style={{display:'flex', gap:'20px'}}> {/* INCREASED GAP for better spacing */}
                      <button onClick={() => handleAmen(post, post.hasAmened)} style={{background:'none', border:'none', color: post.hasAmened ? '#2e8b57' : '#666', fontWeight: post.hasAmened ? 'bold' : 'normal', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}>🙏 Amen ({post.amenCount})</button>
                      <button onClick={() => toggleComments(post.id)} style={{background:'none', border:'none', color:'#666', fontWeight:'bold', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}>💬 Comment</button>
                      <button onClick={() => handleBlessClick(post.author)} style={{background:'none', border:'none', color:'#d4af37', fontWeight:'bold', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}>✨ Bless</button>
                      <button onClick={() => handleShare(post.content)} style={{background:'none', border:'none', color:'#666', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}>📢 Spread</button>
-                   </div>
-
-                   {/* REPORT BUTTON */}
-                   {user && user.id !== post.user_id && (
-                     <button 
-                       onClick={() => {
-                         if(confirm("Report this post as inappropriate?")) alert("Thank you. This post has been flagged for review.");
-                       }}
-                       style={{background:'none', border:'none', color:'#ef4444', fontSize:'12px', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}
-                     >
-                       🚩 Report
-                     </button>
-                   )}
                  </div>
 
-                 {/* COMMENTS SECTION (Toggled) */}
+                 {/* COMMENTS SECTION */}
                  {activeCommentPostId === post.id && (
                    <div style={{marginTop:'15px', background:'#f9f9f9', padding:'10px', borderRadius:'8px'}}>
                      {/* Comment List */}
@@ -588,37 +585,6 @@ export default function Dashboard() {
             <Link href="/believers" style={{fontSize:'12px', color:'#2e8b57', fontWeight:'bold', display:'block', marginTop:'5px', textDecoration:'none'}}>Find More →</Link>
           </div>
           
-          <div className="panel-card" style={{background:'#fff9e6', borderLeft:'4px solid #d4af37'}}>
-            <h3>🙏 Prayer Wall</h3>
-            {prayerRequests.length === 0 ? <p style={{fontSize:'12px', color:'#666'}}>No requests from friends.</p> : 
-              prayerRequests.map(p => (
-                <div key={p.id} style={{marginBottom:'8px', fontSize:'12px', position:'relative', borderBottom:'1px dotted #ccc', paddingBottom:'5px'}}>
-                  <div style={{fontWeight:'bold', color:'#000', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                    <span>{p.profiles?.full_name}</span>
-                    {user && user.id === p.user_id && (
-                      <div style={{display:'flex', gap:'5px'}}>
-                        <button onClick={() => { setEditingPrayerId(p.id); setPrayerEditContent(p.content); }} style={{border:'none', background:'none', color:'#2d6be3', cursor:'pointer', fontSize:'10px', padding:0}}>✏️</button>
-                        <button onClick={() => deletePrayerFromWidget(p.id)} style={{border:'none', background:'none', color:'red', cursor:'pointer', fontSize:'10px', padding:0}}>🗑️</button>
-                      </div>
-                    )}
-                  </div>
-                  {editingPrayerId === p.id ? (
-                    <div style={{marginTop:'5px'}}>
-                      <textarea value={prayerEditContent} onChange={e => setPrayerEditContent(e.target.value)} style={{width:'100%', fontSize:'12px', border:'1px solid #ddd', borderRadius:'4px'}} />
-                      <div style={{display:'flex', gap:'5px', marginTop:'5px'}}>
-                        <button onClick={() => updatePrayerInWidget(p.id)} style={{fontSize:'10px', background:'#2e8b57', color:'white', border:'none', borderRadius:'3px', padding:'2px 5px'}}>Save</button>
-                        <button onClick={() => setEditingPrayerId(null)} style={{fontSize:'10px', background:'#ccc', border:'none', borderRadius:'3px', padding:'2px 5px'}}>Cancel</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{fontStyle:'italic', color:'#555'}}>"{p.content.substring(0, 40)}{p.content.length > 40 ? '...' : ''}"</div>
-                  )}
-                </div>
-              ))
-            }
-            <button style={{width:'100%', padding:'8px', background:'#2e8b57', color:'white', border:'none', borderRadius:'6px', cursor:'pointer', marginTop:'10px'}}>I'll Pray</button>
-          </div>
-          
           <div className="panel-card">
             <h3>💬 Recent Chats</h3>
             {recentChats.map(c => (
@@ -662,10 +628,4 @@ export default function Dashboard() {
       )}
     </div>
   );
-}
-
-function getDaysInMonth(date) {
-  const year = date.getFullYear();
-  const month = date.getMonth();
-  return { daysInMonth: new Date(year, month + 1, 0).getDate(), startingDayOfWeek: new Date(year, month, 1).getDay() };
 }
