@@ -629,3 +629,13 @@ export default function Dashboard() {
     </div>
   );
 }
+
+// --- HELPER FUNCTION ---
+function getDaysInMonth(date) {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  return { 
+    daysInMonth: new Date(year, month + 1, 0).getDate(), 
+    startingDayOfWeek: new Date(year, month, 1).getDay() 
+  };
+}
