@@ -12,12 +12,12 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
   const [uploadProgress, setUploadProgress] = useState(0); 
   const [mediaFile, setMediaFile] = useState(null);
   
-  // NEW: State for the preview URL
+  // State for the preview URL
   const [previewUrl, setPreviewUrl] = useState(null);
   
   const fileInputRef = useRef(null);
 
-  // NEW: Effect to generate preview URL when file is selected
+  // Effect to generate preview URL when file is selected
   useEffect(() => {
     if (!mediaFile) {
       setPreviewUrl(null);
@@ -121,7 +121,7 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
       setContent("");
       setTitle("");
       setMediaFile(null);
-      setPreviewUrl(null); // Clear preview
+      setPreviewUrl(null); 
       setUploadProgress(0);
       setIsOpen(false);
       
@@ -209,14 +209,16 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
             📷 Add Image/Video
           </div>
         ) : (
-          <div style={{ position: "relative" }}>
-             {/* THE PREVIEW PLAYER */}
+          <div style={{ position: "relative", width: "100%" }}>
+             {/* PREVIEW PLAYER: Fixed height container, Video contained inside */}
             {mediaFile.type.startsWith("video/") ? (
-                <video 
-                    src={previewUrl} 
-                    controls 
-                    style={{ width: "100%", maxHeight: "300px", borderRadius: "8px", objectFit: "cover", backgroundColor: "#000" }} 
-                />
+                <div style={{ width: "100%", height: "350px", background: "black", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+                    <video 
+                        src={previewUrl} 
+                        controls 
+                        style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} 
+                    />
+                </div>
             ) : (
                 <img 
                     src={previewUrl} 
