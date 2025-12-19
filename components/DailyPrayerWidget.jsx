@@ -9,6 +9,9 @@ export default function DailyPrayerWidget() {
   const [bgImage, setBgImage] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sharing, setSharing] = useState(false);
+  const [amenCount, setAmenCount] = useState(0);
+  const [hasAmened, setHasAmened] = useState(false);
+  
   const cardRef = useRef(null);
 
   useEffect(() => {
@@ -18,25 +21,38 @@ export default function DailyPrayerWidget() {
   async function fetchDailyPrayer() {
     const now = new Date();
     const start = new Date(now.getFullYear(), 0, 0);
-    let dayOfYear = Math.floor((now - start) / (1000 * 60 * 60 * 24));
-    if (dayOfYear > 365) dayOfYear = 365;
+    const dayOfYear = Math.floor((now - start) / (1000 * 60 * 60 * 24));
+    
+    // Safety check for day number
+    let safeDay = dayOfYear;
+    if (safeDay > 365) safeDay = 365;
+    if (safeDay < 1) safeDay = 1;
 
     const { data } = await supabase
       .from('daily_devotionals')
       .select('prayer_title, prayer_text')
-      .eq('day_number', dayOfYear)
+      .eq('day_number', safeDay)
       .single();
 
     if (data) {
       setPrayer(data);
-      // Ensure you have 1.jpg to 30.jpg in public/prayers/
-      const bgIndex = (dayOfYear % 30) + 1; 
+      const bgIndex = (safeDay % 30) + 1; 
       setBgImage(`/prayers/${bgIndex}.jpg`);
     }
     setLoading(false);
   }
 
-  async function handleShareImage() {
+  function handleAmen() {
+    if (hasAmened) {
+      setAmenCount(c => c - 1);
+      setHasAmened(false);
+    } else {
+      setAmenCount(c => c + 1);
+      setHasAmened(true);
+    }
+  }
+
+  async function handleSpread() {
     if (!cardRef.current) return;
     setSharing(true);
     try {
@@ -44,7 +60,7 @@ export default function DailyPrayerWidget() {
       const file = new File([blob], "daily-prayer.png", { type: "image/png" });
       
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: "Daily Prayer" });
+        await navigator.share({ files: [file], title: "Daily Prayer", text: prayer.prayer_title });
       } else {
         const link = document.createElement("a");
         link.download = "daily-prayer.png";
@@ -52,7 +68,7 @@ export default function DailyPrayerWidget() {
         link.click();
       }
     } catch (err) {
-      alert("Share failed.");
+      console.error(err);
     } finally {
       setSharing(false);
     }
@@ -67,7 +83,7 @@ export default function DailyPrayerWidget() {
       <div 
         ref={cardRef}
         style={{
-          height: '400px', // Taller for prayer text
+          height: '400px',
           backgroundImage: `url('${bgImage}')`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
@@ -103,13 +119,19 @@ export default function DailyPrayerWidget() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', borderTop: '1px solid #333', background: '#0b2e4a' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #333', background: '#0b2e4a' }}>
         <button 
-          onClick={handleShareImage} 
-          disabled={sharing}
-          style={{ width: '100%', padding: '12px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'white', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+          onClick={handleAmen}
+          style={{ flex: 1, padding: '12px', border: 'none', background: 'transparent', cursor: 'pointer', color: hasAmened ? '#2e8b57' : 'white', fontWeight: 'bold' }}
         >
-          {sharing ? '⏳ Processing...' : '🕊️ Share Prayer'}
+          🙏 Amen ({amenCount})
+        </button>
+        <button 
+          onClick={handleSpread} 
+          disabled={sharing}
+          style={{ flex: 1, padding: '12px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'white', fontWeight: 'bold' }}
+        >
+          {sharing ? '⏳ Creating...' : '📢 Spread'}
         </button>
       </div>
     </div>

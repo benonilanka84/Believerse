@@ -1,11 +1,10 @@
 "use client";
 
+import DailyVerseWidget from "@/components/DailyVerseWidget";
+import DailyPrayerWidget from "@/components/DailyPrayerWidget";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import CreatePost from "@/components/CreatePost";
-// 1. Import the new Premium Widgets
-import DailyVerseWidget from "@/components/DailyVerseWidget";
-import DailyPrayerWidget from "@/components/DailyPrayerWidget";
 import Link from "next/link";
 import "@/styles/dashboard.css";
 
@@ -22,8 +21,6 @@ export default function Dashboard() {
   const [suggestedBelievers, setSuggestedBelievers] = useState([]);
   const [prayerRequests, setPrayerRequests] = useState([]);
   const [recentChats, setRecentChats] = useState([]);
-
-  // REMOVED: Old Verse State (verseData, verseAmenCount) is no longer needed here!
 
   // Events State
   const [events, setEvents] = useState([]);
@@ -54,7 +51,6 @@ export default function Dashboard() {
 
   useEffect(() => {
     setMounted(true);
-    // REMOVED: generateDailyVisualVerse() call
   }, []);
 
   useEffect(() => {
@@ -89,9 +85,6 @@ export default function Dashboard() {
     loadRecentChats(uid);
     loadUpcomingEvents();
   }
-
-  // REMOVED: Old generateDailyVisualVerse() function
-  // REMOVED: Old handleVerseAmen() function
 
   // --- BADGE UI HELPER ---
   const getBadgeUI = () => {
@@ -373,12 +366,10 @@ export default function Dashboard() {
       </div>
 
       <div className="dashboard-grid">
-        
-        {/* LEFT PANEL */}
         <div className="left-panel">
           
           {/* NEW PREMIUM WIDGETS */}
-          <DailyVerseWidget user={user} />
+          <DailyVerseWidget />
           <DailyPrayerWidget />
           
           {/* Calendar Widget */}
@@ -399,7 +390,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* CENTER PANEL */}
         <div className="center-panel">
           {user && <CreatePost user={user} onPostCreated={() => { loadPosts(user.id, true); loadPrayerWall(user.id); }} />}
           
@@ -478,8 +468,8 @@ export default function Dashboard() {
                        {comments[post.id]?.length > 0 ? comments[post.id].map(c => (
                          <div key={c.id} style={{display:'flex', gap:'10px', marginBottom:'8px'}}>
                            <img src={c.profiles?.avatar_url || '/images/default-avatar.png'} style={{width:25, height:25, borderRadius:'50%'}} />
-                           <div style={{background:'white', padding:'5px 10px', borderRadius:'10px', fontSize:'13px', flex:1, color:'#333'}}>
-                             <div style={{fontWeight:'bold', fontSize:'12px', color:'#0b2e4a'}}>{c.profiles?.full_name}</div>
+                           <div style={{background:'white', padding:'5px 10px', borderRadius:'10px', fontSize:'13px', flex:1, color:'#333'}}> {/* FIX: Color #333 */}
+                             <div style={{fontWeight:'bold', fontSize:'12px', color:'#0b2e4a'}}>{c.profiles?.full_name}</div> {/* FIX: Color #0b2e4a */}
                              {c.content}
                            </div>
                          </div>
