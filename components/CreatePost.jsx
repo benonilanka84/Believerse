@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import * as tus from "tus-js-client";
 
@@ -11,7 +11,24 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0); 
   const [mediaFile, setMediaFile] = useState(null);
+  
+  // NEW: State for the preview URL
+  const [previewUrl, setPreviewUrl] = useState(null);
+  
   const fileInputRef = useRef(null);
+
+  // NEW: Effect to generate preview URL when file is selected
+  useEffect(() => {
+    if (!mediaFile) {
+      setPreviewUrl(null);
+      return;
+    }
+    const objectUrl = URL.createObjectURL(mediaFile);
+    setPreviewUrl(objectUrl);
+
+    // Cleanup memory when file changes or component unmounts
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [mediaFile]);
 
   const handlePost = async () => {
     if (!content.trim() && !mediaFile) return;
@@ -22,16 +39,12 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
 
     try {
       // ---------------------------------------------------------
-      // 1. HANDLE MEDIA UPLOAD (Split Logic for Video vs Image)
+      // 1. HANDLE MEDIA UPLOAD
       // ---------------------------------------------------------
       if (mediaFile) {
         const isVideo = mediaFile.type.startsWith("video/");
 
         if (isVideo) {
-          // ==============================
-          // === VIDEO UPLOAD TO BUNNY ===
-          // ==============================
-          
           // A. Call internal API to get Signature
           const response = await fetch('/api/video/create', {
             method: 'POST',
@@ -61,27 +74,21 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
                 filetype: mediaFile.type,
                 title: title || "Untitled",
               },
-              onError: (error) => {
-                reject(error);
-              },
+              onError: (error) => reject(error),
               onProgress: (bytesUploaded, bytesTotal) => {
                 const percentage = ((bytesUploaded / bytesTotal) * 100).toFixed(0);
                 setUploadProgress(Number(percentage));
               },
               onSuccess: () => {
-                // Construct the Embed URL
                 const embedUrl = `https://iframe.mediadelivery.net/play/${libraryId}/${videoId}`;
                 resolve(embedUrl);
               },
             });
-
             upload.start();
           });
 
         } else {
-          // ================================
-          // === IMAGE UPLOAD TO SUPABASE ===
-          // ================================
+          // IMAGE UPLOAD TO SUPABASE
           const fileExt = mediaFile.name.split('.').pop();
           const fileName = `${user.id}-${Date.now()}.${fileExt}`;
           
@@ -103,7 +110,7 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
         user_id: user.id,
         content: content,
         title: title,
-        media_url: uploadedUrl, // Stores Supabase Public URL (Image) or Bunny Embed URL (Video)
+        media_url: uploadedUrl,
         type: type,
         fellowship_id: fellowshipId 
       });
@@ -114,6 +121,7 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
       setContent("");
       setTitle("");
       setMediaFile(null);
+      setPreviewUrl(null); // Clear preview
       setUploadProgress(0);
       setIsOpen(false);
       
@@ -182,7 +190,7 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
         style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #ddd", minHeight: "100px", fontFamily: "inherit", resize: "vertical", marginBottom: "15px" }}
       />
 
-      {/* Media Upload */}
+      {/* Media Upload & Preview Section */}
       <div style={{ marginBottom: "15px" }}>
         <input 
           type="file" 
@@ -191,15 +199,51 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
           style={{ display: 'none' }}
           onChange={(e) => setMediaFile(e.target.files[0])}
         />
-        <div 
-          onClick={() => fileInputRef.current.click()}
-          style={{ padding: "10px", border: "1px dashed #ccc", borderRadius: "8px", textAlign: "center", color: "#666", fontSize: "13px", cursor: "pointer", background: mediaFile ? "#e8f5e9" : "transparent" }}
-        >
-          {mediaFile ? `✅ ${mediaFile.name}` : "📷 Add Image/Video"}
-        </div>
+        
+        {/* Toggle between Upload Button and Preview */}
+        {!mediaFile ? (
+          <div 
+            onClick={() => fileInputRef.current.click()}
+            style={{ padding: "10px", border: "1px dashed #ccc", borderRadius: "8px", textAlign: "center", color: "#666", fontSize: "13px", cursor: "pointer", background: "transparent" }}
+          >
+            📷 Add Image/Video
+          </div>
+        ) : (
+          <div style={{ position: "relative" }}>
+             {/* THE PREVIEW PLAYER */}
+            {mediaFile.type.startsWith("video/") ? (
+                <video 
+                    src={previewUrl} 
+                    controls 
+                    style={{ width: "100%", maxHeight: "300px", borderRadius: "8px", objectFit: "cover", backgroundColor: "#000" }} 
+                />
+            ) : (
+                <img 
+                    src={previewUrl} 
+                    alt="Preview" 
+                    style={{ width: "100%", maxHeight: "300px", borderRadius: "8px", objectFit: "cover" }} 
+                />
+            )}
+            
+            {/* Remove Button */}
+            <button 
+                onClick={(e) => {
+                    e.stopPropagation();
+                    setMediaFile(null);
+                    setPreviewUrl(null);
+                    fileInputRef.current.value = ""; // Reset file input
+                }}
+                style={{ 
+                    marginTop: "10px", width: "100%", padding: "8px", background: "#fee2e2", color: "#b91c1c", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px" 
+                }}
+            >
+                ❌ Remove {mediaFile.type.startsWith("video/") ? "Video" : "Image"}
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Progress Bar (Only shows during upload) */}
+      {/* Progress Bar */}
       {loading && uploadProgress > 0 && (
         <div style={{ width: "100%", background: "#f0f0f0", borderRadius: "4px", height: "8px", marginBottom: "15px" }}>
           <div style={{ width: `${uploadProgress}%`, background: "#2e8b57", height: "100%", borderRadius: "4px", transition: "width 0.3s ease" }}></div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
+import * as tus from "tus-js-client"; // Import TUS for Bunny Uploads
 
 export default function GlimpsesPage() {
   const [mounted, setMounted] = useState(false);
@@ -11,6 +12,7 @@ export default function GlimpsesPage() {
   // Upload State
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0); // Added Progress State
   const [newGlimpseCaption, setNewGlimpseCaption] = useState("");
   const fileInputRef = useRef(null);
   
@@ -18,7 +20,7 @@ export default function GlimpsesPage() {
   const [blessModalUser, setBlessModalUser] = useState(null);
   const [openMenuId, setOpenMenuId] = useState(null); 
   
-  // PLAYBACK STATE (Fixes overlapping audio)
+  // PLAYBACK STATE
   const [activeGlimpseId, setActiveGlimpseId] = useState(null);
 
   useEffect(() => {
@@ -49,41 +51,89 @@ export default function GlimpsesPage() {
       }));
       setGlimpses(formatted);
       
-      // Set the first video as active initially if it exists
       if (formatted.length > 0) {
         setActiveGlimpseId(formatted[0].id);
       }
     }
   }
 
-  // --- UPLOAD ---
+  // --- NEW BUNNY UPLOAD LOGIC ---
   async function handleFileUpload() {
     const file = fileInputRef.current?.files?.[0];
     if (!file || !user) return;
-    if (file.size > 50 * 1024 * 1024) { alert("Video too large! Max 50MB."); return; }
+
+    // Remove strict 50MB limit (Bunny handles large files well)
+    // But we can keep a sanity check if you want, e.g. 500MB
+    if (file.size > 500 * 1024 * 1024) { alert("File too large! Max 500MB."); return; }
 
     setUploading(true);
-    setIsUploadModalOpen(false); 
+    setUploadProgress(0);
+    // Note: We keep the modal OPEN so we can show the progress bar
+    
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `glimpse-${user.id}-${Date.now()}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage.from("posts").upload(fileName, file);
-      if (uploadError) throw uploadError;
+      let uploadedUrl = null;
 
-      const { data: urlData } = supabase.storage.from("posts").getPublicUrl(fileName);
+      // 1. Get Signature from your API
+      const response = await fetch('/api/video/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: newGlimpseCaption || "Glimpse" })
+      });
 
-      await supabase.from('posts').insert({
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || "Failed to init upload");
+      }
+      
+      const { videoId, libraryId, signature, expirationTime } = await response.json();
+
+      // 2. Upload to Bunny via TUS
+      uploadedUrl = await new Promise((resolve, reject) => {
+        const upload = new tus.Upload(file, {
+          endpoint: "https://video.bunnycdn.com/tusupload",
+          retryDelays: [0, 3000, 5000, 10000, 20000],
+          headers: {
+            AuthorizationSignature: signature,
+            AuthorizationExpire: expirationTime,
+            VideoId: videoId,
+            LibraryId: libraryId,
+          },
+          metadata: {
+            filetype: file.type,
+            title: newGlimpseCaption || "Glimpse",
+          },
+          onError: (error) => reject(error),
+          onProgress: (bytesUploaded, bytesTotal) => {
+            const percentage = ((bytesUploaded / bytesTotal) * 100).toFixed(0);
+            setUploadProgress(Number(percentage));
+          },
+          onSuccess: () => {
+            const embedUrl = `https://iframe.mediadelivery.net/play/${libraryId}/${videoId}`;
+            resolve(embedUrl);
+          },
+        });
+        upload.start();
+      });
+
+      // 3. Insert into Supabase
+      const { error } = await supabase.from('posts').insert({
         user_id: user.id,
         content: newGlimpseCaption || "⚡ New Glimpse",
         type: "Glimpse",
-        media_url: urlData.publicUrl,
+        media_url: uploadedUrl, // Stores the Bunny Embed URL
         media_type: "video"
       });
 
+      if (error) throw error;
+
       alert("✅ Glimpse Uploaded!");
       setNewGlimpseCaption("");
+      setUploadProgress(0);
+      setIsUploadModalOpen(false); // Close modal only after success
       loadGlimpses(user.id);
+
     } catch (err) {
+      console.error(err);
       alert("Error: " + err.message);
     } finally {
       setUploading(false);
@@ -139,13 +189,13 @@ export default function GlimpsesPage() {
         <h2 style={{ color: "white", margin: 0, fontSize: "20px", fontWeight:'bold' }}>⚡ Glimpses</h2>
         <div style={{display:'flex', gap:'15px', alignItems:'center'}}>
            <button onClick={() => setIsUploadModalOpen(true)} style={{ background: "rgba(255,255,255,0.2)", border: "1px solid white", color: "white", padding: "6px 15px", borderRadius: "20px", fontSize:'13px', cursor: "pointer", fontWeight:'bold' }}>
-             {uploading ? "..." : "+ Upload"}
+             + Upload
            </button>
            <button onClick={() => window.location.href='/dashboard'} style={{background:'none', border:'none', color:'white', fontSize:'24px', cursor:'pointer'}}>✕</button>
         </div>
       </div>
 
-      {/* FEED CONTAINER - With ID for IntersectionObserver */}
+      {/* FEED CONTAINER */}
       <div 
         id="glimpses-scroll-container"
         style={{ width: '100%', maxWidth: '480px', height: '100%', overflowY: "scroll", scrollSnapType: "y mandatory", scrollBehavior: "smooth", background:'#000', position:'relative' }}
@@ -163,7 +213,6 @@ export default function GlimpsesPage() {
               openMenuId={openMenuId}
               setOpenMenuId={setOpenMenuId}
               onMenuAction={handleMenuAction}
-              // Active state props
               isActive={glimpse.id === activeGlimpseId}
               setActiveGlimpseId={setActiveGlimpseId}
             />
@@ -180,16 +229,31 @@ export default function GlimpsesPage() {
               value={newGlimpseCaption} 
               onChange={e => setNewGlimpseCaption(e.target.value)} 
               placeholder="Add a caption..."
+              disabled={uploading}
               style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ddd', minHeight: '80px', marginBottom: '15px' }}
             />
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              accept="video/*" 
-              style={{ display: 'block', marginBottom: '20px' }} 
-              onChange={() => fileInputRef.current.files.length > 0 && handleFileUpload()} 
-            />
-            <button onClick={() => setIsUploadModalOpen(false)} style={{ width: '100%', padding: '10px', background: '#ccc', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Cancel</button>
+            
+            {!uploading && (
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  accept="video/*" 
+                  style={{ display: 'block', marginBottom: '20px' }} 
+                  onChange={() => fileInputRef.current.files.length > 0 && handleFileUpload()} 
+                />
+            )}
+
+            {/* Upload Progress Bar */}
+            {uploading && (
+                <div style={{marginBottom: '20px'}}>
+                    <div style={{marginBottom:'5px', fontSize:'14px', color:'#2e8b57', fontWeight:'bold'}}>Uploading: {uploadProgress}%</div>
+                    <div style={{width:'100%', height:'8px', background:'#eee', borderRadius:'4px'}}>
+                        <div style={{width: `${uploadProgress}%`, height:'100%', background:'#2e8b57', borderRadius:'4px', transition:'width 0.3s'}}></div>
+                    </div>
+                </div>
+            )}
+
+            <button disabled={uploading} onClick={() => setIsUploadModalOpen(false)} style={{ width: '100%', padding: '10px', background: '#ccc', border: 'none', borderRadius: '8px', cursor: uploading ? 'not-allowed' : 'pointer' }}>Cancel</button>
           </div>
         </div>
       )}
@@ -216,28 +280,20 @@ function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, ope
   const videoRef = useRef(null);
   const containerRef = useRef(null);
 
-  // LOGIC: Handle Bless Click with Location Check
   async function handleBlessClick() {
     try {
-      // 1. Check Location
       const res = await fetch('https://ipapi.co/json/');
       const data = await res.json();
-      
-      // 2. If Global (Not India) -> Show "Coming Soon"
       if (data.country_code !== "IN") {
         alert("🌍 International Blessing is coming soon!\n\nCurrently, direct blessings are available for UPI (India) users only.");
         return;
       }
-
-      // 3. If India -> Proceed to normal Bless Modal (UPI)
       onBless(glimpse.profiles);
     } catch (err) {
-      // Fallback: If geo-check fails, assume India or let them try
       onBless(glimpse.profiles);
     }
   }
 
-  // 1. Intersection Observer
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -251,7 +307,7 @@ function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, ope
     return () => { if (containerRef.current) observer.unobserve(containerRef.current); };
   }, [glimpse.id, setActiveGlimpseId]);
 
-  // 2. Play/Pause based on 'isActive'
+  // Handle Play/Pause for Standard Videos
   useEffect(() => {
     if (videoRef.current) {
         if (isActive) {
@@ -272,19 +328,38 @@ function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, ope
   }
   
   const showMenu = openMenuId === glimpse.id;
+  const isBunnyVideo = glimpse.media_url?.includes("iframe.mediadelivery.net") || glimpse.media_url?.includes("video.bunnycdn");
 
   return (
-    <div ref={containerRef} style={{ height: "100%", width: "100%", scrollSnapAlign: "start", position: "relative", display: "flex", alignItems: "center", justifyContent: "center", overflow:'hidden' }}>
+    <div ref={containerRef} style={{ height: "100%", width: "100%", scrollSnapAlign: "start", position: "relative", display: "flex", alignItems: "center", justifyContent: "center", overflow:'hidden', background:'black' }}>
       
-      <video 
-        ref={videoRef} 
-        src={glimpse.media_url} 
-        loop 
-        playsInline 
-        defaultMuted={true} 
-        onClick={togglePlay} 
-        style={{ height: "100%", width: "100%", objectFit: "cover", cursor:'pointer' }} 
-      />
+      {/* RENDER LOGIC:
+        If Bunny Video -> Render Iframe
+        If Supabase Video -> Render Video Tag
+      */}
+      {isBunnyVideo ? (
+         <div style={{width:'100%', height:'100%', pointerEvents:'none'}}> 
+            {/* pointerEvents:'none' ensures scrolling works over the iframe on some devices, 
+                but controls might be disabled. For Glimpses, usually we want auto-play loop. 
+                We add 'autoplay=true' to URL if it's active. */}
+            <iframe 
+              src={glimpse.media_url + "?autoplay=true&loop=true&muted=false"}
+              loading="lazy"
+              style={{border:'none', width:'100%', height:'100%', objectFit:'cover'}}
+              allow="accelerometer; gyroscope; autoplay; encrypted-media;"
+            />
+         </div>
+      ) : (
+          <video 
+            ref={videoRef} 
+            src={glimpse.media_url} 
+            loop 
+            playsInline 
+            defaultMuted={true} 
+            onClick={togglePlay} 
+            style={{ height: "100%", width: "100%", objectFit: "cover", cursor:'pointer' }} 
+          />
+      )}
       
       {/* RIGHT SIDEBAR ACTIONS */}
       <div style={{ position: "absolute", right: "10px", bottom: "120px", display: "flex", flexDirection: "column", gap: "25px", alignItems: "center", zIndex: 5 }}>
@@ -302,7 +377,7 @@ function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, ope
           <div style={{ color: "white", fontSize: "12px", fontWeight: "bold", marginTop:'2px', textShadow:'0 1px 2px black' }}>{glimpse.amenCount}</div>
         </div>
 
-        {/* Bless (UPDATED CLICK HANDLER) */}
+        {/* Bless */}
         <div style={{ textAlign: "center" }}>
           <button onClick={handleBlessClick} style={{ background: "rgba(0,0,0,0.3)", borderRadius:'50%', width:'45px', height:'45px', border: "none", fontSize: "24px", cursor: "pointer", display:'flex', alignItems:'center', justifyContent:'center', backdropFilter:'blur(5px)' }}>✨</button>
           <div style={{ color: "white", fontSize: "12px", fontWeight: "bold", marginTop:'2px', textShadow:'0 1px 2px black' }}>Bless</div>
