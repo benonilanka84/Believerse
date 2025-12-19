@@ -286,8 +286,23 @@ export default function Dashboard() {
 
   async function handleAmen(post, currentlyAmened) {
     setPosts(posts.map(p => p.id === post.id ? { ...p, hasAmened: !currentlyAmened, amenCount: currentlyAmened ? p.amenCount - 1 : p.amenCount + 1 } : p));
-    if (currentlyAmened) await supabase.from('amens').delete().match({ user_id: user.id, post_id: post.id });
-    else { await supabase.from('amens').insert({ user_id: user.id, post_id: post.id }); if (user && user.id !== post.user_id) await supabase.from('notifications').insert({ user_id: post.user_id, actor_id: user.id, type: 'amen', content: `${profile?.full_name} said Amen to your post.`, link: '/dashboard' }); }
+    
+    if (currentlyAmened) {
+        await supabase.from('amens').delete().match({ user_id: user.id, post_id: post.id });
+    } else { 
+        await supabase.from('amens').insert({ user_id: user.id, post_id: post.id });
+        
+        // --- NEW: NOTIFICATION TRIGGER (AMEN) ---
+        if (user && user.id !== post.user_id) {
+            await supabase.from('notifications').insert({ 
+                user_id: post.user_id, // Owner of the post
+                actor_id: user.id,     // Me
+                type: 'amen', 
+                content: 'said Amen to your post.', 
+                link: '/dashboard' 
+            }); 
+        }
+    }
   }
 
   async function handleDeletePost(postId) {
@@ -356,13 +371,30 @@ export default function Dashboard() {
     }));
     setNewComment("");
 
+    // 1. Insert Comment
     const { error } = await supabase.from('comments').insert({
       post_id: postId,
       user_id: user.id,
       content: tempComment.content
     });
 
-    if (error) alert("Failed to post comment");
+    if (error) {
+        alert("Failed to post comment");
+        return;
+    }
+
+    // --- NEW: NOTIFICATION TRIGGER (COMMENT) ---
+    // Find the post owner to notify
+    const targetPost = posts.find(p => p.id === postId);
+    if (targetPost && user.id !== targetPost.user_id) {
+        await supabase.from('notifications').insert({
+            user_id: targetPost.user_id, // Owner
+            actor_id: user.id,           // Commenter (Me)
+            type: 'comment',
+            content: 'commented on your post.',
+            link: '/dashboard'
+        });
+    }
   }
 
   if (!mounted) return null;
@@ -474,7 +506,7 @@ export default function Dashboard() {
                       <div style={{fontSize:'12px', color:'#666'}}>{new Date(post.created_at).toDateString()}</div>
                    </div>
                    
-                   {/* UPDATED: Kebab Menu for Everyone (Author: Edit/Delete, Viewer: Report) */}
+                   {/* Kebab Menu */}
                    <div style={{marginLeft:'auto', position:'relative'}}>
                        <button onClick={() => setOpenMenuId(openMenuId === post.id ? null : post.id)} style={{border:'none', background:'none', fontSize:'20px', cursor:'pointer', padding:'5px', color:'#666'}}>⋮</button>
                        {openMenuId === post.id && (
@@ -513,7 +545,7 @@ export default function Dashboard() {
                    </>
                  )}
                  
-                 {/* UPDATED FOOTER: Space Between Alignment */}
+                 {/* Footer Actions */}
                  <div style={{
                     display:'flex', 
                     justifyContent:'space-between', 
@@ -529,10 +561,9 @@ export default function Dashboard() {
                      <button onClick={() => handleShare(post.content)} style={{background:'none', border:'none', color:'#666', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}>📢 Spread</button>
                  </div>
 
-                 {/* COMMENTS SECTION */}
+                 {/* Comments Section */}
                  {activeCommentPostId === post.id && (
                    <div style={{marginTop:'15px', background:'#f9f9f9', padding:'10px', borderRadius:'8px'}}>
-                     {/* Comment List */}
                      <div style={{maxHeight:'200px', overflowY:'auto', marginBottom:'10px'}}>
                        {comments[post.id]?.length > 0 ? comments[post.id].map(c => (
                          <div key={c.id} style={{display:'flex', gap:'10px', marginBottom:'8px'}}>
@@ -544,17 +575,8 @@ export default function Dashboard() {
                          </div>
                        )) : <p style={{fontSize:'12px', color:'#999'}}>No comments yet. Be the first!</p>}
                      </div>
-                     
-                     {/* Comment Input */}
                      <div style={{display:'flex', gap:'10px'}}>
-                       <input 
-                         type="text" 
-                         placeholder="Write a comment..." 
-                         value={newComment} 
-                         onChange={e => setNewComment(e.target.value)} 
-                         style={{flex:1, padding:'8px', borderRadius:'20px', border:'1px solid #ddd', fontSize:'13px'}}
-                         onKeyDown={e => e.key === 'Enter' && postComment(post.id)}
-                       />
+                       <input type="text" placeholder="Write a comment..." value={newComment} onChange={e => setNewComment(e.target.value)} style={{flex:1, padding:'8px', borderRadius:'20px', border:'1px solid #ddd', fontSize:'13px'}} onKeyDown={e => e.key === 'Enter' && postComment(post.id)} />
                        <button onClick={() => postComment(post.id)} style={{background:'#0b2e4a', color:'white', border:'none', borderRadius:'50%', width:'35px', height:'35px', cursor:'pointer'}}>➤</button>
                      </div>
                    </div>
