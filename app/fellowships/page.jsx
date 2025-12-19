@@ -12,11 +12,11 @@ export default function FellowshipsPage() {
   // Views: 'discover' | 'active_group'
   const [view, setView] = useState("discover"); 
   const [activeGroup, setActiveGroup] = useState(null);
-  const [groupTab, setGroupTab] = useState("feed"); // 'feed' | 'members'
+  const [groupTab, setGroupTab] = useState("feed"); 
 
   // Data
   const [allFellowships, setAllFellowships] = useState([]);
-  const [myMemberships, setMyMemberships] = useState([]); // Group IDs
+  const [myMemberships, setMyMemberships] = useState([]); 
   const [groupPosts, setGroupPosts] = useState([]);
   const [groupMembers, setGroupMembers] = useState([]);
   
@@ -25,7 +25,7 @@ export default function FellowshipsPage() {
   const [newComment, setNewComment] = useState("");
   const [comments, setComments] = useState({});
 
-  // Current User's Role in the Active Group ('admin' | 'member' | null)
+  // Current User's Role in the Active Group
   const [myRole, setMyRole] = useState(null);
 
   // Create Modal
@@ -71,7 +71,6 @@ export default function FellowshipsPage() {
   }
 
   async function loadGroupData(groupId) {
-    // 1. Determine MY Role
     const { data: roleData } = await supabase
       .from('fellowship_members')
       .select('role')
@@ -80,7 +79,6 @@ export default function FellowshipsPage() {
     
     setMyRole(roleData?.role || null);
 
-    // 2. Load Posts
     const { data: posts } = await supabase
       .from('posts')
       .select(`*, profiles(full_name, avatar_url, id), amens(user_id)`)
@@ -95,7 +93,6 @@ export default function FellowshipsPage() {
     })) || [];
     setGroupPosts(formatted);
 
-    // 3. Load Members
     const { data: mems } = await supabase
       .from('fellowship_members')
       .select('role, user_id, profiles(full_name, avatar_url, username)')
@@ -172,13 +169,13 @@ export default function FellowshipsPage() {
 
   async function postComment(postId) {
     if (!newComment.trim()) return;
-    const tempComment = { id: Date.now(), post_id: postId, content: newComment, created_at: new Date().toISOString(), profiles: { full_name: 'You', avatar_url: '' } }; // Simplistic optimistic update
+    const tempComment = { id: Date.now(), post_id: postId, content: newComment, created_at: new Date().toISOString(), profiles: { full_name: 'You', avatar_url: '' } }; 
     
     setComments(prev => ({ ...prev, [postId]: [...(prev[postId] || []), tempComment] }));
     setNewComment("");
 
     await supabase.from('comments').insert({ post_id: postId, user_id: user.id, content: tempComment.content });
-    // Reload to get real profile data
+    
     const { data } = await supabase.from('comments').select('*, profiles(full_name, avatar_url)').eq('post_id', postId).order('created_at', { ascending: true });
     setComments(prev => ({ ...prev, [postId]: data || [] }));
   }
@@ -299,7 +296,8 @@ export default function FellowshipsPage() {
                           </div>
                         </div>
 
-                        <p>{post.content}</p>
+                        {/* FIX: Explicit color set for post text */}
+                        <p style={{color: '#333', lineHeight: '1.5'}}>{post.content}</p>
                         {post.media_url && <img src={post.media_url} style={{ width: '100%', borderRadius: '8px', marginTop: '10px' }} />}
 
                         {/* FELLOWSHIP INTERACTIONS (AMEN / COMMENT) */}
@@ -315,15 +313,22 @@ export default function FellowshipsPage() {
                                {comments[post.id]?.length > 0 ? comments[post.id].map(c => (
                                  <div key={c.id} style={{display:'flex', gap:'10px', marginBottom:'8px'}}>
                                    <img src={c.profiles?.avatar_url || '/images/default-avatar.png'} style={{width:25, height:25, borderRadius:'50%'}} />
-                                   <div style={{background:'white', padding:'5px 10px', borderRadius:'10px', fontSize:'13px', flex:1}}>
-                                     <div style={{fontWeight:'bold', fontSize:'12px'}}>{c.profiles?.full_name}</div>
+                                   <div style={{background:'white', padding:'5px 10px', borderRadius:'10px', fontSize:'13px', flex:1, color:'#333'}}> {/* FIX: Color #333 */}
+                                     <div style={{fontWeight:'bold', fontSize:'12px', color:'#0b2e4a'}}>{c.profiles?.full_name}</div> {/* FIX: Color #0b2e4a */}
                                      {c.content}
                                    </div>
                                  </div>
                                )) : <p style={{fontSize:'12px', color:'#999'}}>No comments yet.</p>}
                              </div>
                              <div style={{display:'flex', gap:'10px'}}>
-                               <input type="text" placeholder="Write a comment..." value={newComment} onChange={e => setNewComment(e.target.value)} style={{flex:1, padding:'8px', borderRadius:'20px', border:'1px solid #ddd', fontSize:'13px'}} onKeyDown={e => e.key === 'Enter' && postComment(post.id)} />
+                               <input 
+                                 type="text" 
+                                 placeholder="Write a comment..." 
+                                 value={newComment} 
+                                 onChange={e => setNewComment(e.target.value)} 
+                                 style={{flex:1, padding:'8px', borderRadius:'20px', border:'1px solid #ddd', fontSize:'13px', color:'#333'}}
+                                 onKeyDown={e => e.key === 'Enter' && postComment(post.id)} 
+                                />
                                <button onClick={() => postComment(post.id)} style={{background:'#0b2e4a', color:'white', border:'none', borderRadius:'50%', width:'35px', height:'35px', cursor:'pointer'}}>➤</button>
                              </div>
                            </div>

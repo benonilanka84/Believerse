@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import CreatePost from "@/components/CreatePost";
+// 1. Import the new Premium Widgets
+import DailyVerseWidget from "@/components/DailyVerseWidget";
+import DailyPrayerWidget from "@/components/DailyPrayerWidget";
 import Link from "next/link";
 import "@/styles/dashboard.css";
 
@@ -20,10 +23,7 @@ export default function Dashboard() {
   const [prayerRequests, setPrayerRequests] = useState([]);
   const [recentChats, setRecentChats] = useState([]);
 
-  // Verse State
-  const [verseData, setVerseData] = useState(null);
-  const [verseAmenCount, setVerseAmenCount] = useState(0); 
-  const [hasAmenedVerse, setHasAmenedVerse] = useState(false);
+  // REMOVED: Old Verse State (verseData, verseAmenCount) is no longer needed here!
 
   // Events State
   const [events, setEvents] = useState([]);
@@ -54,7 +54,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     setMounted(true);
-    generateDailyVisualVerse();
+    // REMOVED: generateDailyVisualVerse() call
   }, []);
 
   useEffect(() => {
@@ -90,50 +90,8 @@ export default function Dashboard() {
     loadUpcomingEvents();
   }
 
-  // --- DYNAMIC LOCAL IMAGE BANK ---
-  const backgroundBank = Array.from({ length: 30 }, (_, i) => `/verses/${i + 1}.jpg`);
-
-  async function generateDailyVisualVerse() {
-    const today = new Date().toISOString().split('T')[0];
-    const dayOfMonth = new Date().getDate(); 
-
-    // Fetch Text
-    const { data, error } = await supabase
-      .from('daily_verses')
-      .select('*')
-      .eq('verse_date', today)
-      .single();
-
-    // Select Background
-    const bgIndex = (dayOfMonth - 1) % backgroundBank.length;
-    const selectedBg = backgroundBank[bgIndex];
-
-    if (data) {
-      setVerseData({
-        text: data.verse_text,
-        ref: data.verse_ref,
-        bg: selectedBg
-      });
-    } else {
-      // Fallback
-      const verses = [
-        { text: "I am the good shepherd.", ref: "John 10:11" },
-        { text: "The Lord is my light.", ref: "Psalm 27:1" },
-        { text: "He leads me beside still waters.", ref: "Psalm 23:2" }
-      ];
-      const fallbackIndex = dayOfMonth % verses.length;
-      
-      setVerseData({
-        ...verses[fallbackIndex],
-        bg: selectedBg
-      });
-    }
-  }
-
-  function handleVerseAmen() {
-    if (hasAmenedVerse) { setVerseAmenCount(c => c - 1); setHasAmenedVerse(false); }
-    else { setVerseAmenCount(c => c + 1); setHasAmenedVerse(true); }
-  }
+  // REMOVED: Old generateDailyVisualVerse() function
+  // REMOVED: Old handleVerseAmen() function
 
   // --- BADGE UI HELPER ---
   const getBadgeUI = () => {
@@ -292,11 +250,10 @@ export default function Dashboard() {
     } else { 
         await supabase.from('amens').insert({ user_id: user.id, post_id: post.id });
         
-        // --- NEW: NOTIFICATION TRIGGER (AMEN) ---
         if (user && user.id !== post.user_id) {
             await supabase.from('notifications').insert({ 
-                user_id: post.user_id, // Owner of the post
-                actor_id: user.id,     // Me
+                user_id: post.user_id, 
+                actor_id: user.id,     
                 type: 'amen', 
                 content: 'said Amen to your post.', 
                 link: '/dashboard' 
@@ -324,11 +281,7 @@ export default function Dashboard() {
     const fullText = `${text}\n\nVia The Believerse: ${shareUrl}`;
 
     if (navigator.share) {
-        navigator.share({ 
-            title: 'The Believerse', 
-            text: fullText,
-            url: shareUrl 
-        }); 
+        navigator.share({ title: 'The Believerse', text: fullText, url: shareUrl }); 
     } else {
         navigator.clipboard.writeText(fullText);
         alert("Link and text copied to clipboard!"); 
@@ -341,7 +294,6 @@ export default function Dashboard() {
       setActiveCommentPostId(null);
     } else {
       setActiveCommentPostId(postId);
-      // Load comments for this post if not already loaded
       if (!comments[postId]) {
         const { data } = await supabase
           .from('comments')
@@ -356,7 +308,6 @@ export default function Dashboard() {
   async function postComment(postId) {
     if (!newComment.trim()) return;
     
-    // Optimistic Update
     const tempComment = {
       id: Date.now(),
       post_id: postId,
@@ -371,25 +322,19 @@ export default function Dashboard() {
     }));
     setNewComment("");
 
-    // 1. Insert Comment
     const { error } = await supabase.from('comments').insert({
       post_id: postId,
       user_id: user.id,
       content: tempComment.content
     });
 
-    if (error) {
-        alert("Failed to post comment");
-        return;
-    }
+    if (error) { alert("Failed to post comment"); return; }
 
-    // --- NEW: NOTIFICATION TRIGGER (COMMENT) ---
-    // Find the post owner to notify
     const targetPost = posts.find(p => p.id === postId);
     if (targetPost && user.id !== targetPost.user_id) {
         await supabase.from('notifications').insert({
-            user_id: targetPost.user_id, // Owner
-            actor_id: user.id,           // Commenter (Me)
+            user_id: targetPost.user_id, 
+            actor_id: user.id,           
             type: 'comment',
             content: 'commented on your post.',
             link: '/dashboard'
@@ -428,46 +373,15 @@ export default function Dashboard() {
       </div>
 
       <div className="dashboard-grid">
+        
+        {/* LEFT PANEL */}
         <div className="left-panel">
           
-          {/* VERSE WIDGET */}
-          {verseData && (
-            <div className="panel-card" style={{padding:0, overflow:'hidden', position:'relative', borderRadius:'12px', border:'none', background:'#000'}}>
-              <div style={{padding:'10px 15px', background:'#0b2e4a', color:'white', fontWeight:'bold'}}>Daily Bible Verse</div>
-              
-              <div style={{ 
-                backgroundImage: `url('${verseData.bg}')`, 
-                backgroundSize: 'cover', 
-                backgroundPosition: 'center',
-                height: '350px', 
-                display: 'flex', 
-                flexDirection: 'column', 
-                justifyContent: 'center', 
-                alignItems: 'center', 
-                padding: '30px', 
-                textAlign: 'center', 
-                color: 'white', 
-                position: 'relative' 
-              }}>
-                <div style={{position:'absolute', inset:0, background:'rgba(0,0,0,0.4)'}} />
-                
-                <div style={{position:'relative', zIndex:2, textShadow: '0 2px 8px black'}}>
-                  <p style={{fontSize:'22px', fontWeight:'bold', fontFamily:'Georgia', lineHeight:'1.5'}}>
-                    "{verseData.text}"
-                  </p>
-                  <p style={{marginTop:'15px', fontSize:'16px', color:'#eee'}}>
-                    {verseData.ref}
-                  </p>
-                </div>
-              </div>
-
-              <div style={{display:'flex', borderTop:'1px solid #333', background:'white'}}>
-                <button onClick={handleVerseAmen} style={{flex:1, padding:'12px', border:'none', background:'transparent', cursor:'pointer', borderRight:'1px solid #eee', color: hasAmenedVerse ? '#2e8b57' : '#555', fontWeight:'bold', fontSize:'14px'}}>🙏 Amen ({verseAmenCount})</button>
-                <button onClick={() => handleShare(`${verseData.text} (${verseData.ref})`)} style={{flex:1, padding:'12px', border:'none', background:'transparent', cursor:'pointer', color:'#0b2e4a', fontWeight:'bold', fontSize:'14px'}}>📢 Spread</button>
-              </div>
-            </div>
-          )}
+          {/* NEW PREMIUM WIDGETS */}
+          <DailyVerseWidget user={user} />
+          <DailyPrayerWidget />
           
+          {/* Calendar Widget */}
           <div className="panel-card">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}><h3 style={{ margin: 0, fontSize:'16px' }}>📅 Events</h3><Link href="/events" style={{ fontSize: "12px", color: "#2e8b57", fontWeight: "600", textDecoration:'none' }}>View All →</Link></div>
             <div style={{ background: "#f9f9f9", borderRadius: "8px", padding: "10px", marginBottom: "15px" }}>
@@ -485,6 +399,7 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* CENTER PANEL */}
         <div className="center-panel">
           {user && <CreatePost user={user} onPostCreated={() => { loadPosts(user.id, true); loadPrayerWall(user.id); }} />}
           
@@ -494,7 +409,6 @@ export default function Dashboard() {
              posts.length === 0 ? <div style={{textAlign:'center', padding:'40px', color:'#666'}}>The Walk is quiet. Be the first to share!</div> :
              posts.map(post => (
                <div key={post.id} style={{border:'1px solid #eee', borderRadius:'12px', padding:'15px', marginBottom:'15px', background:'#fafafa'}}>
-                 {/* Post Header */}
                  <div style={{display:'flex', alignItems:'center', gap:'10px', marginBottom:'10px'}}>
                    <Link href={`/profile/${post.user_id}`}>
                       <img src={post.author?.avatar_url || '/images/default-avatar.png'} style={{width:40, height:40, borderRadius:'50%', objectFit:'cover', cursor: 'pointer'}} />
@@ -506,7 +420,6 @@ export default function Dashboard() {
                       <div style={{fontSize:'12px', color:'#666'}}>{new Date(post.created_at).toDateString()}</div>
                    </div>
                    
-                   {/* Kebab Menu */}
                    <div style={{marginLeft:'auto', position:'relative'}}>
                        <button onClick={() => setOpenMenuId(openMenuId === post.id ? null : post.id)} style={{border:'none', background:'none', fontSize:'20px', cursor:'pointer', padding:'5px', color:'#666'}}>⋮</button>
                        {openMenuId === post.id && (
@@ -527,7 +440,6 @@ export default function Dashboard() {
                    </div>
                  </div>
 
-                 {/* Post Content */}
                  {editingPost === post.id ? (
                    <div style={{marginBottom:'10px'}}>
                      <input type="text" value={editTitle} onChange={e => setEditTitle(e.target.value)} placeholder="Title" style={{width:'100%', padding:'8px', marginBottom:'5px', borderRadius:'4px', border:'1px solid #ddd'}} />
@@ -545,7 +457,6 @@ export default function Dashboard() {
                    </>
                  )}
                  
-                 {/* Footer Actions */}
                  <div style={{
                     display:'flex', 
                     justifyContent:'space-between', 
@@ -561,22 +472,28 @@ export default function Dashboard() {
                      <button onClick={() => handleShare(post.content)} style={{background:'none', border:'none', color:'#666', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}>📢 Spread</button>
                  </div>
 
-                 {/* Comments Section */}
                  {activeCommentPostId === post.id && (
                    <div style={{marginTop:'15px', background:'#f9f9f9', padding:'10px', borderRadius:'8px'}}>
                      <div style={{maxHeight:'200px', overflowY:'auto', marginBottom:'10px'}}>
                        {comments[post.id]?.length > 0 ? comments[post.id].map(c => (
                          <div key={c.id} style={{display:'flex', gap:'10px', marginBottom:'8px'}}>
                            <img src={c.profiles?.avatar_url || '/images/default-avatar.png'} style={{width:25, height:25, borderRadius:'50%'}} />
-                           <div style={{background:'white', padding:'5px 10px', borderRadius:'10px', fontSize:'13px', flex:1}}>
-                             <div style={{fontWeight:'bold', fontSize:'12px'}}>{c.profiles?.full_name}</div>
+                           <div style={{background:'white', padding:'5px 10px', borderRadius:'10px', fontSize:'13px', flex:1, color:'#333'}}>
+                             <div style={{fontWeight:'bold', fontSize:'12px', color:'#0b2e4a'}}>{c.profiles?.full_name}</div>
                              {c.content}
                            </div>
                          </div>
                        )) : <p style={{fontSize:'12px', color:'#999'}}>No comments yet. Be the first!</p>}
                      </div>
                      <div style={{display:'flex', gap:'10px'}}>
-                       <input type="text" placeholder="Write a comment..." value={newComment} onChange={e => setNewComment(e.target.value)} style={{flex:1, padding:'8px', borderRadius:'20px', border:'1px solid #ddd', fontSize:'13px'}} onKeyDown={e => e.key === 'Enter' && postComment(post.id)} />
+                       <input 
+                         type="text" 
+                         placeholder="Write a comment..." 
+                         value={newComment} 
+                         onChange={e => setNewComment(e.target.value)} 
+                         style={{flex:1, padding:'8px', borderRadius:'20px', border:'1px solid #ddd', fontSize:'13px', color:'#333'}}
+                         onKeyDown={e => e.key === 'Enter' && postComment(post.id)}
+                       />
                        <button onClick={() => postComment(post.id)} style={{background:'#0b2e4a', color:'white', border:'none', borderRadius:'50%', width:'35px', height:'35px', cursor:'pointer'}}>➤</button>
                      </div>
                    </div>
@@ -605,6 +522,37 @@ export default function Dashboard() {
               </div>
             ))}
             <Link href="/believers" style={{fontSize:'12px', color:'#2e8b57', fontWeight:'bold', display:'block', marginTop:'5px', textDecoration:'none'}}>Find More →</Link>
+          </div>
+          
+          <div className="panel-card" style={{background:'#fff9e6', borderLeft:'4px solid #d4af37'}}>
+            <h3>🙏 Prayer Wall</h3>
+            {prayerRequests.length === 0 ? <p style={{fontSize:'12px', color:'#666'}}>No requests from friends.</p> : 
+              prayerRequests.map(p => (
+                <div key={p.id} style={{marginBottom:'8px', fontSize:'12px', position:'relative', borderBottom:'1px dotted #ccc', paddingBottom:'5px'}}>
+                  <div style={{fontWeight:'bold', color:'#000', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                    <span>{p.profiles?.full_name}</span>
+                    {user && user.id === p.user_id && (
+                      <div style={{display:'flex', gap:'5px'}}>
+                        <button onClick={() => { setEditingPrayerId(p.id); setPrayerEditContent(p.content); }} style={{border:'none', background:'none', color:'#2d6be3', cursor:'pointer', fontSize:'10px', padding:0}}>✏️</button>
+                        <button onClick={() => deletePrayerFromWidget(p.id)} style={{border:'none', background:'none', color:'red', cursor:'pointer', fontSize:'10px', padding:0}}>🗑️</button>
+                      </div>
+                    )}
+                  </div>
+                  {editingPrayerId === p.id ? (
+                    <div style={{marginTop:'5px'}}>
+                      <textarea value={prayerEditContent} onChange={e => setPrayerEditContent(e.target.value)} style={{width:'100%', fontSize:'12px', border:'1px solid #ddd', borderRadius:'4px'}} />
+                      <div style={{display:'flex', gap:'5px', marginTop:'5px'}}>
+                        <button onClick={() => updatePrayerInWidget(p.id)} style={{fontSize:'10px', background:'#2e8b57', color:'white', border:'none', borderRadius:'3px', padding:'2px 5px'}}>Save</button>
+                        <button onClick={() => setEditingPrayerId(null)} style={{fontSize:'10px', background:'#ccc', border:'none', borderRadius:'3px', padding:'2px 5px'}}>Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{fontStyle:'italic', color:'#555'}}>"{p.content.substring(0, 40)}{p.content.length > 40 ? '...' : ''}"</div>
+                  )}
+                </div>
+              ))
+            }
+            <button style={{width:'100%', padding:'8px', background:'#2e8b57', color:'white', border:'none', borderRadius:'6px', cursor:'pointer', marginTop:'10px'}}>I'll Pray</button>
           </div>
           
           <div className="panel-card">
