@@ -1,6 +1,7 @@
 "use client";
 import { useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
+import * as tus from "tus-js-client";
 
 export default function CreatePost({ user, onPostCreated, fellowshipId = null }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -8,55 +9,116 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
   const [title, setTitle] = useState("");
   const [type, setType] = useState("Testimony");
   const [loading, setLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0); // Add progress state
   const [mediaFile, setMediaFile] = useState(null);
   const fileInputRef = useRef(null);
 
   const handlePost = async () => {
     if (!content.trim() && !mediaFile) return;
     setLoading(true);
+    setUploadProgress(0);
 
     let uploadedUrl = null; 
 
     try {
-      // 1. Upload Media
+      // ---------------------------------------------------------
+      // 1. HANDLE MEDIA UPLOAD (Split Logic for Video vs Image)
+      // ---------------------------------------------------------
       if (mediaFile) {
-        const fileExt = mediaFile.name.split('.').pop();
-        const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from("posts")
-          .upload(fileName, mediaFile);
+        const isVideo = mediaFile.type.startsWith("video/");
 
-        if (uploadError) throw uploadError;
+        if (isVideo) {
+          // === VIDEO UPLOAD TO BUNNY STREAM ===
+          
+          // A. Call our internal API to create video & get signature
+          const response = await fetch('/api/video/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: title || "New Post" })
+          });
 
-        const { data: urlData } = supabase.storage.from("posts").getPublicUrl(fileName);
-        uploadedUrl = urlData.publicUrl;
+          if (!response.ok) throw new Error("Failed to initialize video upload");
+          
+          const { videoId, libraryId, signature, expirationTime } = await response.json();
+
+          // B. Perform the TUS Upload
+          uploadedUrl = await new Promise((resolve, reject) => {
+            const upload = new tus.Upload(mediaFile, {
+              endpoint: "https://video.bunnycdn.com/tusupload",
+              retryDelays: [0, 3000, 5000, 10000, 20000],
+              headers: {
+                AuthorizationSignature: signature,
+                AuthorizationExpire: expirationTime,
+                VideoId: videoId,
+                LibraryId: libraryId,
+              },
+              metadata: {
+                filetype: mediaFile.type,
+                title: title || "Untitled",
+              },
+              onError: (error) => {
+                reject(error);
+              },
+              onProgress: (bytesUploaded, bytesTotal) => {
+                const percentage = ((bytesUploaded / bytesTotal) * 100).toFixed(0);
+                setUploadProgress(Number(percentage));
+              },
+              onSuccess: () => {
+                // Construct the Embed URL to store in Supabase
+                // This allows the frontend to easily iframe it later
+                const embedUrl = `https://iframe.mediadelivery.net/play/${libraryId}/${videoId}`;
+                resolve(embedUrl);
+              },
+            });
+
+            upload.start();
+          });
+
+        } else {
+          // === IMAGE UPLOAD TO SUPABASE ===
+          const fileExt = mediaFile.name.split('.').pop();
+          const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+          
+          const { error: uploadError } = await supabase.storage
+            .from("posts")
+            .upload(fileName, mediaFile);
+
+          if (uploadError) throw uploadError;
+
+          const { data: urlData } = supabase.storage.from("posts").getPublicUrl(fileName);
+          uploadedUrl = urlData.publicUrl;
+        }
       }
 
-      // 2. Insert Post
+      // ---------------------------------------------------------
+      // 2. INSERT POST INTO DATABASE
+      // ---------------------------------------------------------
       const { error } = await supabase.from('posts').insert({
         user_id: user.id,
         content: content,
         title: title,
-        media_url: uploadedUrl, 
+        media_url: uploadedUrl, // Stores Supabase Public URL (Image) or Bunny Embed URL (Video)
         type: type,
         fellowship_id: fellowshipId 
       });
 
       if (error) throw error;
 
-      // Success
+      // Success Reset
       setContent("");
       setTitle("");
       setMediaFile(null);
+      setUploadProgress(0);
       setIsOpen(false);
       
       if (onPostCreated) onPostCreated();
 
     } catch (err) {
+      console.error(err);
       alert("Error posting: " + err.message);
     } finally {
       setLoading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -131,6 +193,13 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
         </div>
       </div>
 
+      {/* Progress Bar (Only shows during upload) */}
+      {loading && uploadProgress > 0 && (
+        <div style={{ width: "100%", background: "#f0f0f0", borderRadius: "4px", height: "8px", marginBottom: "15px" }}>
+          <div style={{ width: `${uploadProgress}%`, background: "#2e8b57", height: "100%", borderRadius: "4px", transition: "width 0.3s ease" }}></div>
+        </div>
+      )}
+
       <div style={{ textAlign: "right" }}>
         <button
           onClick={handlePost}
@@ -140,7 +209,7 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
             cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1
           }}
         >
-          {loading ? "Posting..." : "Post"}
+          {loading ? (uploadProgress > 0 ? `Uploading ${uploadProgress}%` : "Posting...") : "Post"}
         </button>
       </div>
     </div>
