@@ -9,7 +9,7 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
   const [title, setTitle] = useState("");
   const [type, setType] = useState("Testimony");
   const [loading, setLoading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0); // Add progress state
+  const [uploadProgress, setUploadProgress] = useState(0); 
   const [mediaFile, setMediaFile] = useState(null);
   const fileInputRef = useRef(null);
 
@@ -28,16 +28,21 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
         const isVideo = mediaFile.type.startsWith("video/");
 
         if (isVideo) {
-          // === VIDEO UPLOAD TO BUNNY STREAM ===
+          // ==============================
+          // === VIDEO UPLOAD TO BUNNY ===
+          // ==============================
           
-          // A. Call our internal API to create video & get signature
+          // A. Call internal API to get Signature
           const response = await fetch('/api/video/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ title: title || "New Post" })
           });
 
-          if (!response.ok) throw new Error("Failed to initialize video upload");
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || "Failed to initialize video upload");
+          }
           
           const { videoId, libraryId, signature, expirationTime } = await response.json();
 
@@ -64,8 +69,7 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
                 setUploadProgress(Number(percentage));
               },
               onSuccess: () => {
-                // Construct the Embed URL to store in Supabase
-                // This allows the frontend to easily iframe it later
+                // Construct the Embed URL
                 const embedUrl = `https://iframe.mediadelivery.net/play/${libraryId}/${videoId}`;
                 resolve(embedUrl);
               },
@@ -75,7 +79,9 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
           });
 
         } else {
+          // ================================
           // === IMAGE UPLOAD TO SUPABASE ===
+          // ================================
           const fileExt = mediaFile.name.split('.').pop();
           const fileName = `${user.id}-${Date.now()}.${fileExt}`;
           
