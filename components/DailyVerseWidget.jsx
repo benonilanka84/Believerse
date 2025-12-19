@@ -19,28 +19,22 @@ export default function DailyVerseWidget() {
   }, []);
 
   async function fetchDailyContent() {
-    // 1. Calculate Day of Year (1-365)
     const now = new Date();
     const start = new Date(now.getFullYear(), 0, 0);
-    const diff = now - start;
-    const oneDay = 1000 * 60 * 60 * 24;
-    let dayOfYear = Math.floor(diff / oneDay);
-    if (dayOfYear > 365) dayOfYear = 365;
+    const dayOfYear = Math.floor((now - start) / (1000 * 60 * 60 * 24));
+    let safeDay = dayOfYear || 1;
+    if (safeDay > 365) safeDay = 365;
 
-    // 2. Fetch from DB
     const { data } = await supabase
       .from('daily_devotionals')
       .select('verse_text, verse_reference')
-      .eq('day_number', dayOfYear)
+      .eq('day_number', safeDay)
       .single();
 
     if (data) {
       setVerse(data);
-      // 3. Image Logic: public/verses/1.jpg ... public/verses/30.jpg
-      // Change '30' to however many images you actually have in the folder.
-// If you upload 365 images, change this to 365.
-const TOTAL_IMAGES = 30; 
-const bgIndex = (dayOfYear % TOTAL_IMAGES) + 1; 
+      const TOTAL_IMAGES = 30; // Update this if you upload more
+      const bgIndex = (safeDay % TOTAL_IMAGES) + 1; 
       setBgImage(`/verses/${bgIndex}.jpg`);
     }
     setLoading(false);
@@ -56,14 +50,17 @@ const bgIndex = (dayOfYear % TOTAL_IMAGES) + 1;
     }
   }
 
+  // --- SMART SHARE LOGIC ---
   async function handleSpread() {
     if (!cardRef.current) return;
     setSharing(true);
 
     try {
+      // 1. Generate the image
       const blob = await toBlob(cardRef.current, { cacheBust: true });
       const file = new File([blob], "daily-verse.png", { type: "image/png" });
 
+      // 2. Try Native Share (Best for Mobile)
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
@@ -71,13 +68,26 @@ const bgIndex = (dayOfYear % TOTAL_IMAGES) + 1;
           text: `"${verse.verse_text}" - ${verse.verse_reference}\n\nVia The Believerse`,
         });
       } else {
-        const link = document.createElement("a");
-        link.download = "daily-verse.png";
-        link.href = URL.createObjectURL(blob);
-        link.click();
+        // 3. Desktop Fallback: Copy to Clipboard
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({
+              [blob.type]: blob
+            })
+          ]);
+          alert("✅ Image copied to clipboard!\n\nJust Paste (Ctrl+V) it into WhatsApp, Facebook, or Email.");
+        } catch (clipboardErr) {
+          // 4. Last Resort: Download
+          const link = document.createElement("a");
+          link.download = "daily-verse.png";
+          link.href = URL.createObjectURL(blob);
+          link.click();
+          alert("✅ Image downloaded! You can now upload it anywhere.");
+        }
       }
     } catch (err) {
       console.error("Share failed:", err);
+      alert("Could not create image. Please screenshot manually.");
     } finally {
       setSharing(false);
     }

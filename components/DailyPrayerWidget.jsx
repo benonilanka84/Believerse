@@ -52,23 +52,44 @@ export default function DailyPrayerWidget() {
     }
   }
 
+// ... inside DailyPrayerWidget component ...
+
+  // --- SMART SHARE LOGIC ---
   async function handleSpread() {
     if (!cardRef.current) return;
     setSharing(true);
+
     try {
+      // 1. Generate Image
       const blob = await toBlob(cardRef.current, { cacheBust: true });
       const file = new File([blob], "daily-prayer.png", { type: "image/png" });
-      
+
+      // 2. Try Native Share (Mobile)
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: "Daily Prayer", text: prayer.prayer_title });
+        await navigator.share({
+          files: [file],
+          title: "Daily Prayer",
+          text: prayer.prayer_title
+        });
       } else {
-        const link = document.createElement("a");
-        link.download = "daily-prayer.png";
-        link.href = URL.createObjectURL(blob);
-        link.click();
+        // 3. Desktop Fallback: Clipboard
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({ [blob.type]: blob })
+          ]);
+          alert("✅ Prayer copied to clipboard!\n\nJust Paste (Ctrl+V) it into WhatsApp or Social Media.");
+        } catch (clipboardErr) {
+          // 4. Download Fallback
+          const link = document.createElement("a");
+          link.download = "daily-prayer.png";
+          link.href = URL.createObjectURL(blob);
+          link.click();
+          alert("✅ Prayer downloaded!");
+        }
       }
     } catch (err) {
       console.error(err);
+      alert("Share failed.");
     } finally {
       setSharing(false);
     }
