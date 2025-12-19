@@ -246,7 +246,7 @@ export default function Dashboard() {
         if (user && user.id !== post.user_id) {
             await supabase.from('notifications').insert({ 
                 user_id: post.user_id, 
-                actor_id: user.id,     
+                actor_id: user.id,      
                 type: 'amen', 
                 content: 'said Amen to your post.', 
                 link: '/dashboard' 
@@ -327,7 +327,7 @@ export default function Dashboard() {
     if (targetPost && user.id !== targetPost.user_id) {
         await supabase.from('notifications').insert({
             user_id: targetPost.user_id, 
-            actor_id: user.id,           
+            actor_id: user.id,            
             type: 'comment',
             content: 'commented on your post.',
             link: '/dashboard'
@@ -443,7 +443,41 @@ export default function Dashboard() {
                    <>
                      {post.title && <h4 style={{margin:'0 0 5px 0', color: '#0b2e4a'}}>{post.title}</h4>}
                      <p style={{whiteSpace:'pre-wrap', color:'#333'}}>{post.content}</p>
-                     {post.media_url && <img src={post.media_url} style={{width:'100%', borderRadius:'8px', marginTop:'10px'}} />}
+                     
+                     {/* --- MODIFIED MEDIA RENDERER START --- */}
+{post.media_url && (
+  // DEBUGGING: Check if it's a video by looking for Bunny extensions or the Embed URL
+  (post.media_url.includes("iframe.mediadelivery.net") || post.media_url.includes("video.bunnycdn")) ? (
+    <div style={{ position: 'relative', paddingTop: '56.25%', marginTop: '10px' }}>
+      <iframe
+        src={post.media_url}
+        loading="lazy"
+        style={{ border: 'none', position: 'absolute', top: 0, left: 0, height: '100%', width: '100%', borderRadius: '8px' }}
+        allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+        allowFullScreen={true}
+      />
+    </div>
+  ) : (
+    // It is an Image
+    <div style={{display: 'flex', flexDirection: 'column'}}>
+      <img 
+        src={post.media_url} 
+        style={{width:'100%', borderRadius:'8px', marginTop:'10px', objectFit:'cover'}} 
+        onError={(e) => {
+          // If image breaks, show the URL so we can see what went wrong
+          e.target.style.display = 'none';
+          e.target.nextSibling.style.display = 'block';
+        }}
+      />
+      {/* Fallback Debug Text: Only appears if image is broken */}
+      <div style={{display:'none', color:'red', fontSize:'12px', marginTop:'5px', padding:'10px', background:'#fff0f0', border:'1px solid red'}}>
+         ⚠️ broken image. URL is: <br/> {post.media_url}
+      </div>
+    </div>
+  )
+)}
+{/* --- MODIFIED MEDIA RENDERER END --- */}
+
                    </>
                  )}
                  
