@@ -276,38 +276,26 @@ export default function GlimpsesPage() {
 }
 
 // --- GLIMPSE VIDEO ITEM ---
+
 function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, openMenuId, setOpenMenuId, onMenuAction, isActive, setActiveGlimpseId }) {
   const videoRef = useRef(null);
   const containerRef = useRef(null);
 
-  async function handleBlessClick() {
-    try {
-      const res = await fetch('https://ipapi.co/json/');
-      const data = await res.json();
-      if (data.country_code !== "IN") {
-        alert("🌍 International Blessing is coming soon!\n\nCurrently, direct blessings are available for UPI (India) users only.");
-        return;
-      }
-      onBless(glimpse.profiles);
-    } catch (err) {
-      onBless(glimpse.profiles);
-    }
-  }
-
+  // Intersection Observer to detect which video is active
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting && entry.intersectionRatio >= 0.7) {
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.6) { // Reduced threshold slightly for better feel
           setActiveGlimpseId(glimpse.id);
         }
       },
-      { root: document.getElementById('glimpses-scroll-container'), threshold: 0.7 }
+      { root: document.getElementById('glimpses-scroll-container'), threshold: 0.6 }
     );
     if (containerRef.current) observer.observe(containerRef.current);
     return () => { if (containerRef.current) observer.unobserve(containerRef.current); };
   }, [glimpse.id, setActiveGlimpseId]);
 
-  // Handle Play/Pause for Standard Videos
+  // Handle Play/Pause for Standard Videos (Supabase)
   useEffect(() => {
     if (videoRef.current) {
         if (isActive) {
@@ -330,66 +318,76 @@ function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, ope
   const showMenu = openMenuId === glimpse.id;
   const isBunnyVideo = glimpse.media_url?.includes("iframe.mediadelivery.net") || glimpse.media_url?.includes("video.bunnycdn");
 
+  // --- BLESS HANDLER ---
+  async function handleBlessClick() {
+    try {
+      const res = await fetch('https://ipapi.co/json/');
+      const data = await res.json();
+      if (data.country_code !== "IN") {
+        alert("🌍 International Blessing is coming soon!\n\nCurrently, direct blessings are available for UPI (India) users only.");
+        return;
+      }
+      onBless(glimpse.profiles);
+    } catch (err) {
+      onBless(glimpse.profiles);
+    }
+  }
+
   return (
     <div ref={containerRef} style={{ height: "100%", width: "100%", scrollSnapAlign: "start", position: "relative", display: "flex", alignItems: "center", justifyContent: "center", overflow:'hidden', background:'black' }}>
       
-      {/* RENDER LOGIC:
-        If Bunny Video -> Render Iframe
-        If Supabase Video -> Render Video Tag
-      */}
-      {isBunnyVideo ? (
-         <div style={{width:'100%', height:'100%', pointerEvents:'none'}}> 
-            {/* pointerEvents:'none' ensures scrolling works over the iframe on some devices, 
-                but controls might be disabled. For Glimpses, usually we want auto-play loop. 
-                We add 'autoplay=true' to URL if it's active. */}
-            <iframe 
-              src={glimpse.media_url + "?autoplay=true&loop=true&muted=false"}
-              loading="lazy"
-              style={{border:'none', width:'100%', height:'100%', objectFit:'cover'}}
-              allow="accelerometer; gyroscope; autoplay; encrypted-media;"
-            />
-         </div>
-      ) : (
-          <video 
-            ref={videoRef} 
-            src={glimpse.media_url} 
-            loop 
-            playsInline 
-            defaultMuted={true} 
-            onClick={togglePlay} 
-            style={{ height: "100%", width: "100%", objectFit: "cover", cursor:'pointer' }} 
-          />
-      )}
+      {/* VIDEO LAYER */}
+      <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}>
+        {isBunnyVideo ? (
+           <iframe 
+             src={glimpse.media_url + "?autoplay=true&loop=true&muted=false&preload=true"}
+             loading="lazy"
+             style={{ border: 'none', width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, zIndex: 1 }}
+             allow="accelerometer; gyroscope; autoplay; encrypted-media;"
+             allowFullScreen
+           />
+        ) : (
+           <video 
+             ref={videoRef} 
+             src={glimpse.media_url} 
+             loop 
+             playsInline 
+             defaultMuted={true} 
+             onClick={togglePlay} 
+             style={{ height: "100%", width: "100%", objectFit: "cover", cursor:'pointer' }} 
+           />
+        )}
+      </div>
       
-      {/* RIGHT SIDEBAR ACTIONS */}
-      <div style={{ position: "absolute", right: "10px", bottom: "120px", display: "flex", flexDirection: "column", gap: "25px", alignItems: "center", zIndex: 5 }}>
+      {/* OVERLAYS (UI) - zIndex higher than iframe */}
+      <div style={{ position: "absolute", right: "10px", bottom: "120px", display: "flex", flexDirection: "column", gap: "25px", alignItems: "center", zIndex: 10, pointerEvents: 'auto' }}>
         
         {/* Avatar */}
         <div style={{ position: "relative", marginBottom:'10px' }}>
           <img src={glimpse.profiles?.avatar_url || '/images/default-avatar.png'} style={{ width: 45, height: 45, borderRadius: "50%", border: "2px solid white", objectFit:'cover' }} />
         </div>
 
-        {/* Amen */}
+        {/* Amen Button */}
         <div style={{ textAlign: "center" }}>
-          <button onClick={() => onAmen(glimpse, glimpse.hasAmened)} style={{ background: "rgba(0,0,0,0.3)", borderRadius:'50%', width:'45px', height:'45px', border: "none", fontSize: "24px", cursor: "pointer", display:'flex', alignItems:'center', justifyContent:'center', backdropFilter:'blur(5px)' }}>
+          <button onClick={() => onAmen(glimpse, glimpse.hasAmened)} style={{ background: "rgba(0,0,0,0.3)", borderRadius:'50%', width:'45px', height:'45px', border: "none", fontSize: "24px", cursor: "pointer", display:'flex', alignItems:'center', justifyContent:'center', backdropFilter:'blur(5px)', color:'white' }}>
             {glimpse.hasAmened ? "🙏" : "👐"}
           </button>
           <div style={{ color: "white", fontSize: "12px", fontWeight: "bold", marginTop:'2px', textShadow:'0 1px 2px black' }}>{glimpse.amenCount}</div>
         </div>
 
-        {/* Bless */}
+        {/* Bless Button */}
         <div style={{ textAlign: "center" }}>
           <button onClick={handleBlessClick} style={{ background: "rgba(0,0,0,0.3)", borderRadius:'50%', width:'45px', height:'45px', border: "none", fontSize: "24px", cursor: "pointer", display:'flex', alignItems:'center', justifyContent:'center', backdropFilter:'blur(5px)' }}>✨</button>
           <div style={{ color: "white", fontSize: "12px", fontWeight: "bold", marginTop:'2px', textShadow:'0 1px 2px black' }}>Bless</div>
         </div>
 
-        {/* Share */}
+        {/* Share Button */}
         <div style={{ textAlign: "center" }}>
           <button onClick={onShare} style={{ background: "rgba(0,0,0,0.3)", borderRadius:'50%', width:'45px', height:'45px', border: "none", fontSize: "24px", cursor: "pointer", display:'flex', alignItems:'center', justifyContent:'center', backdropFilter:'blur(5px)' }}>📢</button>
           <div style={{ color: "white", fontSize: "12px", fontWeight: "bold", marginTop:'2px', textShadow:'0 1px 2px black' }}>Share</div>
         </div>
 
-        {/* Menu */}
+        {/* Menu Button */}
         <div style={{ position:'relative' }}>
           <button 
             onClick={(e) => {e.stopPropagation(); setOpenMenuId(showMenu ? null : glimpse.id);}} 
