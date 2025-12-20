@@ -210,20 +210,20 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
           </div>
         ) : (
           <div style={{ position: "relative", width: "100%" }}>
-             {/* PREVIEW PLAYER: Fixed height container, Video contained inside */}
+             {/* PREVIEW PLAYER: Natural width, rounded corners */}
             {mediaFile.type.startsWith("video/") ? (
-                <div style={{ width: "100%", height: "350px", background: "black", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+                <div style={{ width: "100%", overflow: "hidden", borderRadius: "8px" }}>
                     <video 
                         src={previewUrl} 
                         controls 
-                        style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} 
+                        style={{ width: "100%", height: "auto", display: "block" }} 
                     />
                 </div>
             ) : (
                 <img 
                     src={previewUrl} 
                     alt="Preview" 
-                    style={{ width: "100%", maxHeight: "300px", borderRadius: "8px", objectFit: "cover" }} 
+                    style={{ width: "100%", height: "auto", borderRadius: "8px", display: "block" }} 
                 />
             )}
             
@@ -233,7 +233,7 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
                     e.stopPropagation();
                     setMediaFile(null);
                     setPreviewUrl(null);
-                    fileInputRef.current.value = ""; // Reset file input
+                    fileInputRef.current.value = ""; 
                 }}
                 style={{ 
                     marginTop: "10px", width: "100%", padding: "8px", background: "#fee2e2", color: "#b91c1c", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px" 
