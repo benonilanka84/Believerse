@@ -12,12 +12,10 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
   const [uploadProgress, setUploadProgress] = useState(0); 
   const [mediaFile, setMediaFile] = useState(null);
   
-  // State for the preview URL
   const [previewUrl, setPreviewUrl] = useState(null);
-  
   const fileInputRef = useRef(null);
 
-  // Effect to generate preview URL when file is selected
+  // Generate preview URL
   useEffect(() => {
     if (!mediaFile) {
       setPreviewUrl(null);
@@ -25,8 +23,6 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
     }
     const objectUrl = URL.createObjectURL(mediaFile);
     setPreviewUrl(objectUrl);
-
-    // Cleanup memory when file changes or component unmounts
     return () => URL.revokeObjectURL(objectUrl);
   }, [mediaFile]);
 
@@ -38,14 +34,12 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
     let uploadedUrl = null; 
 
     try {
-      // ---------------------------------------------------------
       // 1. HANDLE MEDIA UPLOAD
-      // ---------------------------------------------------------
       if (mediaFile) {
         const isVideo = mediaFile.type.startsWith("video/");
 
         if (isVideo) {
-          // A. Call internal API to get Signature
+          // A. Get Signature
           const response = await fetch('/api/video/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -59,7 +53,7 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
           
           const { videoId, libraryId, signature, expirationTime } = await response.json();
 
-          // B. Perform the TUS Upload
+          // B. Upload to Bunny
           uploadedUrl = await new Promise((resolve, reject) => {
             const upload = new tus.Upload(mediaFile, {
               endpoint: "https://video.bunnycdn.com/tusupload",
@@ -80,6 +74,7 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
                 setUploadProgress(Number(percentage));
               },
               onSuccess: () => {
+                // Construct Embed URL
                 const embedUrl = `https://iframe.mediadelivery.net/play/${libraryId}/${videoId}`;
                 resolve(embedUrl);
               },
@@ -88,7 +83,7 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
           });
 
         } else {
-          // IMAGE UPLOAD TO SUPABASE
+          // IMAGE UPLOAD (Supabase)
           const fileExt = mediaFile.name.split('.').pop();
           const fileName = `${user.id}-${Date.now()}.${fileExt}`;
           
@@ -103,9 +98,7 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
         }
       }
 
-      // ---------------------------------------------------------
-      // 2. INSERT POST INTO DATABASE
-      // ---------------------------------------------------------
+      // 2. INSERT POST
       const { error } = await supabase.from('posts').insert({
         user_id: user.id,
         content: content,
@@ -117,14 +110,13 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
 
       if (error) throw error;
 
-      // Success Reset
+      // Reset
       setContent("");
       setTitle("");
       setMediaFile(null);
       setPreviewUrl(null); 
       setUploadProgress(0);
       setIsOpen(false);
-      
       if (onPostCreated) onPostCreated();
 
     } catch (err) {
@@ -200,7 +192,6 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
           onChange={(e) => setMediaFile(e.target.files[0])}
         />
         
-        {/* Toggle between Upload Button and Preview */}
         {!mediaFile ? (
           <div 
             onClick={() => fileInputRef.current.click()}
@@ -210,24 +201,23 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
           </div>
         ) : (
           <div style={{ position: "relative", width: "100%" }}>
-             {/* PREVIEW PLAYER: Natural width, rounded corners */}
+            
+            {/* FIXED PREVIEW LOGIC: No more black box. Natural size. */}
             {mediaFile.type.startsWith("video/") ? (
-                <div style={{ width: "100%", overflow: "hidden", borderRadius: "8px" }}>
-                    <video 
-                        src={previewUrl} 
-                        controls 
-                        style={{ width: "100%", height: "auto", display: "block" }} 
-                    />
-                </div>
+                <video 
+                    src={previewUrl} 
+                    controls 
+                    // This style ensures it fills width but respects aspect ratio (no black bars)
+                    style={{ width: "100%", height: "auto", maxHeight: "500px", borderRadius: "8px", display: "block", backgroundColor: "#000" }} 
+                />
             ) : (
                 <img 
                     src={previewUrl} 
                     alt="Preview" 
-                    style={{ width: "100%", height: "auto", borderRadius: "8px", display: "block" }} 
+                    style={{ width: "100%", height: "auto", maxHeight: "400px", borderRadius: "8px", display: "block", objectFit: "contain" }} 
                 />
             )}
             
-            {/* Remove Button */}
             <button 
                 onClick={(e) => {
                     e.stopPropagation();
