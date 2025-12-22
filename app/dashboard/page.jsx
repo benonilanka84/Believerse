@@ -445,45 +445,46 @@ export default function Dashboard() {
                      <p style={{whiteSpace:'pre-wrap', color:'#333'}}>{post.content}</p>
                      
                      {/* --- THE UNIVERSAL SMART RENDERER --- */}
-{post.media_url && (
-  <div style={{ 
-    marginTop: '12px', 
-    borderRadius: '12px', 
-    overflow: 'hidden', 
-    background: '#000', 
-    width: '100%' 
-  }}>
-    {/* 1. BUNNY CDN VIDEOS (Iframes) */}
-    {post.media_url.includes("iframe.mediadelivery.net") || post.media_url.includes("video.bunnycdn") ? (
-      <div style={{ width: '100%', aspectRatio: post.type === 'Glimpse' ? '9/16' : '16/9' }}>
-        <iframe
-          src={post.media_url}
-          loading="lazy"
-          style={{ border: 'none', width: '100%', height: '100%' }}
-          allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
-          allowFullScreen={true}
-        />
-      </div>
-    ) : 
-    /* 2. DIRECT VIDEOS (MP4, MOV, etc. from Supabase or elsewhere) */
-    (post.media_url.match(/\.(mp4|webm|ogg|mov)$/i) || post.media_type === 'video') ? (
-      <video 
-        src={post.media_url} 
-        controls 
-        style={{ width: '100%', height: 'auto', maxHeight: '600px', display: 'block' }} 
-      />
-    ) : 
-    /* 3. IMAGES (Default fallback) */
-    (
-      <img 
-        src={post.media_url} 
-        alt="Post media"
-        style={{ width: '100%', height: 'auto', display: 'block', objectFit: 'contain' }} 
-        onError={(e) => { e.target.style.display='none'; }}
-      />
-    )}
-  </div>
-)}
+                     {post.media_url && (
+                        <div style={{ 
+                          marginTop: '12px', 
+                          borderRadius: '12px', 
+                          overflow: 'hidden', 
+                          background: '#000', 
+                          width: '100%',
+                          position: 'relative'
+                        }}>
+                          {/* 1. BUNNY CDN VIDEOS (Iframes) */}
+                          {post.media_url.includes("iframe.mediadelivery.net") || post.media_url.includes("video.bunnycdn") ? (
+                            <div style={{ width: '100%', aspectRatio: post.type === 'Glimpse' ? '9/16' : '16/9' }}>
+                              <iframe
+                                src={post.media_url}
+                                loading="lazy"
+                                style={{ border: 'none', width: '100%', height: '100%' }}
+                                allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+                                allowFullScreen={true}
+                              />
+                            </div>
+                          ) : 
+                          /* 2. DIRECT VIDEOS (MP4, MOV, etc.) */
+                          (post.media_url.match(/\.(mp4|webm|ogg|mov)$/i)) ? (
+                            <video 
+                              src={post.media_url} 
+                              controls 
+                              style={{ width: '100%', height: 'auto', maxHeight: '600px', display: 'block' }} 
+                            />
+                          ) : 
+                          /* 3. IMAGES (Default fallback) */
+                          (
+                            <img 
+                              src={post.media_url} 
+                              alt="Post media"
+                              style={{ width: '100%', height: 'auto', display: 'block', objectFit: 'contain' }} 
+                              onError={(e) => { e.target.style.display='none'; }}
+                            />
+                          )}
+                        </div>
+                     )}
                      {/* ------------------------------- */}
 
                    </>
