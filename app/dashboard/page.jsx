@@ -204,10 +204,10 @@ export default function Dashboard() {
       if (inputAmount === null) return;
       const amount = parseFloat(inputAmount);
       if (isNaN(amount) || amount < 1) { alert("Please enter a valid amount (Minimum $1)."); return; }
-      
+       
       const res = await loadRazorpayScript();
       if (!res) { alert("Payment gateway failed to load."); return; }
-      
+       
       try {
         const response = await fetch("/api/razorpay", {
           method: "POST", headers: { "Content-Type": "application/json" },
@@ -246,7 +246,7 @@ export default function Dashboard() {
         if (user && user.id !== post.user_id) {
             await supabase.from('notifications').insert({ 
                 user_id: post.user_id, 
-                actor_id: user.id,      
+                actor_id: user.id,       
                 type: 'amen', 
                 content: 'said Amen to your post.', 
                 link: '/dashboard' 
@@ -268,7 +268,7 @@ export default function Dashboard() {
   }
 
   function startEditing(post) { setEditingPost(post.id); setEditContent(post.content); setEditTitle(post.title || ''); setOpenMenuId(null); }
-  
+   
   function handleShare(text) { 
     const shareUrl = window.location.origin; 
     const fullText = `${text}\n\nVia The Believerse: ${shareUrl}`;
@@ -327,7 +327,7 @@ export default function Dashboard() {
     if (targetPost && user.id !== targetPost.user_id) {
         await supabase.from('notifications').insert({
             user_id: targetPost.user_id, 
-            actor_id: user.id,            
+            actor_id: user.id,             
             type: 'comment',
             content: 'commented on your post.',
             link: '/dashboard'
@@ -341,7 +341,7 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard-wrapper">
-      
+       
       {/* HEADER */}
       <div style={{ background: "linear-gradient(135deg, #2e8b57 0%, #1d5d3a 100%)", padding: "20px 30px", borderRadius: "12px", color: "white", marginBottom: "20px", display:'flex', justifyContent:'space-between', alignItems:'center' }}>
         <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
@@ -367,11 +367,11 @@ export default function Dashboard() {
 
       <div className="dashboard-grid">
         <div className="left-panel">
-          
+           
           {/* NEW PREMIUM WIDGETS */}
           <DailyVerseWidget />
           <DailyPrayerWidget />
-          
+           
           {/* Calendar Widget */}
           <div className="panel-card">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}><h3 style={{ margin: 0, fontSize:'16px' }}>📅 Events</h3><Link href="/events" style={{ fontSize: "12px", color: "#2e8b57", fontWeight: "600", textDecoration:'none' }}>View All →</Link></div>
@@ -392,7 +392,7 @@ export default function Dashboard() {
 
         <div className="center-panel">
           {user && <CreatePost user={user} onPostCreated={() => { loadPosts(user.id, true); loadPrayerWall(user.id); }} />}
-          
+           
           <div className="panel-card">
             <h3>🏠 The Walk</h3>
             {loadingPosts ? <p style={{textAlign:'center', padding:'20px'}}>Loading...</p> : 
@@ -444,16 +444,27 @@ export default function Dashboard() {
                      {post.title && <h4 style={{margin:'0 0 5px 0', color: '#0b2e4a'}}>{post.title}</h4>}
                      <p style={{whiteSpace:'pre-wrap', color:'#333'}}>{post.content}</p>
                      
-                     {/* --- MODIFIED MEDIA RENDERER --- */}
+                     {/* --- FIXED VIDEO PLAYER LOGIC --- */}
                      {post.media_url && (
                         (post.media_url.includes("iframe.mediadelivery.net") || post.media_url.includes("video.bunnycdn")) ? (
-                          <div style={{ position: 'relative', width: '100%', paddingTop: '56.25%', marginTop: '10px' }}>
+                          <div style={{ 
+                              position: 'relative', 
+                              width: '100%', 
+                              aspectRatio: '16/9', // Replaced paddingTop with aspect-ratio
+                              marginTop: '10px', 
+                              background: 'black', // Black background for player effect
+                              borderRadius: '8px',
+                              overflow: 'hidden',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                          }}>
                             <iframe
                               src={post.media_url}
                               loading="lazy"
                               width="100%"
                               height="100%"
-                              style={{ border: 'none', position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', borderRadius: '8px' }}
+                              style={{ border: 'none', width: '100%', height: '100%' }}
                               allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
                               allowFullScreen={true}
                             />
@@ -472,13 +483,13 @@ export default function Dashboard() {
                  )}
                  
                  <div style={{
-                    display:'flex', 
-                    justifyContent:'space-between', 
-                    alignItems:'center',
-                    marginTop:'15px', 
-                    borderTop:'1px solid #eee', 
-                    paddingTop:'10px',
-                    width:'100%'
+                   display:'flex', 
+                   justifyContent:'space-between', 
+                   alignItems:'center',
+                   marginTop:'15px', 
+                   borderTop:'1px solid #eee', 
+                   paddingTop:'10px',
+                   width:'100%'
                  }}>
                      <button onClick={() => handleAmen(post, post.hasAmened)} style={{background:'none', border:'none', color: post.hasAmened ? '#2e8b57' : '#666', fontWeight: post.hasAmened ? 'bold' : 'normal', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}>🙏 Amen ({post.amenCount})</button>
                      <button onClick={() => toggleComments(post.id)} style={{background:'none', border:'none', color:'#666', fontWeight:'bold', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}>💬 Comment</button>
@@ -526,10 +537,10 @@ export default function Dashboard() {
               <div key={b.id} style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'10px'}}>
                 <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
                   <Link href={`/profile/${b.id}`}>
-                     <img src={b.avatar_url || '/images/default-avatar.png'} style={{width:30, height:30, borderRadius:'50%', cursor: 'pointer'}} />
+                      <img src={b.avatar_url || '/images/default-avatar.png'} style={{width:30, height:30, borderRadius:'50%', cursor: 'pointer'}} />
                   </Link>
                   <Link href={`/profile/${b.id}`} style={{textDecoration:'none'}}>
-                     <span style={{fontSize:'13px', color:'#0b2e4a', fontWeight:'bold', cursor: 'pointer'}}>{b.full_name?.split(' ')[0]}</span>
+                      <span style={{fontSize:'13px', color:'#0b2e4a', fontWeight:'bold', cursor: 'pointer'}}>{b.full_name?.split(' ')[0]}</span>
                   </Link>
                 </div>
                 <Link href={`/chat?uid=${b.id}`} style={{textDecoration:'none', fontSize:'16px'}}>💬</Link>
