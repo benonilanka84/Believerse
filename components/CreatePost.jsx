@@ -11,7 +11,7 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0); 
   const [mediaFile, setMediaFile] = useState(null);
-  
+   
   const [previewUrl, setPreviewUrl] = useState(null);
   const fileInputRef = useRef(null);
 
@@ -50,7 +50,7 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
             const errorData = await response.json();
             throw new Error(errorData.error || "Failed to initialize video upload");
           }
-          
+           
           const { videoId, libraryId, signature, expirationTime } = await response.json();
 
           // B. Upload to Bunny
@@ -86,7 +86,7 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
           // IMAGE UPLOAD (Supabase)
           const fileExt = mediaFile.name.split('.').pop();
           const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-          
+           
           const { error: uploadError } = await supabase.storage
             .from("posts")
             .upload(fileName, mediaFile);
@@ -202,14 +202,15 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
         ) : (
           <div style={{ position: "relative", width: "100%" }}>
             
-            {/* FIXED PREVIEW LOGIC: No more black box. Natural size. */}
+            {/* --- FIX APPLIED: Full Width Video Preview --- */}
             {mediaFile.type.startsWith("video/") ? (
-                <video 
-                    src={previewUrl} 
-                    controls 
-                    // This style ensures it fills width but respects aspect ratio (no black bars)
-                    style={{ width: "100%", height: "auto", maxHeight: "500px", borderRadius: "8px", display: "block", backgroundColor: "#000" }} 
-                />
+                <div style={{ width: "100%", aspectRatio: "16/9", backgroundColor: "black", borderRadius: "8px", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <video 
+                        src={previewUrl} 
+                        controls 
+                        style={{ width: "100%", height: "100%", objectFit: "contain" }} 
+                    />
+                </div>
             ) : (
                 <img 
                     src={previewUrl} 

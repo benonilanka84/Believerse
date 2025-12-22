@@ -12,7 +12,7 @@ export default function GlimpsesPage() {
   // Upload State
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0); // Added Progress State
+  const [uploadProgress, setUploadProgress] = useState(0); 
   const [newGlimpseCaption, setNewGlimpseCaption] = useState("");
   const fileInputRef = useRef(null);
   
@@ -50,7 +50,7 @@ export default function GlimpsesPage() {
         hasAmened: p.amens.some(a => a.user_id === userId)
       }));
       setGlimpses(formatted);
-      
+       
       if (formatted.length > 0) {
         setActiveGlimpseId(formatted[0].id);
       }
@@ -62,14 +62,11 @@ export default function GlimpsesPage() {
     const file = fileInputRef.current?.files?.[0];
     if (!file || !user) return;
 
-    // Remove strict 50MB limit (Bunny handles large files well)
-    // But we can keep a sanity check if you want, e.g. 500MB
     if (file.size > 500 * 1024 * 1024) { alert("File too large! Max 500MB."); return; }
 
     setUploading(true);
     setUploadProgress(0);
-    // Note: We keep the modal OPEN so we can show the progress bar
-    
+     
     try {
       let uploadedUrl = null;
 
@@ -84,7 +81,7 @@ export default function GlimpsesPage() {
         const errData = await response.json();
         throw new Error(errData.error || "Failed to init upload");
       }
-      
+       
       const { videoId, libraryId, signature, expirationTime } = await response.json();
 
       // 2. Upload to Bunny via TUS
@@ -120,7 +117,7 @@ export default function GlimpsesPage() {
         user_id: user.id,
         content: newGlimpseCaption || "⚡ New Glimpse",
         type: "Glimpse",
-        media_url: uploadedUrl, // Stores the Bunny Embed URL
+        media_url: uploadedUrl,
         media_type: "video"
       });
 
@@ -129,7 +126,7 @@ export default function GlimpsesPage() {
       alert("✅ Glimpse Uploaded!");
       setNewGlimpseCaption("");
       setUploadProgress(0);
-      setIsUploadModalOpen(false); // Close modal only after success
+      setIsUploadModalOpen(false); 
       loadGlimpses(user.id);
 
     } catch (err) {
@@ -182,8 +179,9 @@ export default function GlimpsesPage() {
   if (!mounted) return null;
 
   return (
-    <div style={{ background: "#000", height: "100vh", width: "100vw", display: "flex", flexDirection: "column", alignItems:'center', position: "relative", overflow: "hidden" }}>
-      
+    // FIX APPLIED: Use 100dvh for better mobile browser support
+    <div style={{ background: "#000", height: "100dvh", width: "100vw", display: "flex", flexDirection: "column", alignItems:'center', position: "relative", overflow: "hidden" }}>
+       
       {/* HEADER */}
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, padding: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 10, background: 'linear-gradient(to bottom, rgba(0,0,0,0.5), transparent)' }}>
         <h2 style={{ color: "white", margin: 0, fontSize: "20px", fontWeight:'bold' }}>⚡ Glimpses</h2>
@@ -198,7 +196,7 @@ export default function GlimpsesPage() {
       {/* FEED CONTAINER */}
       <div 
         id="glimpses-scroll-container"
-        style={{ width: '100%', maxWidth: '480px', height: '100%', overflowY: "scroll", scrollSnapType: "y mandatory", scrollBehavior: "smooth", background:'#000', position:'relative' }}
+        style={{ width: '100%', maxWidth: '480px', height: '100%', overflowY: "scroll", scrollSnapType: "y mandatory", scrollBehavior: "smooth", background:'#000', position:'relative', scrollbarWidth: 'none' }}
       >
         {glimpses.length === 0 ? <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "white" }}><p>No Glimpses yet.</p></div> : 
           glimpses.map((glimpse) => (
@@ -219,7 +217,7 @@ export default function GlimpsesPage() {
           ))
         }
       </div>
-      
+       
       {/* UPLOAD MODAL */}
       {isUploadModalOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
@@ -281,11 +279,10 @@ function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, ope
   const videoRef = useRef(null);
   const containerRef = useRef(null);
 
-  // Intersection Observer to detect which video is active
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting && entry.intersectionRatio >= 0.6) { // Reduced threshold slightly for better feel
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.6) { 
           setActiveGlimpseId(glimpse.id);
         }
       },
@@ -295,7 +292,6 @@ function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, ope
     return () => { if (containerRef.current) observer.unobserve(containerRef.current); };
   }, [glimpse.id, setActiveGlimpseId]);
 
-  // Handle Play/Pause for Standard Videos (Supabase)
   useEffect(() => {
     if (videoRef.current) {
         if (isActive) {
@@ -314,11 +310,10 @@ function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, ope
         else videoRef.current.pause();
     }
   }
-  
+   
   const showMenu = openMenuId === glimpse.id;
   const isBunnyVideo = glimpse.media_url?.includes("iframe.mediadelivery.net") || glimpse.media_url?.includes("video.bunnycdn");
 
-  // --- BLESS HANDLER ---
   async function handleBlessClick() {
     try {
       const res = await fetch('https://ipapi.co/json/');
@@ -334,15 +329,17 @@ function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, ope
   }
 
   return (
+    // FIX APPLIED: Force full height and width
     <div ref={containerRef} style={{ height: "100%", width: "100%", scrollSnapAlign: "start", position: "relative", display: "flex", alignItems: "center", justifyContent: "center", overflow:'hidden', background:'black' }}>
-      
+       
       {/* VIDEO LAYER */}
       <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}>
         {isBunnyVideo ? (
            <iframe 
              src={glimpse.media_url + "?autoplay=true&loop=true&muted=false&preload=true"}
              loading="lazy"
-             style={{ border: 'none', width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, zIndex: 1 }}
+             // FIX APPLIED: object-fit cover simulation for iframes (width/height 100% on wrapper handles most, but ensuring styles here)
+             style={{ border: 'none', width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, zIndex: 1, objectFit: 'cover' }}
              allow="accelerometer; gyroscope; autoplay; encrypted-media;"
              allowFullScreen
            />
@@ -354,12 +351,13 @@ function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, ope
              playsInline 
              defaultMuted={true} 
              onClick={togglePlay} 
-             style={{ height: "100%", width: "100%", objectFit: "cover", cursor:'pointer' }} 
+             // FIX APPLIED: Ensure object-cover is active to fill screen
+             style={{ height: "100%", width: "100%", objectFit: "cover", cursor:'pointer', position: 'absolute', top: 0, left: 0 }} 
            />
         )}
       </div>
-      
-      {/* OVERLAYS (UI) - zIndex higher than iframe */}
+       
+      {/* OVERLAYS (UI) */}
       <div style={{ position: "absolute", right: "10px", bottom: "120px", display: "flex", flexDirection: "column", gap: "25px", alignItems: "center", zIndex: 10, pointerEvents: 'auto' }}>
         
         {/* Avatar */}
