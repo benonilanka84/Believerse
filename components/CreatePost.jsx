@@ -195,81 +195,72 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
         {!mediaFile ? (
           <div 
             onClick={() => fileInputRef.current.click()}
-            style={{ padding: "10px", border: "1px dashed #ccc", borderRadius: "8px", textAlign: "center", color: "#666", fontSize: "13px", cursor: "pointer", background: "transparent" }}
+            style={{ padding: "12px", border: "2px dashed #e0e0e0", borderRadius: "12px", textAlign: "center", color: "#666", fontSize: "14px", cursor: "pointer", background: "#fafafa" }}
           >
-            📷 Add Image/Video
+            📷 Add high-quality Image or Video
           </div>
         ) : (
-          <div style={{ position: "relative", width: "100%" }}>
+          <div style={{ position: "relative", width: "100%", borderRadius: "12px", overflow: "hidden", background: "#000", boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}>
             
-            {/* VIDEO/IMAGE PREVIEW */}
-            {mediaFile.type.startsWith("video/") ? (
-              <div style={{ 
-                width: "100%", 
-                position: "relative",
-                paddingBottom: "56.25%", // 16:9 aspect ratio
-                backgroundColor: "black", 
-                borderRadius: "8px", 
-                overflow: "hidden"
-              }}>
+            {/* Intelligent Aspect Ratio Container */}
+            <div style={{ 
+              width: "100%", 
+              position: "relative",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              aspectRatio: type === "Glimpse" ? "9/16" : "16/9"
+            }}>
+              {mediaFile.type.startsWith("video/") ? (
                 <video 
                   src={previewUrl} 
                   controls 
                   style={{ 
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
                     width: "100%", 
                     height: "100%", 
-                    objectFit: "contain"
+                    objectFit: type === "Glimpse" ? "cover" : "contain",
+                    display: "block"
                   }} 
                 />
-              </div>
-            ) : (
-              <img 
-                src={previewUrl} 
-                alt="Preview" 
+              ) : (
+                <img 
+                  src={previewUrl} 
+                  alt="Preview" 
+                  style={{ 
+                    width: "100%", 
+                    height: "100%", 
+                    objectFit: "contain",
+                    display: "block"
+                  }} 
+                />
+              )}
+
+              {/* Sleek Floating Remove Button */}
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMediaFile(null);
+                  setPreviewUrl(null);
+                  fileInputRef.current.value = ""; 
+                }}
                 style={{ 
-                  width: "100%", 
-                  height: "auto", 
-                  maxHeight: "400px", 
-                  borderRadius: "8px", 
-                  display: "block", 
-                  objectFit: "contain",
-                  backgroundColor: "#f5f5f5"
-                }} 
-              />
-            )}
-            
-            <button 
-              onClick={(e) => {
-                e.stopPropagation();
-                setMediaFile(null);
-                setPreviewUrl(null);
-                fileInputRef.current.value = ""; 
-              }}
-              style={{ 
-                marginTop: "10px", 
-                width: "100%", 
-                padding: "8px", 
-                background: "#fee2e2", 
-                color: "#b91c1c", 
-                border: "none", 
-                borderRadius: "6px", 
-                cursor: "pointer", 
-                fontSize: "12px" 
-              }}
-            >
-              ❌ Remove {mediaFile.type.startsWith("video/") ? "Video" : "Image"}
-            </button>
+                  position: "absolute", top: "10px", right: "10px", width: "32px", height: "32px", 
+                  background: "rgba(0,0,0,0.6)", color: "white", border: "none", borderRadius: "50%", 
+                  cursor: "pointer", fontSize: "18px", display: "flex", alignItems: "center", justifyContent: "center",
+                  backdropFilter: "blur(4px)", zIndex: 10
+                }}
+              >
+                ×
+              </button>
+            </div>
           </div>
         )}
       </div>
 
-      {/* Progress Bar */}
+      {/* Modern Integrated Progress Bar */}
       {loading && uploadProgress > 0 && (
-        <div style={{ width: "100%", background: "#f0f0f0", borderRadius: "4px", height: "8px", marginBottom: "15px" }}>
-          <div style={{ width: `${uploadProgress}%`, background: "#2e8b57", height: "100%", borderRadius: "4px", transition: "width 0.3s ease" }}></div>
+        <div style={{ width: "100%", background: "#f0f0f0", borderRadius: "4px", height: "6px", marginBottom: "15px", overflow: "hidden" }}>
+          <div style={{ width: `${uploadProgress}%`, background: "#2e8b57", height: "100%", transition: "width 0.3s ease" }}></div>
         </div>
       )}
 
