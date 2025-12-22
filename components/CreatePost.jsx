@@ -202,37 +202,65 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
         ) : (
           <div style={{ position: "relative", width: "100%" }}>
             
-            {/* --- FIX APPLIED: Full Width Video Preview --- */}
-            {/* We use a container with 16/9 aspect ratio to make it look like a player */}
+            {/* VIDEO/IMAGE PREVIEW */}
             {mediaFile.type.startsWith("video/") ? (
-                <div style={{ width: "100%", aspectRatio: "16/9", backgroundColor: "black", borderRadius: "8px", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <video 
-                        src={previewUrl} 
-                        controls 
-                        // objectFit: contain ensures the whole video is visible inside the player box
-                        style={{ width: "100%", height: "100%", objectFit: "contain" }} 
-                    />
-                </div>
-            ) : (
-                <img 
-                    src={previewUrl} 
-                    alt="Preview" 
-                    style={{ width: "100%", height: "auto", maxHeight: "400px", borderRadius: "8px", display: "block", objectFit: "contain" }} 
+              <div style={{ 
+                width: "100%", 
+                position: "relative",
+                paddingBottom: "56.25%", // 16:9 aspect ratio
+                backgroundColor: "black", 
+                borderRadius: "8px", 
+                overflow: "hidden"
+              }}>
+                <video 
+                  src={previewUrl} 
+                  controls 
+                  style={{ 
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%", 
+                    height: "100%", 
+                    objectFit: "contain"
+                  }} 
                 />
+              </div>
+            ) : (
+              <img 
+                src={previewUrl} 
+                alt="Preview" 
+                style={{ 
+                  width: "100%", 
+                  height: "auto", 
+                  maxHeight: "400px", 
+                  borderRadius: "8px", 
+                  display: "block", 
+                  objectFit: "contain",
+                  backgroundColor: "#f5f5f5"
+                }} 
+              />
             )}
             
             <button 
-                onClick={(e) => {
-                    e.stopPropagation();
-                    setMediaFile(null);
-                    setPreviewUrl(null);
-                    fileInputRef.current.value = ""; 
-                }}
-                style={{ 
-                    marginTop: "10px", width: "100%", padding: "8px", background: "#fee2e2", color: "#b91c1c", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px" 
-                }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setMediaFile(null);
+                setPreviewUrl(null);
+                fileInputRef.current.value = ""; 
+              }}
+              style={{ 
+                marginTop: "10px", 
+                width: "100%", 
+                padding: "8px", 
+                background: "#fee2e2", 
+                color: "#b91c1c", 
+                border: "none", 
+                borderRadius: "6px", 
+                cursor: "pointer", 
+                fontSize: "12px" 
+              }}
             >
-                ❌ Remove {mediaFile.type.startsWith("video/") ? "Video" : "Image"}
+              ❌ Remove {mediaFile.type.startsWith("video/") ? "Video" : "Image"}
             </button>
           </div>
         )}

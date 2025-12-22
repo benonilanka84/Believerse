@@ -271,6 +271,7 @@ export default function GlimpsesPage() {
 function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, openMenuId, setOpenMenuId, onMenuAction, isActive, setActiveGlimpseId }) {
   const videoRef = useRef(null);
   const containerRef = useRef(null);
+  const iframeRef = useRef(null);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -324,56 +325,43 @@ function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, ope
   return (
     <div ref={containerRef} style={{ height: "100%", width: "100%", scrollSnapAlign: "start", position: "relative", display: "flex", alignItems: "center", justifyContent: "center", overflow:'hidden', background:'black' }}>
        
-      {/* VIDEO LAYER - KEY FIX: Wrapper with aspect ratio constraint */}
-      <div style={{ 
-        position: 'absolute', 
-        top: '50%', 
-        left: '50%', 
-        transform: 'translate(-50%, -50%)',
-        width: '100%',
-        height: '100%',
-        minWidth: '100%',
-        minHeight: '100%'
-      }}>
-        {isBunnyVideo ? (
-           <iframe 
-             src={glimpse.media_url + "?autoplay=true&loop=true&muted=false&preload=true&responsive=true"}
-             loading="lazy"
-             style={{ 
-               border: 'none', 
-               position: 'absolute',
-               top: '50%',
-               left: '50%',
-               transform: 'translate(-50%, -50%)',
-               width: '177.78vh', // 16:9 aspect ratio (100vh * 16/9)
-               height: '100vh',
-               minWidth: '100vw',
-               minHeight: '56.25vw', // 9:16 aspect ratio (100vw * 9/16)
-             }}
-             allow="accelerometer; gyroscope; autoplay; encrypted-media;"
-             allowFullScreen
-           />
-        ) : (
-           <video 
-             ref={videoRef} 
-             src={glimpse.media_url} 
-             loop 
-             playsInline 
-             muted={false}
-             onClick={togglePlay} 
-             style={{ 
-               position: 'absolute',
-               top: '50%',
-               left: '50%',
-               transform: 'translate(-50%, -50%)',
-               width: '100%',
-               height: '100%',
-               objectFit: 'cover',
-               cursor: 'pointer'
-             }} 
-           />
-        )}
-      </div>
+      {/* VIDEO LAYER */}
+      {isBunnyVideo ? (
+        <iframe 
+          ref={iframeRef}
+          src={glimpse.media_url + "?autoplay=true&loop=true&muted=false&preload=true"}
+          loading="lazy"
+          style={{ 
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            border: 'none',
+            zIndex: 1
+          }}
+          allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
+          allowFullScreen
+        />
+      ) : (
+        <video 
+          ref={videoRef} 
+          src={glimpse.media_url} 
+          loop 
+          playsInline 
+          muted={false}
+          onClick={togglePlay} 
+          style={{ 
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            cursor: 'pointer'
+          }} 
+        />
+      )}
        
       {/* OVERLAYS (UI) */}
       <div style={{ position: "absolute", right: "10px", bottom: "120px", display: "flex", flexDirection: "column", gap: "25px", alignItems: "center", zIndex: 10, pointerEvents: 'auto' }}>
