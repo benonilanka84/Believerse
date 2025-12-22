@@ -203,11 +203,13 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
           <div style={{ position: "relative", width: "100%" }}>
             
             {/* --- FIX APPLIED: Full Width Video Preview --- */}
+            {/* We use a container with 16/9 aspect ratio to make it look like a player */}
             {mediaFile.type.startsWith("video/") ? (
                 <div style={{ width: "100%", aspectRatio: "16/9", backgroundColor: "black", borderRadius: "8px", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <video 
                         src={previewUrl} 
                         controls 
+                        // objectFit: contain ensures the whole video is visible inside the player box
                         style={{ width: "100%", height: "100%", objectFit: "contain" }} 
                     />
                 </div>
