@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
-import * as tus from "tus-js-client"; // Import TUS for Bunny Uploads
+import * as tus from "tus-js-client";
 
 export default function GlimpsesPage() {
   const [mounted, setMounted] = useState(false);
@@ -57,7 +57,6 @@ export default function GlimpsesPage() {
     }
   }
 
-  // --- NEW BUNNY UPLOAD LOGIC ---
   async function handleFileUpload() {
     const file = fileInputRef.current?.files?.[0];
     if (!file || !user) return;
@@ -70,7 +69,6 @@ export default function GlimpsesPage() {
     try {
       let uploadedUrl = null;
 
-      // 1. Get Signature from your API
       const response = await fetch('/api/video/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -84,7 +82,6 @@ export default function GlimpsesPage() {
        
       const { videoId, libraryId, signature, expirationTime } = await response.json();
 
-      // 2. Upload to Bunny via TUS
       uploadedUrl = await new Promise((resolve, reject) => {
         const upload = new tus.Upload(file, {
           endpoint: "https://video.bunnycdn.com/tusupload",
@@ -112,7 +109,6 @@ export default function GlimpsesPage() {
         upload.start();
       });
 
-      // 3. Insert into Supabase
       const { error } = await supabase.from('posts').insert({
         user_id: user.id,
         content: newGlimpseCaption || "⚡ New Glimpse",
@@ -138,7 +134,6 @@ export default function GlimpsesPage() {
     }
   }
 
-  // --- ACTIONS ---
   async function handleDelete(glimpseId) {
     if(!confirm("Permanently delete this Glimpse?")) return;
     const { error } = await supabase.from('posts').delete().eq('id', glimpseId);
@@ -179,7 +174,6 @@ export default function GlimpsesPage() {
   if (!mounted) return null;
 
   return (
-    // FIX APPLIED: Use 100dvh for better mobile browser support
     <div style={{ background: "#000", height: "100dvh", width: "100vw", display: "flex", flexDirection: "column", alignItems:'center', position: "relative", overflow: "hidden" }}>
        
       {/* HEADER */}
@@ -241,7 +235,6 @@ export default function GlimpsesPage() {
                 />
             )}
 
-            {/* Upload Progress Bar */}
             {uploading && (
                 <div style={{marginBottom: '20px'}}>
                     <div style={{marginBottom:'5px', fontSize:'14px', color:'#2e8b57', fontWeight:'bold'}}>Uploading: {uploadProgress}%</div>
@@ -329,17 +322,34 @@ function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, ope
   }
 
   return (
-    // FIX APPLIED: Force full height and width
     <div ref={containerRef} style={{ height: "100%", width: "100%", scrollSnapAlign: "start", position: "relative", display: "flex", alignItems: "center", justifyContent: "center", overflow:'hidden', background:'black' }}>
        
-      {/* VIDEO LAYER */}
-      <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}>
+      {/* VIDEO LAYER - KEY FIX: Wrapper with aspect ratio constraint */}
+      <div style={{ 
+        position: 'absolute', 
+        top: '50%', 
+        left: '50%', 
+        transform: 'translate(-50%, -50%)',
+        width: '100%',
+        height: '100%',
+        minWidth: '100%',
+        minHeight: '100%'
+      }}>
         {isBunnyVideo ? (
            <iframe 
-             src={glimpse.media_url + "?autoplay=true&loop=true&muted=false&preload=true"}
+             src={glimpse.media_url + "?autoplay=true&loop=true&muted=false&preload=true&responsive=true"}
              loading="lazy"
-             // FIX APPLIED: object-fit cover simulation for iframes (width/height 100% on wrapper handles most, but ensuring styles here)
-             style={{ border: 'none', width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, zIndex: 1, objectFit: 'cover' }}
+             style={{ 
+               border: 'none', 
+               position: 'absolute',
+               top: '50%',
+               left: '50%',
+               transform: 'translate(-50%, -50%)',
+               width: '177.78vh', // 16:9 aspect ratio (100vh * 16/9)
+               height: '100vh',
+               minWidth: '100vw',
+               minHeight: '56.25vw', // 9:16 aspect ratio (100vw * 9/16)
+             }}
              allow="accelerometer; gyroscope; autoplay; encrypted-media;"
              allowFullScreen
            />
@@ -349,10 +359,18 @@ function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, ope
              src={glimpse.media_url} 
              loop 
              playsInline 
-             defaultMuted={true} 
+             muted={false}
              onClick={togglePlay} 
-             // FIX APPLIED: Ensure object-cover is active to fill screen
-             style={{ height: "100%", width: "100%", objectFit: "cover", cursor:'pointer', position: 'absolute', top: 0, left: 0 }} 
+             style={{ 
+               position: 'absolute',
+               top: '50%',
+               left: '50%',
+               transform: 'translate(-50%, -50%)',
+               width: '100%',
+               height: '100%',
+               objectFit: 'cover',
+               cursor: 'pointer'
+             }} 
            />
         )}
       </div>
