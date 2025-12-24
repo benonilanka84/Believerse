@@ -368,8 +368,8 @@ export default function Dashboard() {
       <div className="dashboard-grid">
         <div className="left-panel">
            
-          {/* NEW PREMIUM WIDGETS */}
-          <DailyVerseWidget />
+          {/* NEW PREMIUM WIDGETS - Using unique key based on date to ensure background fetching triggers */}
+          <DailyVerseWidget key={`verse-${new Date().toISOString().split('T')[0]}`} />
           <DailyPrayerWidget />
            
           {/* Calendar Widget */}
@@ -444,27 +444,31 @@ export default function Dashboard() {
                      {post.title && <h4 style={{margin:'0 0 5px 0', color: '#0b2e4a'}}>{post.title}</h4>}
                      <p style={{whiteSpace:'pre-wrap', color:'#333'}}>{post.content}</p>
                      
-                     {/* --- FIXED VIDEO PLAYER LOGIC --- */}
+                     {/* --- FIXED VIDEO PLAYER LOGIC (Padding-Bottom technique) --- */}
                      {post.media_url && (
                         (post.media_url.includes("iframe.mediadelivery.net") || post.media_url.includes("video.bunnycdn")) ? (
                           <div style={{ 
                               position: 'relative', 
                               width: '100%', 
-                              aspectRatio: '16/9', // Replaced paddingTop with aspect-ratio
+                              height: 0, 
+                              /* 177.77% padding-bottom = 9/16, 56.25% padding-bottom = 16/9 */
+                              paddingBottom: post.type === 'Glimpse' ? '177.77%' : '56.25%', 
                               marginTop: '10px', 
-                              background: 'black', // Black background for player effect
+                              background: 'black', 
                               borderRadius: '8px',
-                              overflow: 'hidden',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
+                              overflow: 'hidden'
                           }}>
                             <iframe
                               src={post.media_url}
                               loading="lazy"
-                              width="100%"
-                              height="100%"
-                              style={{ border: 'none', width: '100%', height: '100%' }}
+                              style={{ 
+                                position: 'absolute', 
+                                top: 0, 
+                                left: 0, 
+                                border: 'none', 
+                                width: '100%', 
+                                height: '100%' 
+                              }}
                               allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
                               allowFullScreen={true}
                             />
