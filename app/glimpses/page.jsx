@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import * as tus from "tus-js-client";
-import Link from "next/link"; // For Profile navigation
+import Link from "next/link";
 
 export default function GlimpsesPage() {
   const [mounted, setMounted] = useState(false);
@@ -57,7 +57,6 @@ export default function GlimpsesPage() {
   async function handleFileUpload() {
     const file = fileInputRef.current?.files?.[0];
     if (!file || !user) return;
-    if (file.size > 500 * 1024 * 1024) { alert("File too large! Max 500MB."); return; }
 
     setUploading(true);
     setUploadProgress(0);
@@ -70,6 +69,7 @@ export default function GlimpsesPage() {
       });
 
       if (!response.ok) throw new Error("Failed to init upload");
+       
       const { videoId, libraryId, signature, expirationTime } = await response.json();
 
       const uploadedUrl = await new Promise((resolve, reject) => {
@@ -82,28 +82,26 @@ export default function GlimpsesPage() {
             VideoId: videoId,
             LibraryId: libraryId,
           },
-          metadata: { filetype: file.type, title: newGlimpseCaption || "Glimpse" },
           onError: (error) => reject(error),
           onProgress: (bytesUploaded, bytesTotal) => {
             setUploadProgress(Number(((bytesUploaded / bytesTotal) * 100).toFixed(0)));
           },
-          onSuccess: () => resolve(`https://iframe.mediadelivery.net/play/${libraryId}/${videoId}`),
+          onSuccess: () => resolve(`https://iframe.mediadelivery.net/embed/${libraryId}/${videoId}`),
         });
         upload.start();
       });
 
-      const { error } = await supabase.from('posts').insert({
+      await supabase.from('posts').insert({
         user_id: user.id,
-        content: newGlimpseCaption || "⚡ New Glimpse",
+        content: newGlimpseCaption,
         type: "Glimpse",
         media_url: uploadedUrl,
         media_type: "video"
       });
 
-      if (error) throw error;
       alert("✅ Glimpse Uploaded!");
-      setNewGlimpseCaption("");
       setIsUploadModalOpen(false); 
+      setNewGlimpseCaption("");
       loadGlimpses(user.id);
     } catch (err) {
       alert("Error: " + err.message);
@@ -118,7 +116,7 @@ export default function GlimpsesPage() {
     if (!error) {
         setGlimpses(prev => prev.filter(g => g.id !== glimpseId));
         setOpenMenuId(null); 
-    } else { alert("Error deleting: " + error.message); }
+    }
   }
 
   async function handleAmen(glimpse, currentStatus) {
@@ -132,7 +130,6 @@ export default function GlimpsesPage() {
   return (
     <div style={{ background: "#000", height: "100dvh", width: "100vw", display: "flex", flexDirection: "column", alignItems:'center', position: "relative", overflow: "hidden" }}>
        
-      {/* HEADER OVERLAY */}
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, padding: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 10, background: 'linear-gradient(to bottom, rgba(0,0,0,0.5), transparent)' }}>
         <h2 style={{ color: "white", margin: 0, fontSize: "20px", fontWeight:'bold' }}>⚡ Glimpses</h2>
         <div style={{display:'flex', gap:'15px', alignItems:'center'}}>
@@ -141,40 +138,46 @@ export default function GlimpsesPage() {
         </div>
       </div>
 
-      {/* SNAP SCROLL CONTAINER */}
       <div id="glimpses-scroll-container" style={{ width: '100%', maxWidth: '480px', height: '100%', overflowY: "scroll", scrollSnapType: "y mandatory", scrollbarWidth: 'none' }}>
         {glimpses.map((glimpse) => (
           <GlimpseItem 
             key={glimpse.id} 
             glimpse={glimpse} 
             user={user}
-            onDelete={() => handleDelete(glimpse.id)}
-            onAmen={handleAmen} 
-            openMenuId={openMenuId}
-            setOpenMenuId={setOpenMenuId}
             isActive={glimpse.id === activeGlimpseId}
             setActiveGlimpseId={setActiveGlimpseId}
+            onAmen={handleAmen}
             setBlessModalUser={setBlessModalUser}
+            onDelete={handleDelete}
+            openMenuId={openMenuId}
+            setOpenMenuId={setOpenMenuId}
           />
         ))}
       </div>
        
-      {/* UPLOAD MODAL - Fixed Heading Visibility */}
+      {/* UPLOAD MODAL - Fixed Visibility */}
       {isUploadModalOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: 'white', padding: '25px', borderRadius: '16px', width: '90%', maxWidth: '350px', textAlign: 'center' }}>
-            <h3 style={{ margin: '0 0 15px 0', color: '#0b2e4a' }}>Upload New Glimpse</h3>
-            <textarea value={newGlimpseCaption} onChange={e => setNewGlimpseCaption(e.target.value)} placeholder="Add a caption..." disabled={uploading} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ddd', minHeight: '80px', marginBottom: '15px', color:'#333' }} />
-            {!uploading && <input type="file" ref={fileInputRef} accept="video/*" style={{ display: 'block', marginBottom: '20px' }} />}
+            <h3 style={{ marginTop: 0, color: '#0b2e4a' }}>Upload New Glimpse</h3>
+            <textarea 
+              value={newGlimpseCaption} 
+              onChange={e => setNewGlimpseCaption(e.target.value)} 
+              placeholder="Add a caption..." 
+              style={{ width: '100%', padding: '10px', marginBottom: '15px', borderRadius: '8px', border: '1px solid #ddd', minHeight: '80px', color:'#333' }} 
+            />
+            <input type="file" ref={fileInputRef} accept="video/*" style={{ marginBottom: '20px', width: '100%' }} />
             {uploading && (
-                <div style={{marginBottom: '20px'}}>
-                    <div style={{marginBottom:'5px', fontSize:'14px', color:'#2e8b57', fontWeight:'bold'}}>Uploading: {uploadProgress}%</div>
-                    <div style={{width:'100%', height:'8px', background:'#eee', borderRadius:'4px'}}><div style={{width: `${uploadProgress}%`, height:'100%', background:'#2e8b57', borderRadius:'4px'}}></div></div>
+              <div style={{ marginBottom: '10px' }}>
+                <div style={{ background: '#f0f0f0', borderRadius: '4px', height: '6px', overflow: 'hidden', marginBottom: '5px' }}>
+                  <div style={{ width: `${uploadProgress}%`, background: '#2e8b57', height: '100%', transition: 'width 0.3s' }}></div>
                 </div>
+                <div style={{ fontSize: '12px', color: '#666' }}>Uploading: {uploadProgress}%</div>
+              </div>
             )}
-            <div style={{display:'flex', gap:'10px'}}>
-                <button disabled={uploading} onClick={handleFileUpload} style={{ flex:1, padding:'12px', background:'#2e8b57', color:'white', border:'none', borderRadius:'8px', fontWeight:'bold' }}>{uploading ? 'Processing...' : 'Upload'}</button>
-                <button disabled={uploading} onClick={() => setIsUploadModalOpen(false)} style={{ flex:1, padding:'12px', background:'#eee', color:'#666', border:'none', borderRadius:'8px' }}>Cancel</button>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={handleFileUpload} disabled={uploading} style={{ flex: 1, padding: '10px', background: '#2e8b57', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>{uploading ? 'Processing...' : 'Upload'}</button>
+              <button onClick={() => setIsUploadModalOpen(false)} style={{ flex: 1, padding: '10px', background: '#f0f0f0', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>Cancel</button>
             </div>
           </div>
         </div>
@@ -196,56 +199,45 @@ export default function GlimpsesPage() {
   );
 }
 
-function GlimpseItem({ glimpse, user, onDelete, onAmen, openMenuId, setOpenMenuId, isActive, setActiveGlimpseId, setBlessModalUser }) {
-  const videoRef = useRef(null);
+function GlimpseItem({ glimpse, user, isActive, setActiveGlimpseId, onAmen, setBlessModalUser, onDelete, openMenuId, setOpenMenuId }) {
   const containerRef = useRef(null);
 
+  const getEmbedUrl = (url) => {
+    if (url.includes('/play/')) return url.replace('/play/', '/embed/');
+    return url;
+  };
+
   useEffect(() => {
-    const observer = new IntersectionObserver(([entry]) => { 
-        if (entry.isIntersecting && entry.intersectionRatio >= 0.6) { setActiveGlimpseId(glimpse.id); } 
-    }, { root: document.getElementById('glimpses-scroll-container'), threshold: 0.6 });
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) setActiveGlimpseId(glimpse.id); }, 
+      { threshold: 0.6 }
+    );
     if (containerRef.current) observer.observe(containerRef.current);
     return () => observer.disconnect();
   }, [glimpse.id, setActiveGlimpseId]);
 
-  useEffect(() => {
-    if (videoRef.current) { 
-        if (isActive) videoRef.current.play().catch(() => {}); 
-        else { videoRef.current.pause(); videoRef.current.currentTime = 0; } 
-    }
-  }, [isActive]);
-
+  const embedUrl = getEmbedUrl(glimpse.media_url);
   const isOwner = user && user.id === glimpse.user_id;
-  const isBunnyVideo = glimpse.media_url?.includes("mediadelivery.net") || glimpse.media_url?.includes("bunnycdn");
 
   return (
-    <div ref={containerRef} style={{ height: "100%", width: "100%", scrollSnapAlign: "start", position: "relative", display: "flex", alignItems: "center", justifyContent: "center", background:'black', overflow:'hidden' }}>
+    <div ref={containerRef} style={{ height: "100%", width: "100%", scrollSnapAlign: "start", position: "relative", background:'#000' }}>
       
-      {/* VIDEO SECTION */}
-      <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}>
-        {isBunnyVideo ? (
-           <iframe 
-             src={glimpse.media_url + "?autoplay=true&loop=true&muted=false&preload=true"}
-             style={{ border: 'none', width: '100%', height: '100%', objectFit: 'cover' }}
-             allow="accelerometer; autoplay; encrypted-media;"
-             allowFullScreen
-           />
-        ) : (
-           <video 
-             ref={videoRef} 
-             src={glimpse.media_url} 
-             loop 
-             playsInline 
-             onError={(e) => { e.target.parentElement.innerHTML = '<div style="color:white;text-align:center;padding:20px">Media not found</div>'; }}
-             style={{ height: "100%", width: "100%", objectFit: "cover" }} 
-           />
-        )}
+      {/* VIDEO SECTION - PADDING-BOTTOM HACK RETAINED */}
+      <div style={{ position: "relative", paddingTop: "177.77%", height: 0, overflow:'hidden' }}>
+        <iframe 
+          key={`glimpse-${glimpse.id}-${isActive}`} // AUDIO FIX: Force kill on scroll
+          src={embedUrl + (isActive ? "?autoplay=true&loop=true&muted=false" : "?autoplay=false&muted=true")}
+          loading="lazy"
+          style={{ border: 'none', position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+          allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+          allowFullScreen
+        />
       </div>
 
-      {/* RIGHT SIDEBAR (Instagram Style) */}
+      {/* SOCIAL SIDEBAR OVERLAY */}
       <div style={{ position: "absolute", right: "15px", bottom: "100px", display: "flex", flexDirection: "column", gap: "20px", alignItems: "center", zIndex: 10 }}>
         <Link href={`/profile/${glimpse.user_id}`}>
-            <img src={glimpse.profiles?.avatar_url || '/images/default-avatar.png'} style={{ width: 45, height: 45, borderRadius: "50%", border: "2px solid white", objectFit:'cover' }} title={glimpse.profiles?.full_name} />
+            <img src={glimpse.profiles?.avatar_url || '/images/default-avatar.png'} style={{ width: 45, height: 45, borderRadius: "50%", border: "2px solid white", objectFit:'cover' }} />
         </Link>
         
         <div style={{ textAlign: "center" }}>
@@ -262,7 +254,7 @@ function GlimpseItem({ glimpse, user, onDelete, onAmen, openMenuId, setOpenMenuI
           {openMenuId === glimpse.id && (
             <div style={{ position: 'absolute', right: 50, bottom: 0, background: 'white', borderRadius: '12px', width: '150px', overflow: 'hidden', boxShadow: '0 4px 15px rgba(0,0,0,0.3)' }}>
               {isOwner ? (
-                <button onClick={onDelete} style={{ width: '100%', padding: '12px', textAlign: 'left', border: 'none', background: 'white', cursor: 'pointer', color: 'red', fontWeight:'bold' }}>🗑️ Delete</button>
+                <button onClick={() => onDelete(glimpse.id)} style={{ width: '100%', padding: '12px', textAlign: 'left', border: 'none', background: 'white', cursor: 'pointer', color: 'red', fontWeight:'bold' }}>🗑️ Delete</button>
               ) : (
                 <button onClick={() => { alert("Reported to moderators."); setOpenMenuId(null); }} style={{ width: '100%', padding: '12px', textAlign: 'left', border: 'none', background: 'white', cursor: 'pointer', color: 'orange', fontWeight:'bold' }}>🚩 Report</button>
               )}
@@ -270,13 +262,13 @@ function GlimpseItem({ glimpse, user, onDelete, onAmen, openMenuId, setOpenMenuI
           )}
         </div>
       </div>
-
-      {/* BOTTOM CAPTION SECTION */}
-      <div style={{ position: "absolute", bottom: "0", left: "0", width: "100%", padding: "40px 20px 20px", background: 'linear-gradient(to top, rgba(0,0,0,0.9), transparent)', zIndex: 4, pointerEvents:'none' }}>
+      
+      {/* CAPTION OVERLAY */}
+      <div style={{ position: "absolute", bottom: "30px", left: "20px", right: "20px", color: 'white', zIndex: 5, textShadow: '2px 2px 4px rgba(0,0,0,0.8)', pointerEvents:'none' }}>
         <Link href={`/profile/${glimpse.user_id}`} style={{textDecoration:'none', pointerEvents:'auto'}}>
-            <h3 style={{ margin: "0 0 5px 0", fontSize: "16px", color:'white' }}>@{glimpse.profiles?.full_name}</h3>
+            <h3 style={{ margin: '0 0 5px 0', color:'white' }}>@{glimpse.profiles?.full_name}</h3>
         </Link>
-        <p style={{ margin: 0, fontSize: "14px", lineHeight: "1.4", color:'white', maxWidth:'80%' }}>{glimpse.content}</p>
+        <p style={{ margin: 0 }}>{glimpse.content}</p>
       </div>
     </div>
   );
