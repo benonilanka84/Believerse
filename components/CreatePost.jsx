@@ -131,7 +131,7 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
         }}
       >
         <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#f0f0f0", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          ✏️
+          ✍️
         </div>
         <div style={{ color: "#888", fontSize: "16px", fontWeight: "500" }}>
           What's in your heart today?
@@ -194,15 +194,12 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
         ) : (
           <div style={{ position: "relative", width: "100%", borderRadius: "12px", overflow: "hidden", background: "#000", boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}>
             
-            {/* PADDING-BOTTOM TECHNIQUE PREVIEW */}
+            {/* FIXED PREVIEW WITH PROPER DIMENSIONS */}
             <div style={{ 
               width: "100%", 
               position: "relative",
-              height: 0,
               paddingBottom: type === "Glimpse" ? "177.77%" : "56.25%",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center"
+              background: "#000"
             }}>
               {mediaFile.type.startsWith("video/") ? (
                 <video 

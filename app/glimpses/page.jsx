@@ -100,6 +100,7 @@ export default function GlimpsesPage() {
 
       alert("✅ Glimpse Uploaded!");
       setIsUploadModalOpen(false); 
+      setNewGlimpseCaption("");
       loadGlimpses(user.id);
 
     } catch (err) {
@@ -133,12 +134,55 @@ export default function GlimpsesPage() {
       {isUploadModalOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: 'white', padding: '25px', borderRadius: '16px', width: '90%', maxWidth: '350px' }}>
-            <h3>Upload New Glimpse</h3>
-            <textarea value={newGlimpseCaption} onChange={e => setNewGlimpseCaption(e.target.value)} placeholder="Add a caption..." style={{ width: '100%', padding: '10px', marginBottom: '15px' }} />
-            <input type="file" ref={fileInputRef} accept="video/*" style={{ marginBottom: '20px' }} />
-            {uploading && <div style={{ marginBottom: '10px' }}>Uploading: {uploadProgress}%</div>}
-            <button onClick={handleFileUpload} disabled={uploading}>Upload</button>
-            <button onClick={() => setIsUploadModalOpen(false)}>Cancel</button>
+            <h3 style={{ marginTop: 0 }}>Upload New Glimpse</h3>
+            <textarea 
+              value={newGlimpseCaption} 
+              onChange={e => setNewGlimpseCaption(e.target.value)} 
+              placeholder="Add a caption..." 
+              style={{ width: '100%', padding: '10px', marginBottom: '15px', borderRadius: '8px', border: '1px solid #ddd', minHeight: '80px' }} 
+            />
+            <input type="file" ref={fileInputRef} accept="video/*" style={{ marginBottom: '20px', width: '100%' }} />
+            {uploading && (
+              <div style={{ marginBottom: '10px' }}>
+                <div style={{ background: '#f0f0f0', borderRadius: '4px', height: '6px', overflow: 'hidden', marginBottom: '5px' }}>
+                  <div style={{ width: `${uploadProgress}%`, background: '#2e8b57', height: '100%', transition: 'width 0.3s' }}></div>
+                </div>
+                <div style={{ fontSize: '12px', color: '#666' }}>Uploading: {uploadProgress}%</div>
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button 
+                onClick={handleFileUpload} 
+                disabled={uploading}
+                style={{ 
+                  flex: 1, 
+                  padding: '10px', 
+                  background: '#2e8b57', 
+                  color: 'white', 
+                  border: 'none', 
+                  borderRadius: '8px', 
+                  cursor: uploading ? 'not-allowed' : 'pointer',
+                  opacity: uploading ? 0.7 : 1,
+                  fontWeight: 'bold'
+                }}
+              >
+                {uploading ? 'Uploading...' : 'Upload'}
+              </button>
+              <button 
+                onClick={() => setIsUploadModalOpen(false)}
+                style={{ 
+                  flex: 1, 
+                  padding: '10px', 
+                  background: '#f0f0f0', 
+                  border: 'none', 
+                  borderRadius: '8px', 
+                  cursor: 'pointer',
+                  fontWeight: 'bold'
+                }}
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -150,31 +194,54 @@ function GlimpseItem({ glimpse, isActive, setActiveGlimpseId }) {
   const containerRef = useRef(null);
 
   useEffect(() => {
-    const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) setActiveGlimpseId(glimpse.id); }, { threshold: 0.6 });
+    const observer = new IntersectionObserver(
+      ([entry]) => { 
+        if (entry.isIntersecting) setActiveGlimpseId(glimpse.id); 
+      }, 
+      { threshold: 0.6 }
+    );
     if (containerRef.current) observer.observe(containerRef.current);
     return () => observer.disconnect();
   }, [glimpse.id, setActiveGlimpseId]);
 
   return (
-    <div ref={containerRef} style={{ height: "100%", width: "100%", scrollSnapAlign: "start", position: "relative", background:'black', overflow:'hidden' }}>
+    <div 
+      ref={containerRef} 
+      style={{ 
+        height: "100%", 
+        width: "100%", 
+        scrollSnapAlign: "start", 
+        position: "relative", 
+        background:'#000', 
+        overflow:'hidden'
+      }}
+    >
+      {/* FIXED: Removed the extra width/height percentages that were causing the overflow */}
       <iframe 
-        src={glimpse.media_url + "?autoplay=true&loop=true&muted=false"}
+        src={glimpse.media_url + (isActive ? "?autoplay=true&loop=true&muted=false" : "?autoplay=false")}
         style={{ 
           border: 'none', 
-          width: '100.5%', 
-          height: '100.5%', 
+          width: '100%', 
+          height: '100%', 
           position: 'absolute', 
-          top: '-0.25%', 
-          left: '-0.25%', 
-          objectFit: 'cover' 
+          top: 0, 
+          left: 0,
+          objectFit: 'cover'
         }}
         allow="accelerometer; autoplay; encrypted-media;"
         allowFullScreen
       />
       
-      <div style={{ position: "absolute", bottom: "30px", left: "20px", color: 'white', zIndex: 5 }}>
-        <h3>@{glimpse.profiles?.full_name}</h3>
-        <p>{glimpse.content}</p>
+      <div style={{ 
+        position: "absolute", 
+        bottom: "30px", 
+        left: "20px", 
+        color: 'white', 
+        zIndex: 5,
+        textShadow: '2px 2px 4px rgba(0,0,0,0.8)'
+      }}>
+        <h3 style={{ margin: '0 0 5px 0' }}>@{glimpse.profiles?.full_name}</h3>
+        <p style={{ margin: 0 }}>{glimpse.content}</p>
       </div>
     </div>
   );
