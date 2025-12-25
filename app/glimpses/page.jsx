@@ -193,9 +193,7 @@ export default function GlimpsesPage() {
 function GlimpseItem({ glimpse, isActive, setActiveGlimpseId }) {
   const containerRef = useRef(null);
 
-  // Extract libraryId and videoId from URL if needed
   const getEmbedUrl = (url) => {
-    // Convert /play/ URLs to /embed/ if needed
     if (url.includes('/play/')) {
       return url.replace('/play/', '/embed/');
     }
@@ -226,10 +224,11 @@ function GlimpseItem({ glimpse, isActive, setActiveGlimpseId }) {
         background:'#000'
       }}
     >
-      {/* PROPER BUNNY.NET EMBED - Using paddingTop and absolute positioning */}
       <div style={{ position: "relative", paddingTop: "177.77%", height: 0 }}>
         <iframe 
-          src={embedUrl + (isActive ? "?autoplay=true&loop=true&muted=false" : "?autoplay=false")}
+          // The key prop is the fix: it forces the browser to kill the audio of the previous glimpse
+          key={`glimpse-frame-${glimpse.id}-${isActive}`}
+          src={embedUrl + (isActive ? "?autoplay=true&loop=true&muted=false" : "?autoplay=false&muted=true")}
           loading="lazy"
           style={{ 
             border: 'none', 
