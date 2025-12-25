@@ -85,7 +85,7 @@ export default function GlimpsesPage() {
           onProgress: (bytesUploaded, bytesTotal) => {
             setUploadProgress(Number(((bytesUploaded / bytesTotal) * 100).toFixed(0)));
           },
-          onSuccess: () => resolve(`https://iframe.mediadelivery.net/play/${libraryId}/${videoId}`),
+          onSuccess: () => resolve(`https://iframe.mediadelivery.net/embed/${libraryId}/${videoId}`),
         });
         upload.start();
       });
@@ -193,6 +193,15 @@ export default function GlimpsesPage() {
 function GlimpseItem({ glimpse, isActive, setActiveGlimpseId }) {
   const containerRef = useRef(null);
 
+  // Extract libraryId and videoId from URL if needed
+  const getEmbedUrl = (url) => {
+    // Convert /play/ URLs to /embed/ if needed
+    if (url.includes('/play/')) {
+      return url.replace('/play/', '/embed/');
+    }
+    return url;
+  };
+
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => { 
@@ -204,6 +213,8 @@ function GlimpseItem({ glimpse, isActive, setActiveGlimpseId }) {
     return () => observer.disconnect();
   }, [glimpse.id, setActiveGlimpseId]);
 
+  const embedUrl = getEmbedUrl(glimpse.media_url);
+
   return (
     <div 
       ref={containerRef} 
@@ -212,30 +223,32 @@ function GlimpseItem({ glimpse, isActive, setActiveGlimpseId }) {
         width: "100%", 
         scrollSnapAlign: "start", 
         position: "relative", 
-        background:'#000', 
-        overflow:'hidden'
+        background:'#000'
       }}
     >
-      {/* FIXED: Removed the extra width/height percentages that were causing the overflow */}
-      <iframe 
-        src={glimpse.media_url + (isActive ? "?autoplay=true&loop=true&muted=false" : "?autoplay=false")}
-        style={{ 
-          border: 'none', 
-          width: '100%', 
-          height: '100%', 
-          position: 'absolute', 
-          top: 0, 
-          left: 0,
-          objectFit: 'cover'
-        }}
-        allow="accelerometer; autoplay; encrypted-media;"
-        allowFullScreen
-      />
+      {/* PROPER BUNNY.NET EMBED - Using paddingTop and absolute positioning */}
+      <div style={{ position: "relative", paddingTop: "177.77%", height: 0 }}>
+        <iframe 
+          src={embedUrl + (isActive ? "?autoplay=true&loop=true&muted=false" : "?autoplay=false")}
+          loading="lazy"
+          style={{ 
+            border: 'none', 
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%', 
+            height: '100%'
+          }}
+          allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+          allowFullScreen={true}
+        />
+      </div>
       
       <div style={{ 
         position: "absolute", 
         bottom: "30px", 
         left: "20px", 
+        right: "20px",
         color: 'white', 
         zIndex: 5,
         textShadow: '2px 2px 4px rgba(0,0,0,0.8)'

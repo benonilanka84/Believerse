@@ -71,7 +71,8 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
                 setUploadProgress(Number(percentage));
               },
               onSuccess: () => {
-                const embedUrl = `https://iframe.mediadelivery.net/play/${libraryId}/${videoId}`;
+                // CRITICAL: Use /embed/ URL format, not /play/
+                const embedUrl = `https://iframe.mediadelivery.net/embed/${libraryId}/${videoId}`;
                 resolve(embedUrl);
               },
             });
@@ -194,11 +195,11 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
         ) : (
           <div style={{ position: "relative", width: "100%", borderRadius: "12px", overflow: "hidden", background: "#000", boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}>
             
-            {/* FIXED PREVIEW WITH PROPER DIMENSIONS */}
+            {/* FIXED PREVIEW - PROPER BUNNY.NET METHOD with paddingTop */}
             <div style={{ 
-              width: "100%", 
               position: "relative",
-              paddingBottom: type === "Glimpse" ? "177.77%" : "56.25%",
+              paddingTop: type === "Glimpse" ? "177.77%" : "56.25%",
+              height: 0,
               background: "#000"
             }}>
               {mediaFile.type.startsWith("video/") ? (
