@@ -34,12 +34,10 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
     let uploadedUrl = null; 
 
     try {
-      // 1. HANDLE MEDIA UPLOAD
       if (mediaFile) {
         const isVideo = mediaFile.type.startsWith("video/");
 
         if (isVideo) {
-          // A. Get Signature
           const response = await fetch('/api/video/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -53,7 +51,6 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
            
           const { videoId, libraryId, signature, expirationTime } = await response.json();
 
-          // B. Upload to Bunny
           uploadedUrl = await new Promise((resolve, reject) => {
             const upload = new tus.Upload(mediaFile, {
               endpoint: "https://video.bunnycdn.com/tusupload",
@@ -74,7 +71,6 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
                 setUploadProgress(Number(percentage));
               },
               onSuccess: () => {
-                // Construct Embed URL
                 const embedUrl = `https://iframe.mediadelivery.net/play/${libraryId}/${videoId}`;
                 resolve(embedUrl);
               },
@@ -83,7 +79,6 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
           });
 
         } else {
-          // IMAGE UPLOAD (Supabase)
           const fileExt = mediaFile.name.split('.').pop();
           const fileName = `${user.id}-${Date.now()}.${fileExt}`;
            
@@ -98,7 +93,6 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
         }
       }
 
-      // 2. INSERT POST
       const { error } = await supabase.from('posts').insert({
         user_id: user.id,
         content: content,
@@ -110,7 +104,6 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
 
       if (error) throw error;
 
-      // Reset
       setContent("");
       setTitle("");
       setMediaFile(null);
@@ -182,7 +175,6 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
         style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #ddd", minHeight: "100px", fontFamily: "inherit", resize: "vertical", marginBottom: "15px" }}
       />
 
-      {/* Media Upload & Preview Section */}
       <div style={{ marginBottom: "15px" }}>
         <input 
           type="file" 
@@ -202,20 +194,24 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
         ) : (
           <div style={{ position: "relative", width: "100%", borderRadius: "12px", overflow: "hidden", background: "#000", boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}>
             
-            {/* Intelligent Aspect Ratio Container */}
+            {/* PADDING-BOTTOM TECHNIQUE PREVIEW */}
             <div style={{ 
               width: "100%", 
               position: "relative",
+              height: 0,
+              paddingBottom: type === "Glimpse" ? "177.77%" : "56.25%",
               display: "flex",
               justifyContent: "center",
-              alignItems: "center",
-              aspectRatio: type === "Glimpse" ? "9/16" : "16/9"
+              alignItems: "center"
             }}>
               {mediaFile.type.startsWith("video/") ? (
                 <video 
                   src={previewUrl} 
                   controls 
                   style={{ 
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
                     width: "100%", 
                     height: "100%", 
                     objectFit: type === "Glimpse" ? "cover" : "contain",
@@ -227,6 +223,9 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
                   src={previewUrl} 
                   alt="Preview" 
                   style={{ 
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
                     width: "100%", 
                     height: "100%", 
                     objectFit: "contain",
@@ -235,7 +234,6 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
                 />
               )}
 
-              {/* Sleek Floating Remove Button */}
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
@@ -257,7 +255,6 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
         )}
       </div>
 
-      {/* Modern Integrated Progress Bar */}
       {loading && uploadProgress > 0 && (
         <div style={{ width: "100%", background: "#f0f0f0", borderRadius: "4px", height: "6px", marginBottom: "15px", overflow: "hidden" }}>
           <div style={{ width: `${uploadProgress}%`, background: "#2e8b57", height: "100%", transition: "width 0.3s ease" }}></div>

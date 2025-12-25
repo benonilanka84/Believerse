@@ -56,27 +56,22 @@ export default function GlimpsesPage() {
   async function handleFileUpload() {
     const file = fileInputRef.current?.files?.[0];
     if (!file || !user) return;
-    if (file.size > 500 * 1024 * 1024) { alert("File too large! Max 500MB."); return; }
 
     setUploading(true);
     setUploadProgress(0);
      
     try {
-      let uploadedUrl = null;
       const response = await fetch('/api/video/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: newGlimpseCaption || "Glimpse" })
       });
 
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || "Failed to init upload");
-      }
+      if (!response.ok) throw new Error("Failed to init upload");
        
       const { videoId, libraryId, signature, expirationTime } = await response.json();
 
-      uploadedUrl = await new Promise((resolve, reject) => {
+      const uploadedUrl = await new Promise((resolve, reject) => {
         const upload = new tus.Upload(file, {
           endpoint: "https://video.bunnycdn.com/tusupload",
           retryDelays: [0, 3000, 5000, 10000, 20000],
@@ -86,74 +81,31 @@ export default function GlimpsesPage() {
             VideoId: videoId,
             LibraryId: libraryId,
           },
-          metadata: { filetype: file.type, title: newGlimpseCaption || "Glimpse" },
           onError: (error) => reject(error),
           onProgress: (bytesUploaded, bytesTotal) => {
-            const percentage = ((bytesUploaded / bytesTotal) * 100).toFixed(0);
-            setUploadProgress(Number(percentage));
+            setUploadProgress(Number(((bytesUploaded / bytesTotal) * 100).toFixed(0)));
           },
-          onSuccess: () => {
-            const embedUrl = `https://iframe.mediadelivery.net/play/${libraryId}/${videoId}`;
-            resolve(embedUrl);
-          },
+          onSuccess: () => resolve(`https://iframe.mediadelivery.net/play/${libraryId}/${videoId}`),
         });
         upload.start();
       });
 
-      const { error } = await supabase.from('posts').insert({
+      await supabase.from('posts').insert({
         user_id: user.id,
-        content: newGlimpseCaption || "⚡ New Glimpse",
+        content: newGlimpseCaption,
         type: "Glimpse",
         media_url: uploadedUrl,
         media_type: "video"
       });
 
-      if (error) throw error;
       alert("✅ Glimpse Uploaded!");
-      setNewGlimpseCaption("");
-      setUploadProgress(0);
       setIsUploadModalOpen(false); 
       loadGlimpses(user.id);
 
     } catch (err) {
-      console.error(err);
       alert("Error: " + err.message);
     } finally {
       setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = null;
-    }
-  }
-
-  async function handleDelete(glimpseId) {
-    if(!confirm("Permanently delete this Glimpse?")) return;
-    const { error } = await supabase.from('posts').delete().eq('id', glimpseId);
-    if (!error) {
-        setGlimpses(prev => prev.filter(g => g.id !== glimpseId));
-        setOpenMenuId(null); 
-    } else { alert("Error deleting: " + error.message); }
-  }
-
-  async function handleAmen(glimpse, currentStatus) {
-    setGlimpses(prev => prev.map(g => g.id === glimpse.id ? { ...g, hasAmened: !currentStatus, amenCount: currentStatus ? g.amenCount - 1 : g.amenCount + 1 } : g));
-    if (currentStatus) await supabase.from('amens').delete().match({ user_id: user.id, post_id: glimpse.id });
-    else await supabase.from('amens').insert({ user_id: user.id, post_id: glimpse.id });
-  }
-
-  function handleBless(author) {
-    if (!author?.upi_id) { alert(`User has not set up their UPI ID yet.`); return; }
-    setBlessModalUser(author);
-  }
-
-  function handleShare() {
-    if (navigator.share) navigator.share({ title: 'Glimpse', url: window.location.href });
-    else alert("Link copied!");
-  }
-  
-  function handleMenuAction(action, id) {
-    setOpenMenuId(null);
-    if (action === "NotInterested") {
-        setGlimpses(prev => prev.filter(g => g.id !== id));
-        alert("Video hidden.");
     }
   }
 
@@ -162,64 +114,31 @@ export default function GlimpsesPage() {
   return (
     <div style={{ background: "#000", height: "100dvh", width: "100vw", display: "flex", flexDirection: "column", alignItems:'center', position: "relative", overflow: "hidden" }}>
        
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, padding: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 10, background: 'linear-gradient(to bottom, rgba(0,0,0,0.5), transparent)' }}>
-        <h2 style={{ color: "white", margin: 0, fontSize: "20px", fontWeight:'bold' }}>⚡ Glimpses</h2>
-        <div style={{display:'flex', gap:'15px', alignItems:'center'}}>
-           <button onClick={() => setIsUploadModalOpen(true)} style={{ background: "rgba(255,255,255,0.2)", border: "1px solid white", color: "white", padding: "6px 15px", borderRadius: "20px", fontSize:'13px', cursor: "pointer", fontWeight:'bold' }}>+ Upload</button>
-           <button onClick={() => window.location.href='/dashboard'} style={{background:'none', border:'none', color:'white', fontSize:'24px', cursor:'pointer'}}>✕</button>
-        </div>
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, padding: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 10 }}>
+        <h2 style={{ color: "white", margin: 0, fontSize: "20px" }}>⚡ Glimpses</h2>
+        <button onClick={() => setIsUploadModalOpen(true)} style={{ background: "rgba(255,255,255,0.2)", border: "1px solid white", color: "white", padding: "6px 15px", borderRadius: "20px", cursor: "pointer" }}>+ Upload</button>
       </div>
 
-      <div 
-        id="glimpses-scroll-container"
-        style={{ width: '100%', maxWidth: '480px', height: '100%', overflowY: "scroll", scrollSnapType: "y mandatory", scrollBehavior: "smooth", background:'#000', position:'relative', scrollbarWidth: 'none' }}
-      >
-        {glimpses.length === 0 ? <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "white" }}><p>No Glimpses yet.</p></div> : 
-          glimpses.map((glimpse) => (
-            <GlimpseItem 
-              key={glimpse.id} 
-              glimpse={glimpse} 
-              isOwner={user && user.id === glimpse.user_id}
-              onDelete={() => handleDelete(glimpse.id)}
-              onAmen={handleAmen} 
-              onBless={handleBless} 
-              onShare={handleShare}
-              openMenuId={openMenuId}
-              setOpenMenuId={setOpenMenuId}
-              onMenuAction={handleMenuAction}
-              isActive={glimpse.id === activeGlimpseId}
-              setActiveGlimpseId={setActiveGlimpseId}
-            />
-          ))
-        }
+      <div id="glimpses-scroll-container" style={{ width: '100%', maxWidth: '480px', height: '100%', overflowY: "scroll", scrollSnapType: "y mandatory", scrollbarWidth: 'none' }}>
+        {glimpses.map((glimpse) => (
+          <GlimpseItem 
+            key={glimpse.id} 
+            glimpse={glimpse} 
+            isActive={glimpse.id === activeGlimpseId}
+            setActiveGlimpseId={setActiveGlimpseId}
+          />
+        ))}
       </div>
        
       {isUploadModalOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-          <div style={{ background: 'white', padding: '25px', borderRadius: '16px', width: '90%', maxWidth: '350px', textAlign: 'center' }}>
-            <h3 style={{ margin: '0 0 15px 0', color: '#0b2e4a' }}>Upload New Glimpse</h3>
-            <textarea value={newGlimpseCaption} onChange={e => setNewGlimpseCaption(e.target.value)} placeholder="Add a caption..." disabled={uploading} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ddd', minHeight: '80px', marginBottom: '15px' }} />
-            {!uploading && <input type="file" ref={fileInputRef} accept="video/*" style={{ display: 'block', marginBottom: '20px' }} onChange={() => fileInputRef.current.files.length > 0 && handleFileUpload()} />}
-            {uploading && (
-                <div style={{marginBottom: '20px'}}>
-                    <div style={{marginBottom:'5px', fontSize:'14px', color:'#2e8b57', fontWeight:'bold'}}>Uploading: {uploadProgress}%</div>
-                    <div style={{width:'100%', height:'8px', background:'#eee', borderRadius:'4px'}}><div style={{width: `${uploadProgress}%`, height:'100%', background:'#2e8b57', borderRadius:'4px', transition:'width 0.3s'}}></div></div>
-                </div>
-            )}
-            <button disabled={uploading} onClick={() => setIsUploadModalOpen(false)} style={{ width: '100%', padding: '10px', background: '#ccc', border: 'none', borderRadius: '8px', cursor: uploading ? 'not-allowed' : 'pointer' }}>Cancel</button>
-          </div>
-        </div>
-      )}
-
-      {blessModalUser && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-           <div style={{ background: 'white', padding: '25px', borderRadius: '16px', width: '85%', maxWidth: '320px', textAlign: 'center' }}>
-            <h3 style={{ margin: '0 0 15px 0', color: '#0b2e4a' }}>Bless {blessModalUser.full_name}</h3>
-            <div style={{ background: '#f9f9f9', padding: '10px', borderRadius: '12px', marginBottom: '15px' }}>
-              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=${blessModalUser.upi_id}&pn=${encodeURIComponent(blessModalUser.full_name)}&cu=INR`)}`} style={{ width: '100%', height: 'auto' }} />
-            </div>
-            <a href={`upi://pay?pa=${blessModalUser.upi_id}&pn=${encodeURIComponent(blessModalUser.full_name)}&cu=INR`} target="_blank" style={{ display: 'block', width: '100%', padding: '10px', background: '#2e8b57', color: 'white', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold', marginBottom: '10px' }}>Open Payment App</a>
-            <button onClick={() => setBlessModalUser(null)} style={{ width: '100%', padding: '10px', background: '#ccc', border: 'none', borderRadius: '8px' }}>Close</button>
+          <div style={{ background: 'white', padding: '25px', borderRadius: '16px', width: '90%', maxWidth: '350px' }}>
+            <h3>Upload New Glimpse</h3>
+            <textarea value={newGlimpseCaption} onChange={e => setNewGlimpseCaption(e.target.value)} placeholder="Add a caption..." style={{ width: '100%', padding: '10px', marginBottom: '15px' }} />
+            <input type="file" ref={fileInputRef} accept="video/*" style={{ marginBottom: '20px' }} />
+            {uploading && <div style={{ marginBottom: '10px' }}>Uploading: {uploadProgress}%</div>}
+            <button onClick={handleFileUpload} disabled={uploading}>Upload</button>
+            <button onClick={() => setIsUploadModalOpen(false)}>Cancel</button>
           </div>
         </div>
       )}
@@ -227,63 +146,35 @@ export default function GlimpsesPage() {
   );
 }
 
-function GlimpseItem({ glimpse, isOwner, onDelete, onAmen, onBless, onShare, openMenuId, setOpenMenuId, onMenuAction, isActive, setActiveGlimpseId }) {
-  const videoRef = useRef(null);
+function GlimpseItem({ glimpse, isActive, setActiveGlimpseId }) {
   const containerRef = useRef(null);
 
   useEffect(() => {
-    const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting && entry.intersectionRatio >= 0.6) { setActiveGlimpseId(glimpse.id); } }, { root: document.getElementById('glimpses-scroll-container'), threshold: 0.6 });
+    const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) setActiveGlimpseId(glimpse.id); }, { threshold: 0.6 });
     if (containerRef.current) observer.observe(containerRef.current);
-    return () => { if (containerRef.current) observer.unobserve(containerRef.current); };
+    return () => observer.disconnect();
   }, [glimpse.id, setActiveGlimpseId]);
 
-  useEffect(() => {
-    if (videoRef.current) { if (isActive) { const playPromise = videoRef.current.play(); if (playPromise !== undefined) playPromise.catch(() => {}); } else { videoRef.current.pause(); videoRef.current.currentTime = 0; } }
-  }, [isActive]);
-
-  const showMenu = openMenuId === glimpse.id;
-  const isBunnyVideo = glimpse.media_url?.includes("iframe.mediadelivery.net") || glimpse.media_url?.includes("video.bunnycdn");
-
   return (
-    <div ref={containerRef} style={{ height: "100%", width: "100%", scrollSnapAlign: "start", position: "relative", display: "flex", alignItems: "center", justifyContent: "center", overflow:'hidden', background:'black' }}>
+    <div ref={containerRef} style={{ height: "100%", width: "100%", scrollSnapAlign: "start", position: "relative", background:'black', overflow:'hidden' }}>
+      <iframe 
+        src={glimpse.media_url + "?autoplay=true&loop=true&muted=false"}
+        style={{ 
+          border: 'none', 
+          width: '100.5%', 
+          height: '100.5%', 
+          position: 'absolute', 
+          top: '-0.25%', 
+          left: '-0.25%', 
+          objectFit: 'cover' 
+        }}
+        allow="accelerometer; autoplay; encrypted-media;"
+        allowFullScreen
+      />
       
-      {/* THE FIXED VIDEO CONTAINER */}
-      <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}>
-        {isBunnyVideo ? (
-           <iframe 
-             src={glimpse.media_url + "?autoplay=true&loop=true&muted=false&preload=true"}
-             loading="lazy"
-             style={{ border: 'none', width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, zIndex: 1, objectFit: 'cover' }}
-             allow="accelerometer; gyroscope; autoplay; encrypted-media;"
-             allowFullScreen
-           />
-        ) : (
-           <video ref={videoRef} src={glimpse.media_url} loop playsInline defaultMuted={true} style={{ height: "100%", width: "100%", objectFit: "cover", cursor:'pointer', position: 'absolute', top: 0, left: 0 }} />
-        )}
-      </div>
-       
-      <div style={{ position: "absolute", right: "10px", bottom: "120px", display: "flex", flexDirection: "column", gap: "25px", alignItems: "center", zIndex: 10 }}>
-        <img src={glimpse.profiles?.avatar_url || '/images/default-avatar.png'} style={{ width: 45, height: 45, borderRadius: "50%", border: "2px solid white", objectFit:'cover' }} />
-        <div style={{ textAlign: "center" }}>
-          <button onClick={() => onAmen(glimpse, glimpse.hasAmened)} style={{ background: "rgba(0,0,0,0.3)", borderRadius:'50%', width:'45px', height:'45px', border: "none", fontSize: "24px", color:'white' }}>{glimpse.hasAmened ? "🙏" : "👐"}</button>
-          <div style={{ color: "white", fontSize: "12px", fontWeight: "bold", marginTop:'2px' }}>{glimpse.amenCount}</div>
-        </div>
-        <button onClick={() => onBless(glimpse.profiles)} style={{ background: "rgba(0,0,0,0.3)", borderRadius:'50%', width:'45px', height:'45px', border: "none", fontSize: "24px" }}>✨</button>
-        <button onClick={onShare} style={{ background: "rgba(0,0,0,0.3)", borderRadius:'50%', width:'45px', height:'45px', border: "none", fontSize: "24px" }}>📢</button>
-        <div style={{ position:'relative' }}>
-          <button onClick={(e) => {e.stopPropagation(); setOpenMenuId(showMenu ? null : glimpse.id);}} style={{ background: "rgba(0,0,0,0.3)", borderRadius:'50%', width:'40px', height:'40px', border: "none", fontSize: "20px", color:'white' }}>⋮</button>
-          {showMenu && (
-            <div style={{ position: 'absolute', right: 50, bottom: 0, background: 'white', borderRadius: '12px', width: '180px', overflow: 'hidden', boxShadow: '0 4px 15px rgba(0,0,0,0.3)' }}>
-              <button onClick={() => onMenuAction("Save", glimpse.id)} style={{ width: '100%', padding: '12px', textAlign: 'left', border: 'none', background: 'white', cursor: 'pointer', fontSize: '13px' }}>💾 Save to Playlist</button>
-              {isOwner && <button onClick={onDelete} style={{ width: '100%', padding: '12px', textAlign: 'left', border: 'none', background: '#fff5f5', cursor: 'pointer', color: 'red', fontSize: '13px', fontWeight:'bold' }}>🗑️ Delete</button>}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div style={{ position: "absolute", bottom: "0", left: "0", width: "100%", padding: "20px", background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)', zIndex: 4, pointerEvents:'none' }}>
-        <h3 style={{ margin: "0 0 8px 0", fontSize: "16px", color:'white' }}>@{glimpse.profiles?.full_name}</h3>
-        <p style={{ margin: 0, fontSize: "14px", lineHeight: "1.4", color:'white' }}>{glimpse.content}</p>
+      <div style={{ position: "absolute", bottom: "30px", left: "20px", color: 'white', zIndex: 5 }}>
+        <h3>@{glimpse.profiles?.full_name}</h3>
+        <p>{glimpse.content}</p>
       </div>
     </div>
   );

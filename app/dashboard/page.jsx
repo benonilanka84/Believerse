@@ -368,8 +368,8 @@ export default function Dashboard() {
       <div className="dashboard-grid">
         <div className="left-panel">
            
-          {/* NEW PREMIUM WIDGETS - Using unique key based on date to ensure background fetching triggers */}
-          <DailyVerseWidget key={`verse-${new Date().toISOString().split('T')[0]}`} />
+          {/* DAILY BIBLE VERSE WIDGET - Logic fix: force refresh with date key */}
+          <DailyVerseWidget key={new Date().toDateString()} />
           <DailyPrayerWidget />
            
           {/* Calendar Widget */}
@@ -398,7 +398,7 @@ export default function Dashboard() {
             {loadingPosts ? <p style={{textAlign:'center', padding:'20px'}}>Loading...</p> : 
              posts.length === 0 ? <div style={{textAlign:'center', padding:'40px', color:'#666'}}>The Walk is quiet. Be the first to share!</div> :
              posts.map(post => (
-               <div key={post.id} style={{border:'1px solid #eee', borderRadius:'12px', padding:'15px', marginBottom:'15px', background:'#fafafa'}}>
+               <div key={post.id} style={{border:'1px solid #eee', borderRadius:'12px', padding:'15px', marginBottom:'15px', background:'#fafafa' }}>
                  <div style={{display:'flex', alignItems:'center', gap:'10px', marginBottom:'10px'}}>
                    <Link href={`/profile/${post.user_id}`}>
                       <img src={post.author?.avatar_url || '/images/default-avatar.png'} style={{width:40, height:40, borderRadius:'50%', objectFit:'cover', cursor: 'pointer'}} />
@@ -444,14 +444,14 @@ export default function Dashboard() {
                      {post.title && <h4 style={{margin:'0 0 5px 0', color: '#0b2e4a'}}>{post.title}</h4>}
                      <p style={{whiteSpace:'pre-wrap', color:'#333'}}>{post.content}</p>
                      
-                     {/* --- FIXED VIDEO PLAYER LOGIC (Padding-Bottom technique) --- */}
+                     {/* --- PADDING-BOTTOM TECHNIQUE RENDERER --- */}
                      {post.media_url && (
                         (post.media_url.includes("iframe.mediadelivery.net") || post.media_url.includes("video.bunnycdn")) ? (
                           <div style={{ 
                               position: 'relative', 
                               width: '100%', 
                               height: 0, 
-                              /* 177.77% padding-bottom = 9/16, 56.25% padding-bottom = 16/9 */
+                              /* 177.77% padding-bottom = 9/16 aspect ratio, 56.25% = 16/9 aspect ratio */
                               paddingBottom: post.type === 'Glimpse' ? '177.77%' : '56.25%', 
                               marginTop: '10px', 
                               background: 'black', 
@@ -459,7 +459,7 @@ export default function Dashboard() {
                               overflow: 'hidden'
                           }}>
                             <iframe
-                              src={post.media_url}
+                              src={post.media_url + "?autoplay=false&loop=false"}
                               loading="lazy"
                               style={{ 
                                 position: 'absolute', 
