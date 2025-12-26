@@ -14,6 +14,7 @@ export default function GlimpsesPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0); 
   const [newGlimpseCaption, setNewGlimpseCaption] = useState("");
+  const [selectedFileName, setSelectedFileName] = useState(""); // Fix for file name visibility
   const fileInputRef = useRef(null);
   
   const [blessModalUser, setBlessModalUser] = useState(null);
@@ -41,7 +42,7 @@ export default function GlimpsesPage() {
       .order('created_at', { ascending: false });
 
     if (data) {
-      // LEAD ENGINEER FIX: Filter out ghost records with missing/broken media URLs
+      // Filter out ghost records
       const validGlimpses = data.filter(p => p.media_url && p.media_url.trim() !== "");
       
       const formatted = validGlimpses.map(p => ({
@@ -58,6 +59,28 @@ export default function GlimpsesPage() {
     }
   }
 
+  // Handle file selection and validate duration
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Fix: Show file name clearly
+    setSelectedFileName(file.name);
+
+    // RESTRICTION: 60 Second Limit Check
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.onloadedmetadata = () => {
+      window.URL.revokeObjectURL(video.src);
+      if (video.duration > 60) {
+        alert("⚠️ Glimpses must be 60 seconds or less. This video is " + Math.round(video.duration) + " seconds.");
+        fileInputRef.current.value = "";
+        setSelectedFileName("");
+      }
+    };
+    video.src = URL.createObjectURL(file);
+  };
+
   async function handleFileUpload() {
     const file = fileInputRef.current?.files?.[0];
     if (!file || !user) return;
@@ -73,7 +96,6 @@ export default function GlimpsesPage() {
       });
 
       if (!response.ok) throw new Error("Failed to init upload");
-       
       const { videoId, libraryId, signature, expirationTime } = await response.json();
 
       const uploadedUrl = await new Promise((resolve, reject) => {
@@ -106,6 +128,7 @@ export default function GlimpsesPage() {
       alert("✅ Glimpse Uploaded!");
       setIsUploadModalOpen(false); 
       setNewGlimpseCaption("");
+      setSelectedFileName("");
       loadGlimpses(user.id);
     } catch (err) {
       alert("Error: " + err.message);
@@ -143,9 +166,7 @@ export default function GlimpsesPage() {
       </div>
 
       <div id="glimpses-scroll-container" style={{ width: '100%', maxWidth: '480px', height: '100%', overflowY: "scroll", scrollSnapType: "y mandatory", scrollbarWidth: 'none' }}>
-        {glimpses.length === 0 ? (
-          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>No valid Glimpses found.</div>
-        ) : glimpses.map((glimpse) => (
+        {glimpses.map((glimpse) => (
           <GlimpseItem 
             key={glimpse.id} 
             glimpse={glimpse} 
@@ -171,7 +192,25 @@ export default function GlimpsesPage() {
               placeholder="Add a caption..." 
               style={{ width: '100%', padding: '10px', marginBottom: '15px', borderRadius: '8px', border: '1px solid #ddd', minHeight: '80px', color:'#333' }} 
             />
-            <input type="file" ref={fileInputRef} accept="video/*" style={{ marginBottom: '20px', width: '100%' }} />
+            
+            {/* FILE INPUT WRAPPER FOR VISIBILITY */}
+            <div style={{ textAlign: 'left', marginBottom: '20px' }}>
+              <button 
+                onClick={() => fileInputRef.current.click()} 
+                style={{ padding: '8px 12px', background: '#f5f5f5', border: '1px solid #ddd', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', color: '#333', fontWeight: '600' }}
+              >
+                Choose Video
+              </button>
+              <input type="file" ref={fileInputRef} accept="video/*" style={{ display: 'none' }} onChange={handleFileChange} />
+              
+              {/* CLEARLY VISIBLE FILE NAME */}
+              {selectedFileName && (
+                <div style={{ marginTop: '8px', fontSize: '12px', color: '#2e8b57', fontWeight: 'bold', wordBreak: 'break-all' }}>
+                  Selected: {selectedFileName}
+                </div>
+              )}
+            </div>
+
             {uploading && (
               <div style={{ marginBottom: '10px' }}>
                 <div style={{ background: '#f0f0f0', borderRadius: '4px', height: '6px', overflow: 'hidden', marginBottom: '5px' }}>
@@ -181,8 +220,8 @@ export default function GlimpsesPage() {
               </div>
             )}
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button onClick={handleFileUpload} disabled={uploading} style={{ flex: 1, padding: '10px', background: '#2e8b57', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>{uploading ? 'Processing...' : 'Upload'}</button>
-              <button onClick={() => setIsUploadModalOpen(false)} style={{ flex: 1, padding: '10px', background: '#f0f0f0', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>Cancel</button>
+              <button onClick={handleFileUpload} disabled={uploading || !selectedFileName} style={{ flex: 1, padding: '10px', background: '#2e8b57', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', opacity: (uploading || !selectedFileName) ? 0.6 : 1 }}>{uploading ? 'Processing...' : 'Upload'}</button>
+              <button onClick={() => { setIsUploadModalOpen(false); setSelectedFileName(""); }} style={{ flex: 1, padding: '10px', background: '#f0f0f0', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>Cancel</button>
             </div>
           </div>
         </div>
@@ -226,10 +265,10 @@ function GlimpseItem({ glimpse, user, isActive, setActiveGlimpseId, onAmen, setB
   return (
     <div ref={containerRef} style={{ height: "100%", width: "100%", scrollSnapAlign: "start", position: "relative", background:'#000' }}>
       
-      {/* VIDEO SECTION - PADDING-BOTTOM HACK RETAINED */}
+      {/* VIDEO SECTION */}
       <div style={{ position: "relative", paddingTop: "177.77%", height: 0, overflow:'hidden' }}>
         <iframe 
-          key={`glimpse-${glimpse.id}-${isActive}`} // AUDIO FIX: Force kill on scroll
+          key={`glimpse-${glimpse.id}-${isActive}`}
           src={embedUrl + (isActive ? "?autoplay=true&loop=true&muted=false" : "?autoplay=false&muted=true")}
           loading="lazy"
           style={{ border: 'none', position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
