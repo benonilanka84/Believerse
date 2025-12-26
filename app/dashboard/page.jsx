@@ -355,14 +355,17 @@ export default function Dashboard() {
           </div>
         </div>
         
-        <button 
+        {/* LEAD ENGINEER NOTE: Temporarily hidden for Razorpay Compliance. 
+            Auditors interpret 'Partner' as unregulated donation requests. */}
+        {/* <button 
           onClick={handlePartnerClick} 
           style={{ background: 'rgba(255,255,255,0.15)', border: '2px solid rgba(255,255,255,0.6)', borderRadius: '30px', padding: '10px 24px', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px', fontSize: '18px', fontWeight: '700', transition: 'all 0.2s ease', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}
           onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.25)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
           onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.transform = 'translateY(0)'; }}
         >
           <span style={{fontSize:'28px'}}>🕊️</span> Partner
-        </button>
+        </button> 
+        */}
       </div>
 
       <div className="dashboard-grid">
@@ -398,7 +401,7 @@ export default function Dashboard() {
             {loadingPosts ? <p style={{textAlign:'center', padding:'20px'}}>Loading...</p> : 
              posts.length === 0 ? <div style={{textAlign:'center', padding:'40px', color:'#666'}}>The Walk is quiet. Be the first to share!</div> :
              posts.map(post => (
-               <div key={post.id} style={{border:'1px solid #eee', borderRadius:'12px', padding:'15px', marginBottom:'15px', background:'#fafafa' }}>
+               <div key={post.id} style={{border:'1px solid #eee', borderRadius:'12px', padding:'15px', marginBottom:'15px', background:'#fafafa'}}>
                  <div style={{display:'flex', alignItems:'center', gap:'10px', marginBottom:'10px'}}>
                    <Link href={`/profile/${post.user_id}`}>
                       <img src={post.author?.avatar_url || '/images/default-avatar.png'} style={{width:40, height:40, borderRadius:'50%', objectFit:'cover', cursor: 'pointer'}} />
@@ -444,7 +447,7 @@ export default function Dashboard() {
                      {post.title && <h4 style={{margin:'0 0 5px 0', color: '#0b2e4a'}}>{post.title}</h4>}
                      <p style={{whiteSpace:'pre-wrap', color:'#333'}}>{post.content}</p>
                      
-                     {/* --- PADDING-BOTTOM TECHNIQUE RENDERER --- */}
+                     {/* --- FIXED VIDEO PLAYER LOGIC (Padding-Bottom technique) --- */}
                      {post.media_url && (
                         (post.media_url.includes("iframe.mediadelivery.net") || post.media_url.includes("video.bunnycdn")) ? (
                           <div style={{ 
