@@ -43,19 +43,23 @@ export default function Footer() {
         </div>
       </div>
 
-      {/* Updated Copyright Bar with Legal Entity */}
-<div style={styles.bottomBar}>
-  <p>
-    © {new Date().getFullYear()} The Believerse. All rights reserved.
-  </p>
-  <p style={{ marginTop: "5px", fontSize: "0.75rem", opacity: 0.8 }}>
-    The Believerse is a digital platform owned and operated by <strong>KBM Lanka Technologies</strong>.
-  </p>
-</div>
+      {/* Copyright Bar - FIXED SYNTAX */}
+      <div style={styles.bottomBar}>
+        <p>
+          © {new Date().getFullYear()} The Believerse. All rights reserved.
+        </p>
+        {/* LEGAL BRIDGE FOR RAZORPAY AUDITOR */}
+        <p style={{ marginTop: "5px", fontSize: "0.75rem", opacity: 0.8 }}>
+          The Believerse is a digital platform owned and operated by <strong>KBM Lanka Technologies</strong>.
+        </p>
+      </div>
+    </footer>
+  );
+}
 
 const styles = {
   footer: {
-    background: "#0b2e4a", // Deep Navy from your About Page
+    background: "#0b2e4a",
     color: "#ffffff",
     padding: "60px 20px 20px",
     fontFamily: "sans-serif",
@@ -76,7 +80,7 @@ const styles = {
   brand: {
     fontSize: "1.5rem",
     fontWeight: "bold",
-    color: "#b4dcff", // Light blue accent
+    color: "#b4dcff",
     marginBottom: "10px",
   },
   heading: {
