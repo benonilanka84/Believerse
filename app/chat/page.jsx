@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, Suspense } from "react";
 import { supabase } from "@/lib/supabase";
 import { useSearchParams } from "next/navigation";
 
-// 1. Separate the logic that uses searchParams into its own component
 function ChatContent() {
   const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState(null);
@@ -16,11 +15,23 @@ function ChatContent() {
   
   const searchParams = useSearchParams();
   const messagesEndRef = useRef(null);
+  // Ref to track activeChat inside the realtime callback
+  const activeChatRef = useRef(null);
 
   useEffect(() => {
     setMounted(true);
     initialize();
+    
+    // Request notification permission on mount
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
   }, []);
+
+  // Keep the ref updated so the realtime listener knows which chat is open
+  useEffect(() => {
+    activeChatRef.current = activeChat;
+  }, [activeChat]);
 
   async function initialize() {
     const { data } = await supabase.auth.getUser();
@@ -30,11 +41,57 @@ function ChatContent() {
       
       const targetId = searchParams.get('uid');
       if (targetId) loadChatWithUser(targetId, data.user.id);
+
+      // --- REALTIME SUBSCRIPTION START ---
+      const channel = supabase
+        .channel('realtime_messages')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+            filter: `receiver_id=eq.${data.user.id}`
+          },
+          (payload) => {
+            const incomingMsg = payload.new;
+            
+            // 1. If message is from the person we are currently talking to
+            if (incomingMsg.sender_id === activeChatRef.current) {
+              setMessages((prev) => [...prev, incomingMsg]);
+              setTimeout(scrollToBottom, 100);
+            } else {
+              // 2. Trigger a browser notification if it's from someone else
+              showNotification(incomingMsg);
+              // Refresh sidebar to show new chat partner or update order
+              loadRecentChats(data.user.id);
+            }
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+      // --- REALTIME SUBSCRIPTION END ---
+    }
+  }
+
+  function showNotification(msg) {
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification("The Believerse", {
+        body: `New message received!`,
+        icon: "/images/final-logo.png" // Replace with your app logo path
+      });
+      
+      // Play a subtle sound if you have one
+      const audio = new Audio('/sounds/notification.mp3'); 
+      audio.play().catch(() => {}); // Catch browser block on autoplay
     }
   }
 
   async function loadRecentChats(myId) {
-    const { data } = await supabase.from('messages').select('sender_id, receiver_id').or(`sender_id.eq.${myId},receiver_id.eq.${myId}`);
+    const { data } = await supabase.from('messages').select('sender_id, receiver_id, created_at').or(`sender_id.eq.${myId},receiver_id.eq.${myId}`).order('created_at', { ascending: false });
     if (!data) return;
 
     const uniqueIds = new Set();
@@ -55,14 +112,14 @@ function ChatContent() {
 
     let partnerProfile = chats.find(c => c.id === partnerId);
     if (!partnerProfile) {
-        const { data } = await supabase.from('profiles').select('*').eq('id', partnerId).single();
-        if (data) {
-            partnerProfile = data;
-            setChats(prev => {
-                if (prev.find(p => p.id === data.id)) return prev;
-                return [data, ...prev];
-            });
-        }
+      const { data } = await supabase.from('profiles').select('*').eq('id', partnerId).single();
+      if (data) {
+        partnerProfile = data;
+        setChats(prev => {
+          if (prev.find(p => p.id === data.id)) return prev;
+          return [data, ...prev];
+        });
+      }
     }
     
     setActiveChat(partnerId);
@@ -80,13 +137,19 @@ function ChatContent() {
     e.preventDefault();
     if (!newMessage.trim() || !activeChat) return;
 
-    const { error } = await supabase.from('messages').insert({
-      sender_id: user.id, receiver_id: activeChat, content: newMessage
-    });
+    const msgContent = newMessage;
+    setNewMessage(""); // Clear input immediately for better UX
 
-    if (!error) {
-      setNewMessage("");
-      loadChatWithUser(activeChat, user.id);
+    const { data, error } = await supabase.from('messages').insert({
+      sender_id: user.id, 
+      receiver_id: activeChat, 
+      content: msgContent
+    }).select().single();
+
+    if (!error && data) {
+      // Manually add our own message to the UI
+      setMessages(prev => [...prev, data]);
+      setTimeout(scrollToBottom, 100);
     }
   }
 
@@ -105,7 +168,7 @@ function ChatContent() {
         {chats.map(c => (
           <div key={c.id} onClick={() => loadChatWithUser(c.id, user.id)} style={{ padding: '15px', cursor: 'pointer', background: activeChat === c.id ? '#e8f5e9' : 'transparent', borderBottom: '1px solid #f0f0f0', display:'flex', alignItems:'center', gap:'10px' }}>
             <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#ccc', overflow:'hidden' }}>
-               {c.avatar_url ? <img src={c.avatar_url} style={{width:'100%', height:'100%', objectFit:'cover'}}/> : null}
+               <img src={c.avatar_url || '/images/default-avatar.png'} style={{width:'100%', height:'100%', objectFit:'cover'}}/>
             </div>
             <div style={{fontWeight:'bold', fontSize:'14px', color:'#000'}}>{c.full_name}</div>
           </div>
@@ -116,15 +179,16 @@ function ChatContent() {
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         {activeChat ? (
           <>
-            <div style={{padding:'15px', borderBottom:'1px solid #eee', fontWeight:'bold', background:'#fff', color:'#0b2e4a'}}>
-              {activeChatUser?.full_name || "Chat"}
+            <div style={{padding:'15px', borderBottom:'1px solid #eee', fontWeight:'bold', background:'#fff', color:'#0b2e4a', display:'flex', alignItems:'center', gap:'10px'}}>
+              <img src={activeChatUser?.avatar_url || '/images/default-avatar.png'} style={{width:30, height:30, borderRadius:'50%'}} />
+              {activeChatUser?.full_name}
             </div>
             <div style={{ flex: 1, padding: '20px', overflowY: 'auto', background: '#fff' }}>
               {messages.map(m => {
                 const isMe = m.sender_id === user.id;
                 return (
                   <div key={m.id} style={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start', marginBottom: '10px' }}>
-                    <div style={{ maxWidth: '70%', padding: '10px 15px', borderRadius: '12px', background: isMe ? '#2e8b57' : '#f0f0f0', color: isMe ? 'white' : '#333' }}>
+                    <div style={{ maxWidth: '70%', padding: '10px 15px', borderRadius: '12px', background: isMe ? '#2e8b57' : '#f0f0f0', color: isMe ? 'white' : '#333', boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }}>
                       {m.content}
                     </div>
                   </div>
@@ -145,7 +209,6 @@ function ChatContent() {
   );
 }
 
-// 2. Wrap it in Suspense for the default export
 export default function ChatPage() {
   return (
     <Suspense fallback={<div style={{padding:50, textAlign:'center'}}>Loading Messenger...</div>}>
