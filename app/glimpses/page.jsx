@@ -41,11 +41,15 @@ export default function GlimpsesPage() {
       .order('created_at', { ascending: false });
 
     if (data) {
-      const formatted = data.map(p => ({
+      // LEAD ENGINEER FIX: Filter out ghost records with missing/broken media URLs
+      const validGlimpses = data.filter(p => p.media_url && p.media_url.trim() !== "");
+      
+      const formatted = validGlimpses.map(p => ({
         ...p,
         amenCount: p.amens?.length || 0,
         hasAmened: p.amens?.some(a => a.user_id === userId) || false
       }));
+      
       setGlimpses(formatted);
        
       if (formatted.length > 0) {
@@ -139,7 +143,9 @@ export default function GlimpsesPage() {
       </div>
 
       <div id="glimpses-scroll-container" style={{ width: '100%', maxWidth: '480px', height: '100%', overflowY: "scroll", scrollSnapType: "y mandatory", scrollbarWidth: 'none' }}>
-        {glimpses.map((glimpse) => (
+        {glimpses.length === 0 ? (
+          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>No valid Glimpses found.</div>
+        ) : glimpses.map((glimpse) => (
           <GlimpseItem 
             key={glimpse.id} 
             glimpse={glimpse} 
@@ -155,7 +161,6 @@ export default function GlimpsesPage() {
         ))}
       </div>
        
-      {/* UPLOAD MODAL - Fixed Visibility */}
       {isUploadModalOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: 'white', padding: '25px', borderRadius: '16px', width: '90%', maxWidth: '350px', textAlign: 'center' }}>
@@ -183,7 +188,6 @@ export default function GlimpsesPage() {
         </div>
       )}
 
-      {/* BLESS MODAL */}
       {blessModalUser && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
            <div style={{ background: 'white', padding: '25px', borderRadius: '16px', width: '85%', maxWidth: '320px', textAlign: 'center' }}>
@@ -247,7 +251,7 @@ function GlimpseItem({ glimpse, user, isActive, setActiveGlimpseId, onAmen, setB
 
         <button onClick={() => setBlessModalUser(glimpse.profiles)} style={{ background: "rgba(0,0,0,0.4)", borderRadius:'50%', width:'45px', height:'45px', border: "none", fontSize: "24px", cursor:'pointer' }}>✨</button>
         
-        <button onClick={() => { navigator.share({url: window.location.href}).catch(() => alert("Link copied!")); }} style={{ background: "rgba(0,0,0,0.4)", borderRadius:'50%', width:'45px', height:'45px', border: "none", fontSize: "24px", cursor:'pointer' }}>📢</button>
+        <button onClick={() => { if(navigator.share) navigator.share({url: window.location.href}).catch(() => {}); else alert("Link copied!"); }} style={{ background: "rgba(0,0,0,0.4)", borderRadius:'50%', width:'45px', height:'45px', border: "none", fontSize: "24px", cursor:'pointer' }}>📢</button>
         
         <div style={{ position:'relative' }}>
           <button onClick={() => setOpenMenuId(openMenuId === glimpse.id ? null : glimpse.id)} style={{ background: "rgba(0,0,0,0.4)", borderRadius:'50%', width:'40px', height:'40px', border: "none", fontSize: "20px", color:'white', cursor:'pointer' }}>⋮</button>
