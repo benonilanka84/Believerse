@@ -10,28 +10,35 @@ export default function NavBar() {
   const pathname = usePathname();
   const router = useRouter();
   
+  // Data States
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
+  
+  // UI States
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // NEW: Real-time Message Badge State
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
 
+  // Refs for click-outside detection
   const profileRef = useRef(null);
   const searchRef = useRef(null);
 
+  // --- 1. INITIALIZATION ---
   useEffect(() => {
     const init = async () => {
       const { data } = await supabase.auth.getUser();
       if (data?.user) {
         setUser(data.user);
-        const { data: prof } = await supabase.from("profiles").select("*").eq("id", data.user.id).single();
-        if (prof) setProfile(prof);
-        setupMessageListener(data.user.id);
+        fetchProfile(data.user.id);
+        setupMessageListener(data.user.id); // Start listening for messages
       }
     };
     init();
 
+    // Click Outside Listener
     function handleClickOutside(event) {
       if (profileRef.current && !profileRef.current.contains(event.target)) setIsProfileOpen(false);
       if (searchRef.current && !searchRef.current.contains(event.target)) setIsSearchOpen(false);
@@ -40,15 +47,38 @@ export default function NavBar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  function setupMessageListener(userId) {
-    supabase.channel('navbar_msg_badge')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `receiver_id=eq.${userId}` }, () => {
-        if (window.location.pathname !== '/chat') setHasUnreadMessages(true);
-      }).subscribe();
+  async function fetchProfile(uid) {
+    const { data } = await supabase.from("profiles").select("*").eq("id", uid).single();
+    if (data) setProfile(data);
   }
 
+  // REAL-TIME MESSAGE LISTENER
+  function setupMessageListener(userId) {
+    const channel = supabase
+      .channel('navbar_messages')
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'messages', 
+        filter: `receiver_id=eq.${userId}` 
+      }, () => {
+        // If we aren't currently on the chat page, show the badge
+        if (window.location.pathname !== '/chat') {
+          setHasUnreadMessages(true);
+        }
+      })
+      .subscribe();
+    
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }
+
+  // --- 2. HANDLERS ---
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    setUser(null);
+    setProfile(null);
     window.location.href = "/"; 
   };
 
@@ -59,6 +89,7 @@ export default function NavBar() {
     router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
   };
 
+  // Hide on Auth pages
   if (pathname === "/login" || pathname === "/signup") return null;
 
   const navLinks = [
@@ -71,9 +102,13 @@ export default function NavBar() {
   ];
 
   return (
-    <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 25px", background: "white", borderBottom: "1px solid #e0e0e0", height: "70px", position: "sticky", top: 0, zIndex: 1000, boxShadow: "0 2px 15px rgba(0,0,0,0.03)" }}>
+    <nav style={{ 
+      display: "flex", alignItems: "center", justifyContent: "space-between", 
+      padding: "0 25px", background: "white", borderBottom: "1px solid #e0e0e0", 
+      height: "70px", position: "sticky", top: 0, zIndex: 1000, boxShadow: "0 2px 15px rgba(0,0,0,0.03)"
+    }}>
       
-      {/* 1. LEFT: LOGO */}
+      {/* 1. LEFT: LOGO & BRANDING */}
       <Link href="/dashboard" style={{ textDecoration: 'none', display: "flex", alignItems: "center", gap: "12px" }}>
         <img src="/images/final-logo.png" alt="Logo" style={{ width: 40, height: 40, objectFit: 'contain' }} />
         <div style={{ fontSize: "22px", fontFamily: "sans-serif" }}>
@@ -84,67 +119,133 @@ export default function NavBar() {
         </div>
       </Link>
 
-      {/* 2. CENTER: NAV */}
+      {/* 2. CENTER: NAVIGATION LINKS */}
       <div className="nav-links" style={{ display: "flex", gap: "25px" }}>
-        {navLinks.map((link) => (
-          <Link key={link.name} href={link.href} style={{ textDecoration: "none", color: pathname === link.href ? "#2e8b57" : "#555", fontWeight: pathname === link.href ? "800" : "500", fontSize: "15px", display: "flex", alignItems: "center", gap: "6px", borderBottom: pathname === link.href ? "3px solid #2e8b57" : "3px solid transparent", padding: "21px 0" }}>
-            <span>{link.icon}</span> {link.name}
-          </Link>
-        ))}
+        {navLinks.map((link) => {
+          const isActive = pathname === link.href;
+          return (
+            <Link key={link.name} href={link.href} style={{ 
+              textDecoration: "none", 
+              color: isActive ? "#2e8b57" : "#555", 
+              fontWeight: isActive ? "800" : "500", 
+              fontSize: "15px", 
+              display: "flex", alignItems: "center", gap: "6px",
+              borderBottom: isActive ? "3px solid #2e8b57" : "3px solid transparent",
+              padding: "21px 0"
+            }}>
+              <span>{link.icon}</span> {link.name}
+            </Link>
+          );
+        })}
       </div>
 
       {/* 3. RIGHT: ACTIONS */}
-      <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "18px" }}>
         
-        {/* MESSENGER ICON */}
-        <Link href="/chat" onClick={() => setHasUnreadMessages(false)} style={{ position: 'relative', fontSize: "22px", textDecoration: 'none' }}>
-          💬
-          {hasUnreadMessages && <span style={{ position: 'absolute', top: '-2px', right: '-2px', width: '10px', height: '10px', background: 'red', borderRadius: '50%', border: '2px solid white' }}></span>}
+        {/* RESTORED: UPGRADE BUTTON (Crucial for SaaS Business Model) */}
+        <Link href="/pricing">
+          <button style={{ 
+            background: "white", 
+            border: "2px solid #d4af37", 
+            color: "#d4af37", 
+            padding: "6px 16px", 
+            borderRadius: "20px", 
+            fontWeight: "bold", 
+            cursor: "pointer", 
+            fontSize: "13px",
+            display: "flex", alignItems: "center", gap: "6px",
+            transition: "all 0.2s"
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "#d4af37"; e.currentTarget.style.color = "white"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "white"; e.currentTarget.style.color = "#d4af37"; }}
+          >
+            <span>👑</span> Upgrade
+          </button>
         </Link>
 
-        {/* NOTIFICATIONS */}
-        <Notifications />
+        {/* MESSENGER ICON WITH BADGE */}
+        <Link href="/chat" onClick={() => setHasUnreadMessages(false)} style={{ position: 'relative', fontSize: "22px", textDecoration: 'none' }} title="Messenger">
+          💬
+          {hasUnreadMessages && (
+            <span style={{ position: 'absolute', top: '-5px', right: '-5px', width: '10px', height: '10px', background: 'red', borderRadius: '50%', border: '2px solid white' }}></span>
+          )}
+        </Link>
 
-        {/* SEARCH */}
+        {/* SEEK (SEARCH) */}
         <div ref={searchRef} style={{ position: "relative" }}>
           {isSearchOpen ? (
             <form onSubmit={handleSearchSubmit} style={{ display: 'flex', alignItems: 'center', background: '#f5f5f5', borderRadius: '20px', padding: '5px 10px' }}>
-              <input type="text" autoFocus placeholder="Seek..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: '14px', width: '100px', color: '#333' }} />
+              <input 
+                type="text" 
+                autoFocus
+                placeholder="Seek..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: '14px', width: '120px', color:'#333' }}
+              />
+              <button type="submit" style={{ border: 'none', background: 'none', cursor: 'pointer' }}>🔍</button>
             </form>
           ) : (
-            <div onClick={() => setIsSearchOpen(true)} style={{ fontSize: "20px", cursor: "pointer", color: "#0b2e4a" }}>🔍</div>
+            <div onClick={() => setIsSearchOpen(true)} style={{ fontSize: "20px", cursor: "pointer", color: "#0b2e4a", padding:'5px' }} title="Seek">
+              🔍
+            </div>
           )}
         </div>
         
-        {/* PROFILE DROPDOWN - FULL RESTORATION */}
+        {/* NOTIFICATIONS COMPONENT */}
+        <Notifications />
+
+        {/* PROFILE AVATAR DROPDOWN */}
         <div ref={profileRef} style={{ position: "relative" }}>
-          <div onClick={() => setIsProfileOpen(!isProfileOpen)} style={{ cursor: "pointer", width: 40, height: 40, borderRadius: "50%", border: "2px solid #eee", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", background: "#0b2e4a", color: "white", fontWeight: "bold" }}>
-            {profile?.avatar_url ? <img src={profile.avatar_url} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : "B"}
+          <div onClick={() => setIsProfileOpen(!isProfileOpen)} style={{ cursor: "pointer", width: 40, height: 40, borderRadius: "50%", border: "2px solid #eee", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", background: "#0b2e4a", color: "white", fontWeight: "bold", fontSize: "16px" }}>
+            {profile?.avatar_url ? (
+              <img src={profile.avatar_url} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            ) : (
+              user?.email?.charAt(0).toUpperCase() || "B"
+            )}
           </div>
 
+          {/* Profile Menu - FULL RESTORATION */}
           {isProfileOpen && (
             <div style={{ position: "absolute", right: 0, top: "55px", background: "white", border: "1px solid #eee", borderRadius: "12px", boxShadow: "0 5px 20px rgba(0,0,0,0.15)", width: "220px", overflow: "hidden", zIndex: 1002 }}>
               <div style={{ padding: "15px", borderBottom: "1px solid #eee", background: "#fafafa" }}>
-                {/* FIX: Name visibility set to navy blue */}
+                {/* Name Visibility Fix: Styled in Navy Blue */}
                 <div style={{ fontWeight: "bold", color: "#0b2e4a", fontSize: "14px" }}>{profile?.full_name || "Believer"}</div>
                 <div style={{ fontSize: "11px", color: "#777", marginTop: "2px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user?.email}</div>
               </div>
               
               <div style={{ padding: "5px 0" }}>
-                <Link href="/profile/edit" style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 15px", textDecoration: "none", color: "#444", fontSize: "13px" }} onClick={() => setIsProfileOpen(false)}><span>✏️</span> Edit Profile</Link>
-                <Link href="/settings" style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 15px", textDecoration: "none", color: "#444", fontSize: "13px" }} onClick={() => setIsProfileOpen(false)}><span>⚙️</span> Settings</Link>
-                <Link href="/terms" style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 15px", textDecoration: "none", color: "#444", fontSize: "13px" }} onClick={() => setIsProfileOpen(false)}><span>📜</span> Terms & Conditions</Link>
-                <Link href="/about" style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 15px", textDecoration: "none", color: "#444", fontSize: "13px" }} onClick={() => setIsProfileOpen(false)}><span>ℹ️</span> About</Link>
-                {profile?.role === 'admin' && <Link href="/admin" style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 15px", textDecoration: "none", color: "#d32f2f", fontSize: "13px", fontWeight: "bold", background: "#fff5f5" }} onClick={() => setIsProfileOpen(false)}><span>🛡️</span> Admin Panel</Link>}
+                <Link href="/profile/edit" style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 15px", textDecoration: "none", color: "#444", fontSize: "13px" }} onClick={() => setIsProfileOpen(false)}>
+                  <span>✏️</span> Edit Profile
+                </Link>
+                <Link href="/settings" style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 15px", textDecoration: "none", color: "#444", fontSize: "13px" }} onClick={() => setIsProfileOpen(false)}>
+                  <span>⚙️</span> Settings
+                </Link>
+                <Link href="/terms" style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 15px", textDecoration: "none", color: "#444", fontSize: "13px" }} onClick={() => setIsProfileOpen(false)}>
+                  <span>📜</span> Terms & Conditions
+                </Link>
+                <Link href="/about" style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 15px", textDecoration: "none", color: "#444", fontSize: "13px" }} onClick={() => setIsProfileOpen(false)}>
+                  <span>ℹ️</span> About
+                </Link>
+                {profile?.role === 'admin' && (
+                  <Link href="/admin" style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 15px", textDecoration: "none", color: "#d32f2f", fontSize: "13px", fontWeight: "bold", background: "#fff5f5" }} onClick={() => setIsProfileOpen(false)}>
+                    <span>🛡️</span> Admin Panel
+                  </Link>
+                )}
               </div>
 
               <div style={{ borderTop: "1px solid #eee", padding: "5px 0" }}>
-                <div onClick={handleLogout} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 15px", cursor: "pointer", color: "#e74c3c", fontSize: "13px", fontWeight: "600" }}><span>🚪</span> Sign Out</div>
+                <div onClick={handleLogout} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 15px", cursor: "pointer", color: "#e74c3c", fontSize: "13px", fontWeight: "600" }}>
+                  <span>🚪</span> Sign Out
+                </div>
               </div>
             </div>
           )}
         </div>
+
       </div>
+
+      <style jsx>{`@media (max-width: 1024px) { .nav-links { display: none !important; } }`}</style>
     </nav>
   );
 }
