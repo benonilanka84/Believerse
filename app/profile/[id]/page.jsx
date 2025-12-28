@@ -14,14 +14,18 @@ export default function ProfilePage() {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
-  // New state for cover photo upload
   const [coverUploading, setCoverUploading] = useState(false);
 
-  // 1. Fetch Data Wrapper
+  // --- NEW: CONNECTION STATES ---
+  const [isConnected, setIsConnected] = useState(false);
+  const [connectionCount, setConnectionCount] = useState(0);
+  const [actionLoading, setActionLoading] = useState(false);
+
   async function loadProfileData() {
     const { data: { user } } = await supabase.auth.getUser();
     setCurrentUser(user);
 
+    // 1. Fetch Profile
     const { data: profileData, error } = await supabase
       .from('profiles')
       .select('*')
@@ -35,6 +39,7 @@ export default function ProfilePage() {
     }
     setProfile(profileData);
 
+    // 2. Fetch Posts
     const { data: postData } = await supabase
       .from('posts')
       .select('*, amens(count)')
@@ -42,6 +47,27 @@ export default function ProfilePage() {
       .order('created_at', { ascending: false });
     
     if (postData) setPosts(postData);
+
+    // 3. --- NEW: CHECK CONNECTION STATUS ---
+    if (user && user.id !== id) {
+      const { data: connection } = await supabase
+        .from('connections')
+        .select('*')
+        .eq('follower_id', user.id)
+        .eq('following_id', id)
+        .single();
+      
+      setIsConnected(!!connection);
+    }
+
+    // 4. --- NEW: FETCH CONNECTION COUNT ---
+    const { count } = await supabase
+      .from('connections')
+      .select('*', { count: 'exact', head: true })
+      .eq('following_id', id);
+    
+    setConnectionCount(count || 0);
+
     setLoading(false);
   }
 
@@ -49,14 +75,47 @@ export default function ProfilePage() {
     loadProfileData();
   }, [id]);
 
-  // --- NEW: HANDLE COVER PHOTO UPLOAD ---
+  // --- NEW: HANDLE CONNECT/DISCONNECT ---
+  async function handleConnectionToggle() {
+    if (!currentUser) return alert("Please log in to connect.");
+    setActionLoading(true);
+
+    try {
+      if (isConnected) {
+        // Disconnect logic
+        const { error } = await supabase
+          .from('connections')
+          .delete()
+          .eq('follower_id', currentUser.id)
+          .eq('following_id', id);
+
+        if (error) throw error;
+        setIsConnected(false);
+        setConnectionCount(prev => prev - 1);
+      } else {
+        // Connect logic
+        const { error } = await supabase
+          .from('connections')
+          .insert({ follower_id: currentUser.id, following_id: id });
+
+        if (error) throw error;
+        setIsConnected(true);
+        setConnectionCount(prev => prev + 1);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Connection action failed. Please try again.");
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
   async function handleCoverUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
 
     setCoverUploading(true);
     try {
-      // 1. Upload to 'covers' bucket
       const fileExt = file.name.split('.').pop();
       const fileName = `${currentUser.id}-${Math.random()}.${fileExt}`;
       const filePath = `${fileName}`;
@@ -67,12 +126,10 @@ export default function ProfilePage() {
 
       if (uploadError) throw uploadError;
 
-      // 2. Get Public URL
       const { data: { publicUrl } } = supabase.storage
         .from('covers')
         .getPublicUrl(filePath);
 
-      // 3. Update Profile in Database
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ cover_url: publicUrl })
@@ -81,7 +138,7 @@ export default function ProfilePage() {
       if (updateError) throw updateError;
 
       alert("Cover photo updated successfully!");
-      loadProfileData(); // Refresh the page data
+      loadProfileData();
 
     } catch (error) {
       console.error(error);
@@ -91,7 +148,6 @@ export default function ProfilePage() {
     }
   }
 
-  // --- BADGE HELPER ---
   const getBadgeUI = () => {
     if (!profile || !profile.subscription_plan) return null;
     const plan = profile.subscription_plan.trim().toLowerCase();
@@ -118,18 +174,16 @@ export default function ProfilePage() {
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafd", paddingBottom: "40px" }}>
       
-      {/* --- HEADER / COVER PHOTO --- */}
+      {/* HEADER / COVER PHOTO */}
       <div style={{ 
-        height: "400px", // UPDATED: Increased height
+        height: "400px", 
         background: profile.cover_url ? `url(${profile.cover_url}) center/cover` : "linear-gradient(135deg, #0b2e4a, #2e8b57)",
         position: "relative"
       }}>
-        {/* Back Button (Top Left) */}
         <Link href="/dashboard" style={{ position: "absolute", top: "20px", left: "20px", background: "rgba(0,0,0,0.5)", color: "white", padding: "8px 16px", borderRadius: "20px", textDecoration: "none", fontSize: "14px", zIndex: 10 }}>
           ⬅ Back to Dashboard
         </Link>
 
-        {/* UPDATED: Upload Cover Button (Top Right - Owner Only) */}
         {isOwner && (
           <label style={{ 
             position: "absolute", 
@@ -153,13 +207,13 @@ export default function ProfilePage() {
               accept="image/*" 
               onChange={handleCoverUpload} 
               disabled={coverUploading}
-              style={{ display: "none" }} // Hide the actual file input
+              style={{ display: "none" }}
             />
           </label>
         )}
       </div>
 
-      {/* --- PROFILE INFO --- */}
+      {/* PROFILE INFO */}
       <div style={{ maxWidth: "800px", margin: "0 auto", padding: "0 20px", position: "relative", marginTop: "-60px" }}>
         <div style={{ background: "white", borderRadius: "16px", padding: "20px", boxShadow: "0 4px 15px rgba(0,0,0,0.05)", textAlign: "center" }}>
           
@@ -178,21 +232,34 @@ export default function ProfilePage() {
           <div style={{ display: "flex", justifyContent: "center", gap: "30px", marginBottom: "25px", borderTop: "1px solid #eee", borderBottom: "1px solid #eee", padding: "15px 0" }}>
             <div><div style={{ fontWeight: "800", fontSize: "1.2rem", color: "#0b2e4a" }}>{posts.filter(p => p.type !== 'Glimpse').length}</div><div style={{ fontSize: "12px", color: "#888" }}>Posts</div></div>
             <div><div style={{ fontWeight: "800", fontSize: "1.2rem", color: "#0b2e4a" }}>{posts.filter(p => p.type === 'Glimpse').length}</div><div style={{ fontSize: "12px", color: "#888" }}>Glimpses</div></div>
-            <div><div style={{ fontWeight: "800", fontSize: "1.2rem", color: "#0b2e4a" }}>0</div><div style={{ fontSize: "12px", color: "#888" }}>Connections</div></div>
+            <div><div style={{ fontWeight: "800", fontSize: "1.2rem", color: "#0b2e4a" }}>{connectionCount}</div><div style={{ fontSize: "12px", color: "#888" }}>Connections</div></div>
           </div>
 
           {!isOwner && (
             <div style={{ display: "flex", justifyContent: "center", gap: "10px" }}>
-              <button style={{ padding: "10px 20px", background: "#2e8b57", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}>Connect</button>
+              <button 
+                onClick={handleConnectionToggle}
+                disabled={actionLoading}
+                style={{ 
+                  padding: "10px 20px", 
+                  background: isConnected ? "#ff4d4d" : "#2e8b57", 
+                  color: "white", 
+                  border: "none", 
+                  borderRadius: "8px", 
+                  fontWeight: "bold", 
+                  cursor: actionLoading ? "not-allowed" : "pointer",
+                  transition: "background 0.3s"
+                }}
+              >
+                {actionLoading ? "Wait..." : isConnected ? "Disconnect" : "Connect"}
+              </button>
               <Link href={`/chat?uid=${profile.id}`} style={{ padding: "10px 20px", background: "#f0f0f0", color: "#333", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", textDecoration: "none" }}>Message</Link>
             </div>
           )}
-           
-          {/* UPDATED: Removed the "Edit Profile" button */}
         </div>
       </div>
 
-      {/* --- CONTENT TABS --- */}
+      {/* CONTENT TABS */}
       <div style={{ maxWidth: "800px", margin: "30px auto 0 auto", padding: "0 20px" }}>
         <div style={{ display: "flex", borderBottom: "2px solid #eee", marginBottom: "20px" }}>
           <button onClick={() => setActiveTab('all')} style={{ flex: 1, padding: "15px", background: "none", border: "none", borderBottom: activeTab === 'all' ? "3px solid #0b2e4a" : "3px solid transparent", color: activeTab === 'all' ? "#0b2e4a" : "#999", fontWeight: "bold", cursor: "pointer" }}>The Walk</button>

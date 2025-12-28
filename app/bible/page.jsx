@@ -17,6 +17,9 @@ export default function BiblePage() {
   const [loading, setLoading] = useState(true);
   const [fontSize, setFontSize] = useState(16);
 
+  // --- NEW: STATE FOR QUICK CHAPTER PICKER ---
+  const [showChapterPicker, setShowChapterPicker] = useState(false);
+
   const languages = {
     'en-kjv': { name: 'English (KJV)', flag: '🇬🇧', file: 'en-kjv.json' },
     'hi-irv': { name: 'हिंदी (Hindi IRV)', flag: '🇮🇳', file: 'hi-irv.json' },
@@ -37,7 +40,6 @@ export default function BiblePage() {
       const { data } = await supabase.auth.getUser();
       if (data?.user) {
         setUser(data.user);
-        // ✅ Fix: Safe localStorage access
         if (typeof window !== 'undefined') {
           const saved = localStorage.getItem(`bible_bookmarks_${data.user.id}`);
           if (saved) setBookmarks(JSON.parse(saved));
@@ -47,7 +49,6 @@ export default function BiblePage() {
     loadUser();
   }, [mounted]);
 
-  // Load Bible Data
   useEffect(() => {
     if (mounted) loadBibleData();
   }, [selectedLanguage, mounted]);
@@ -84,7 +85,6 @@ export default function BiblePage() {
     setVerses(chapter.verses || []);
   }
 
-  // Reload verses when selection changes
   useEffect(() => {
     if (bibleData && selectedBook && mounted) {
       loadVerses(bibleData, selectedBook, selectedChapter);
@@ -185,7 +185,6 @@ export default function BiblePage() {
     const book = getCurrentBook();
     const text = `"${verse.text}" - ${book?.name} ${selectedChapter}:${verse.verse}`;
     
-    // ✅ Fix: Strict Browser Check
     if (typeof window !== 'undefined') {
       if (window.navigator && window.navigator.share) {
         window.navigator.share({
@@ -203,13 +202,7 @@ export default function BiblePage() {
 
   if (loading) {
     return (
-      <div style={{
-        minHeight: "calc(100vh - 100px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "#b4dcff"
-      }}>
+      <div style={{ minHeight: "calc(100vh - 100px)", display: "flex", alignItems: "center", justifyContent: "center", background: "#b4dcff" }}>
         <div style={{ textAlign: "center" }}>
           <div style={{ fontSize: "4rem", marginBottom: "20px" }}>📖</div>
           <p style={{ color: "#0b2e4a", fontSize: "18px" }}>Loading Bible...</p>
@@ -219,90 +212,35 @@ export default function BiblePage() {
   }
 
   return (
-    <div style={{
-      minHeight: "calc(100vh - 100px)",
-      background: "#b4dcff",
-      padding: "20px"
-    }}>
+    <div style={{ minHeight: "calc(100vh - 100px)", background: "#b4dcff", padding: "20px" }}>
       <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
         
         {/* Header */}
-        <div style={{
-          background: "linear-gradient(135deg, #2e8b57 0%, #1d5d3a 100%)",
-          padding: "30px",
-          borderRadius: "16px",
-          color: "white",
-          marginBottom: "20px",
-          boxShadow: "0 4px 15px rgba(0,0,0,0.1)"
-        }}>
+        <div style={{ background: "linear-gradient(135deg, #2e8b57 0%, #1d5d3a 100%)", padding: "30px", borderRadius: "16px", color: "white", marginBottom: "20px", boxShadow: "0 4px 15px rgba(0,0,0,0.1)" }}>
           <h1 style={{ margin: 0, fontSize: "2.2rem" }}>📖 Holy Bible</h1>
-          <p style={{ margin: "8px 0 0 0", opacity: 0.9, fontSize: "1.1rem" }}>
-            Read the Word of God in your language
-          </p>
+          <p style={{ margin: "8px 0 0 0", opacity: 0.9, fontSize: "1.1rem" }}>Read the Word of God in your language</p>
         </div>
 
         {/* Controls */}
-        <div style={{
-          background: "white",
-          padding: "20px",
-          borderRadius: "12px",
-          marginBottom: "20px",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
-        }}>
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "200px 1fr auto",
-            gap: "15px",
-            alignItems: "center",
-            marginBottom: "15px"
-          }}>
-            {/* Language Selector */}
-            <select
-              value={selectedLanguage}
-              onChange={(e) => setSelectedLanguage(e.target.value)}
-              style={{
-                padding: "12px",
-                borderRadius: "8px",
-                border: "2px solid #e0e0e0",
-                fontSize: "14px",
-                fontWeight: "600",
-                cursor: "pointer"
-              }}
-            >
+        <div style={{ background: "white", padding: "20px", borderRadius: "12px", marginBottom: "20px", boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "200px 1fr auto", gap: "15px", alignItems: "center", marginBottom: "15px" }}>
+            <select value={selectedLanguage} onChange={(e) => setSelectedLanguage(e.target.value)} style={{ padding: "12px", borderRadius: "8px", border: "2px solid #e0e0e0", fontSize: "14px", fontWeight: "600", cursor: "pointer" }}>
               {Object.entries(languages).map(([code, lang]) => (
-                <option key={code} value={code}>
-                  {lang.flag} {lang.name}
-                </option>
+                <option key={code} value={code}>{lang.flag} {lang.name}</option>
               ))}
             </select>
 
-            {/* Search */}
             <div style={{ position: "relative" }}>
-              <input
-                type="text"
-                placeholder="Search verses..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                style={{
-                  width: "100%",
-                  padding: "12px 45px 12px 15px",
-                  borderRadius: "8px",
-                  border: "2px solid #e0e0e0",
-                  fontSize: "14px"
-                }}
-              />
+              <input type="text" placeholder="Search verses..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSearch()} style={{ width: "100%", padding: "12px 45px 12px 15px", borderRadius: "8px", border: "2px solid #e0e0e0", fontSize: "14px" }} />
               <button onClick={handleSearch} style={{ position: "absolute", right: "5px", top: "50%", transform: "translateY(-50%)", background: "#2e8b57", color: "white", border: "none", padding: "8px 15px", borderRadius: "6px", cursor: "pointer", fontWeight: "600" }}>🔍</button>
             </div>
 
-            {/* Font Size */}
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
               <button onClick={() => setFontSize(Math.max(12, fontSize - 2))} style={{ padding: "8px 12px", background: "#f0f0f0", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }}>A-</button>
               <button onClick={() => setFontSize(Math.min(24, fontSize + 2))} style={{ padding: "8px 12px", background: "#f0f0f0", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }}>A+</button>
             </div>
           </div>
 
-          {/* Search Results */}
           {searchResults.length > 0 && (
             <div style={{ marginTop: "15px", padding: "15px", background: "#f9f9f9", borderRadius: "8px", maxHeight: "300px", overflowY: "auto" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
@@ -326,17 +264,7 @@ export default function BiblePage() {
           <div style={{ background: "white", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 8px rgba(0,0,0,0.08)", maxHeight: "calc(100vh - 300px)", overflowY: "auto", position: "sticky", top: "20px" }}>
             <h3 style={{ margin: "0 0 15px 0", color: "#0b2e4a" }}>Books</h3>
             {bibleData?.books?.map((book) => (
-              <button
-                key={book.id}
-                onClick={() => { setSelectedBook(book.id); setSelectedChapter(1); }}
-                style={{
-                  width: "100%", textAlign: "left", padding: "10px 12px", marginBottom: "4px",
-                  background: selectedBook === book.id ? "#2e8b57" : "transparent",
-                  color: selectedBook === book.id ? "white" : "#333",
-                  border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "14px",
-                  fontWeight: selectedBook === book.id ? "600" : "normal", transition: "all 0.2s"
-                }}
-              >
+              <button key={book.id} onClick={() => { setSelectedBook(book.id); setSelectedChapter(1); }} style={{ width: "100%", textAlign: "left", padding: "10px 12px", marginBottom: "4px", background: selectedBook === book.id ? "#2e8b57" : "transparent", color: selectedBook === book.id ? "white" : "#333", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "14px", fontWeight: selectedBook === book.id ? "600" : "normal", transition: "all 0.2s" }}>
                 {book.name}
               </button>
             ))}
@@ -345,13 +273,65 @@ export default function BiblePage() {
           {/* Reader Content */}
           <div style={{ background: "white", borderRadius: "12px", padding: "30px", boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}>
             
-            {/* Chapter Nav */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "30px", paddingBottom: "20px", borderBottom: "2px solid #f0f0f0" }}>
+            {/* --- UPDATED: CHAPTER NAV WITH INSTANT PICKER --- */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "30px", paddingBottom: "20px", borderBottom: "2px solid #f0f0f0", position: 'relative' }}>
               <button onClick={handlePrevChapter} style={{ padding: "10px 20px", background: "#f0f0f0", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "600" }}>← Previous</button>
-              <div style={{ textAlign: "center" }}>
-                <h2 style={{ margin: 0, color: "#0b2e4a", fontSize: "28px" }}>{getCurrentBook()?.name} {selectedChapter}</h2>
+              
+              <div style={{ textAlign: "center", position: 'relative' }}>
+                <h2 
+                  onClick={() => setShowChapterPicker(!showChapterPicker)}
+                  style={{ margin: 0, color: "#0b2e4a", fontSize: "28px", cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+                >
+                  {getCurrentBook()?.name} {selectedChapter} <span style={{fontSize: '18px'}}>{showChapterPicker ? '▲' : '▼'}</span>
+                </h2>
                 <p style={{ margin: "5px 0 0 0", color: "#666", fontSize: "14px" }}>Chapter {selectedChapter} of {getCurrentBook()?.chapters.length}</p>
+
+                {/* Instant Chapter Picker Overlay */}
+                {showChapterPicker && (
+                  <div style={{
+                    position: "absolute",
+                    top: "100%",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    background: "white",
+                    boxShadow: "0 8px 30px rgba(0,0,0,0.15)",
+                    borderRadius: "12px",
+                    padding: "20px",
+                    zIndex: 100,
+                    marginTop: "10px",
+                    width: "280px",
+                    display: "grid",
+                    gridTemplateColumns: "repeat(5, 1fr)",
+                    gap: "8px",
+                    maxHeight: "250px",
+                    overflowY: "auto",
+                    border: '1px solid #eee'
+                  }}>
+                    {Array.from({ length: getCurrentBook()?.chapters.length || 0 }, (_, i) => i + 1).map((chapter) => (
+                      <button
+                        key={chapter}
+                        onClick={() => {
+                          setSelectedChapter(chapter);
+                          setShowChapterPicker(false);
+                        }}
+                        style={{
+                          padding: "10px",
+                          borderRadius: "6px",
+                          border: selectedChapter === chapter ? "none" : "1px solid #eee",
+                          background: selectedChapter === chapter ? "#2e8b57" : "white",
+                          color: selectedChapter === chapter ? "white" : "#333",
+                          fontWeight: "bold",
+                          cursor: "pointer",
+                          fontSize: "14px"
+                        }}
+                      >
+                        {chapter}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
+
               <button onClick={handleNextChapter} style={{ padding: "10px 20px", background: "#f0f0f0", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "600" }}>Next →</button>
             </div>
 
@@ -371,20 +351,12 @@ export default function BiblePage() {
               ))}
             </div>
 
-            {/* Chapter Jump */}
+            {/* Chapter Jump List at bottom */}
             <div style={{ paddingTop: "20px", borderTop: "2px solid #f0f0f0" }}>
-              <p style={{ color: "#666", marginBottom: "15px", fontSize: "14px" }}>Jump to chapter:</p>
+              <p style={{ color: "#666", marginBottom: "15px", fontSize: "14px" }}>Quick jump:</p>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(45px, 1fr))", gap: "8px" }}>
                 {Array.from({ length: getCurrentBook()?.chapters.length || 0 }, (_, i) => i + 1).map((chapter) => (
-                  <button
-                    key={chapter}
-                    onClick={() => setSelectedChapter(chapter)}
-                    style={{
-                      padding: "10px", background: selectedChapter === chapter ? "#2e8b57" : "#f0f0f0",
-                      color: selectedChapter === chapter ? "white" : "#333", border: "none",
-                      borderRadius: "8px", cursor: "pointer", fontWeight: selectedChapter === chapter ? "600" : "normal"
-                    }}
-                  >
+                  <button key={chapter} onClick={() => setSelectedChapter(chapter)} style={{ padding: "10px", background: selectedChapter === chapter ? "#2e8b57" : "#f0f0f0", color: selectedChapter === chapter ? "white" : "#333", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: selectedChapter === chapter ? "600" : "normal" }}>
                     {chapter}
                   </button>
                 ))}

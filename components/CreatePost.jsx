@@ -15,6 +15,9 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
   const [previewUrl, setPreviewUrl] = useState(null);
   const fileInputRef = useRef(null);
 
+  // --- NEW: DRAG & DROP STATE ---
+  const [dragActive, setDragActive] = useState(false);
+
   // Generate preview URL
   useEffect(() => {
     if (!mediaFile) {
@@ -25,6 +28,26 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
     setPreviewUrl(objectUrl);
     return () => URL.revokeObjectURL(objectUrl);
   }, [mediaFile]);
+
+  // --- NEW: DRAG & DROP HANDLERS ---
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      setMediaFile(e.dataTransfer.files[0]);
+    }
+  };
 
   const handlePost = async () => {
     if (!content.trim() && !mediaFile) return;
@@ -71,7 +94,6 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
                 setUploadProgress(Number(percentage));
               },
               onSuccess: () => {
-                // CRITICAL: Use /embed/ URL format, not /play/
                 const embedUrl = `https://iframe.mediadelivery.net/embed/${libraryId}/${videoId}`;
                 resolve(embedUrl);
               },
@@ -187,15 +209,29 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
         
         {!mediaFile ? (
           <div 
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
             onClick={() => fileInputRef.current.click()}
-            style={{ padding: "12px", border: "2px dashed #e0e0e0", borderRadius: "12px", textAlign: "center", color: "#666", fontSize: "14px", cursor: "pointer", background: "#fafafa" }}
+            style={{ 
+              padding: "20px", 
+              border: dragActive ? "2px dashed #2e8b57" : "2px dashed #e0e0e0", 
+              borderRadius: "12px", 
+              textAlign: "center", 
+              color: "#666", 
+              fontSize: "14px", 
+              cursor: "pointer", 
+              background: dragActive ? "#f0fff4" : "#fafafa",
+              transition: "all 0.2s ease"
+            }}
           >
             📷 Add high-quality Image or Video
+            <br />
+            <span style={{ fontSize: "12px", color: "#999" }}>(Drag & Drop supported)</span>
           </div>
         ) : (
           <div style={{ position: "relative", width: "100%", borderRadius: "12px", overflow: "hidden", background: "#000", boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}>
-            
-            {/* FIXED PREVIEW - PROPER BUNNY.NET METHOD with paddingTop */}
             <div style={{ 
               position: "relative",
               paddingTop: type === "Glimpse" ? "177.77%" : "56.25%",

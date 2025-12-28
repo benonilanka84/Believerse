@@ -15,24 +15,25 @@ function ChatContent() {
   
   const searchParams = useSearchParams();
   const messagesEndRef = useRef(null);
-  // Ref to track activeChat inside the realtime callback
+  
+  // Ref to track activeChat inside the realtime callback to avoid stale closures
   const activeChatRef = useRef(null);
 
   useEffect(() => {
     setMounted(true);
     initialize();
     
-    // Request notification permission on mount
     if ("Notification" in window && Notification.permission === "default") {
       Notification.requestPermission();
     }
   }, []);
 
-  // Keep the ref updated so the realtime listener knows which chat is open
+  // Sync ref with state
   useEffect(() => {
     activeChatRef.current = activeChat;
   }, [activeChat]);
 
+  // 1. Initial Data Load
   async function initialize() {
     const { data } = await supabase.auth.getUser();
     if (data?.user) {
@@ -41,57 +42,64 @@ function ChatContent() {
       
       const targetId = searchParams.get('uid');
       if (targetId) loadChatWithUser(targetId, data.user.id);
-
-      // --- REALTIME SUBSCRIPTION START ---
-      const channel = supabase
-        .channel('realtime_messages')
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'messages',
-            filter: `receiver_id=eq.${data.user.id}`
-          },
-          (payload) => {
-            const incomingMsg = payload.new;
-            
-            // 1. If message is from the person we are currently talking to
-            if (incomingMsg.sender_id === activeChatRef.current) {
-              setMessages((prev) => [...prev, incomingMsg]);
-              setTimeout(scrollToBottom, 100);
-            } else {
-              // 2. Trigger a browser notification if it's from someone else
-              showNotification(incomingMsg);
-              // Refresh sidebar to show new chat partner or update order
-              loadRecentChats(data.user.id);
-            }
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
-      // --- REALTIME SUBSCRIPTION END ---
     }
   }
+
+  // 2. --- REAL-TIME SUBSCRIPTION ---
+  // This effect manages the live connection to the database
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('realtime_messages')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `receiver_id=eq.${user.id}` // Only listen for messages sent TO us
+        },
+        (payload) => {
+          const incomingMsg = payload.new;
+          
+          // If the message is from the user currently open in the chat window
+          if (incomingMsg.sender_id === activeChatRef.current) {
+            setMessages((prev) => [...prev, incomingMsg]);
+            setTimeout(scrollToBottom, 100);
+          } else {
+            // Trigger notification and update sidebar for background messages
+            showNotification(incomingMsg);
+            loadRecentChats(user.id);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]); // Restart subscription if the logged-in user changes
 
   function showNotification(msg) {
     if ("Notification" in window && Notification.permission === "granted") {
       new Notification("The Believerse", {
         body: `New message received!`,
-        icon: "/images/final-logo.png" // Replace with your app logo path
+        icon: "/images/final-logo.png"
       });
       
-      // Play a subtle sound if you have one
       const audio = new Audio('/sounds/notification.mp3'); 
-      audio.play().catch(() => {}); // Catch browser block on autoplay
+      audio.play().catch(() => {});
     }
   }
 
   async function loadRecentChats(myId) {
-    const { data } = await supabase.from('messages').select('sender_id, receiver_id, created_at').or(`sender_id.eq.${myId},receiver_id.eq.${myId}`).order('created_at', { ascending: false });
+    const { data } = await supabase
+      .from('messages')
+      .select('sender_id, receiver_id, created_at')
+      .or(`sender_id.eq.${myId},receiver_id.eq.${myId}`)
+      .order('created_at', { ascending: false });
+      
     if (!data) return;
 
     const uniqueIds = new Set();
@@ -101,7 +109,10 @@ function ChatContent() {
     });
 
     if (uniqueIds.size > 0) {
-      const { data: profiles } = await supabase.from('profiles').select('*').in('id', Array.from(uniqueIds));
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('*')
+        .in('id', Array.from(uniqueIds));
       setChats(profiles || []);
     }
   }
@@ -138,7 +149,7 @@ function ChatContent() {
     if (!newMessage.trim() || !activeChat) return;
 
     const msgContent = newMessage;
-    setNewMessage(""); // Clear input immediately for better UX
+    setNewMessage(""); 
 
     const { data, error } = await supabase.from('messages').insert({
       sender_id: user.id, 
@@ -147,7 +158,7 @@ function ChatContent() {
     }).select().single();
 
     if (!error && data) {
-      // Manually add our own message to the UI
+      // Manually add our own message so the sender sees it instantly
       setMessages(prev => [...prev, data]);
       setTimeout(scrollToBottom, 100);
     }
