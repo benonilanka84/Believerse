@@ -79,61 +79,44 @@ export default function ProfilePage() {
 
   useEffect(() => { loadProfileData(); }, [id]);
 
-  // --- UPDATED: CORRECTED CONNECTION LOGIC WITH EXPLICIT ERROR LOGGING ---
+  // --- FINAL FIXED LOGIC WITH ERROR CATCHING ---
   async function handleConnectionToggle() {
     if (!currentUser) return alert("Please log in to connect.");
     setActionLoading(true);
 
     try {
       if (connectionStatus === 'none') {
-        // --- PHASE 1: SEND REQUEST ---
         const { error } = await supabase
           .from('connection_requests')
-          .insert({ 
-            sender_id: currentUser.id, 
-            receiver_id: id, 
-            status: 'pending' 
-          });
+          .insert({ sender_id: currentUser.id, receiver_id: id, status: 'pending' });
 
-        if (error) {
-          console.error("Supabase Insert Error:", error.message);
-          throw error;
-        }
+        if (error) throw error;
         alert("A request has been sent!");
         setConnectionStatus('pending_sent');
       } 
       else if (connectionStatus === 'pending_received') {
-        // --- PHASE 2: ACCEPT REQUEST ---
         const { error } = await supabase
           .from('connection_requests')
           .update({ status: 'accepted' })
-          .eq('sender_id', id)
-          .eq('receiver_id', currentUser.id);
+          .match({ sender_id: id, receiver_id: currentUser.id });
 
-        if (error) {
-          console.error("Supabase Update Error:", error.message);
-          throw error;
-        }
+        if (error) throw error;
         setConnectionStatus('connected');
         setConnectionCount(prev => prev + 1);
       } 
       else {
-        // --- PHASE 3: DISCONNECT / CANCEL ---
         const { error } = await supabase
           .from('connection_requests')
           .delete()
           .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${id}),and(sender_id.eq.${id},receiver_id.eq.${currentUser.id})`);
 
-        if (error) {
-          console.error("Supabase Delete Error:", error.message);
-          throw error;
-        }
+        if (error) throw error;
         if (connectionStatus === 'connected') setConnectionCount(prev => Math.max(0, prev - 1));
         setConnectionStatus('none');
       }
     } catch (err) {
-      // Shows the specific database error to stop the guesswork
-      alert("Connection action failed: " + (err.message || "Database connection error"));
+      console.error("Connection Error Trace:", err);
+      alert("Connection action failed: " + (err.message || "Please check your database policies."));
     } finally {
       setActionLoading(false);
     }
@@ -176,7 +159,7 @@ export default function ProfilePage() {
   const isOwner = currentUser && currentUser.id === profile.id;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f8fafd", paddingBottom: "40px" }}>
+    <div style={{ minHeight: "100vh", background: "#f8fafd", paddingBottom: "40px", color: "#333" }}>
       
       {/* 1. HEADER / COVER PHOTO */}
       <div style={{ 
@@ -184,12 +167,10 @@ export default function ProfilePage() {
         background: profile.cover_url ? `url(${profile.cover_url}) center/cover` : "linear-gradient(135deg, #0b2e4a, #2e8b57)",
         position: "relative"
       }}>
-        {/* Back Button (Top Left) */}
         <Link href="/dashboard" style={{ position: "absolute", top: "20px", left: "20px", background: "rgba(0,0,0,0.6)", color: "white", padding: "10px 20px", borderRadius: "25px", textDecoration: "none", fontSize: "14px", zIndex: 10, fontWeight: "bold" }}>
           ⬅ Back to Dashboard
         </Link>
 
-        {/* Update Cover Button (Top Right) */}
         {isOwner && (
           <label style={{ position: "absolute", top: "20px", right: "20px", background: "rgba(0,0,0,0.6)", color: "white", padding: "10px 20px", borderRadius: "25px", cursor: "pointer", fontSize: "14px", zIndex: 10, fontWeight: "bold" }}>
             📷 {coverUploading ? "Uploading..." : "Update Cover"}
@@ -198,7 +179,7 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {/* 2. PROFILE INFO - DARK TEXT FOR VISIBILITY */}
+      {/* 2. PROFILE CARD */}
       <div style={{ maxWidth: "800px", margin: "0 auto", padding: "0 20px", position: "relative", marginTop: "-80px" }}>
         <div style={{ background: "white", borderRadius: "16px", padding: "30px", boxShadow: "0 10px 25px rgba(0,0,0,0.1)", textAlign: "center" }}>
           
