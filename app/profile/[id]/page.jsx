@@ -79,24 +79,21 @@ export default function ProfilePage() {
 
   useEffect(() => { loadProfileData(); }, [id]);
 
-  // --- HANDLE MUTUAL CONNECTION LOGIC ---
   async function handleConnectionToggle() {
     if (!currentUser) return alert("Please log in to connect.");
     setActionLoading(true);
 
     try {
       if (connectionStatus === 'none') {
-        // Send Request
         const { error } = await supabase
           .from('connection_requests')
-          .insert({ sender_id: currentUser.id, receiver_id: id });
+          .insert({ sender_id: currentUser.id, receiver_id: id, status: 'pending' });
 
         if (error) throw error;
         alert("A request has been sent!");
         setConnectionStatus('pending_sent');
       } 
       else if (connectionStatus === 'pending_received') {
-        // Accept incoming request
         const { error } = await supabase
           .from('connection_requests')
           .update({ status: 'accepted' })
@@ -107,7 +104,6 @@ export default function ProfilePage() {
         setConnectionCount(prev => prev + 1);
       } 
       else {
-        // Disconnect or Cancel sent request
         const { error } = await supabase
           .from('connection_requests')
           .delete()
@@ -119,7 +115,7 @@ export default function ProfilePage() {
       }
     } catch (err) {
       console.error(err);
-      alert("Action failed. Please try again.");
+      alert("Connection action failed. Please try again.");
     } finally {
       setActionLoading(false);
     }
@@ -146,13 +142,8 @@ export default function ProfilePage() {
   const getBadgeUI = () => {
     if (!profile || !profile.subscription_plan) return null;
     const plan = profile.subscription_plan.trim().toLowerCase();
-    
-    if (plan.includes('platinum')) {
-      return <span style={{ background: "linear-gradient(45deg, #29b6f6, #0288d1)", color: "white", padding: "4px 10px", borderRadius: "12px", fontSize: "12px", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "4px", marginLeft: "8px" }}>💎 Platinum Partner</span>;
-    }
-    if (plan.includes('gold')) {
-      return <span style={{ background: "linear-gradient(45deg, #d4af37, #f9d976)", color: "#0b2e4a", padding: "4px 10px", borderRadius: "12px", fontSize: "12px", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "4px", marginLeft: "8px" }}>🥇 Gold Supporter</span>;
-    }
+    if (plan.includes('platinum')) return <span style={{ background: "linear-gradient(45deg, #29b6f6, #0288d1)", color: "white", padding: "4px 10px", borderRadius: "12px", fontSize: "12px", fontWeight: "bold", marginLeft: "8px" }}>💎 Platinum Partner</span>;
+    if (plan.includes('gold')) return <span style={{ background: "linear-gradient(45deg, #d4af37, #f9d976)", color: "#0b2e4a", padding: "4px 10px", borderRadius: "12px", fontSize: "12px", fontWeight: "bold", marginLeft: "8px" }}>🥇 Gold Supporter</span>;
     return null;
   };
 
@@ -162,7 +153,7 @@ export default function ProfilePage() {
     return p.type !== 'Glimpse';
   });
 
-  if (loading) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fafd" }}>Loading Profile...</div>;
+  if (loading) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fafd", color: "#0b2e4a" }}>Loading Profile...</div>;
 
   const isOwner = currentUser && currentUser.id === profile.id;
 
@@ -175,33 +166,33 @@ export default function ProfilePage() {
         background: profile.cover_url ? `url(${profile.cover_url}) center/cover` : "linear-gradient(135deg, #0b2e4a, #2e8b57)",
         position: "relative"
       }}>
-        <Link href="/dashboard" style={{ position: "absolute", top: "20px", left: "20px", background: "rgba(0,0,0,0.5)", color: "white", padding: "8px 24px", borderRadius: "20px", textDecoration: "none", fontSize: "14px", zIndex: 10, fontWeight: "bold" }}>
+        {/* Back Button (Top Left) */}
+        <Link href="/dashboard" style={{ position: "absolute", top: "20px", left: "20px", background: "rgba(0,0,0,0.6)", color: "white", padding: "10px 20px", borderRadius: "25px", textDecoration: "none", fontSize: "14px", zIndex: 10, fontWeight: "bold" }}>
           ⬅ Back to Dashboard
         </Link>
 
+        {/* Update Cover Button (Top Right) */}
         {isOwner && (
-          <label style={{ position: "absolute", top: "20px", right: "20px", background: "rgba(0,0,0,0.5)", color: "white", padding: "8px 24px", borderRadius: "20px", cursor: "pointer", fontSize: "14px", zIndex: 10, fontWeight: "bold" }}>
+          <label style={{ position: "absolute", top: "20px", right: "20px", background: "rgba(0,0,0,0.6)", color: "white", padding: "10px 20px", borderRadius: "25px", cursor: "pointer", fontSize: "14px", zIndex: 10, fontWeight: "bold" }}>
             📷 {coverUploading ? "Uploading..." : "Update Cover"}
             <input type="file" accept="image/*" onChange={handleCoverUpload} hidden disabled={coverUploading} />
           </label>
         )}
       </div>
 
-      {/* 2. FIXED WHITE ON WHITE BACKGROUND ISSUE */}
-      <div style={{ maxWidth: "800px", margin: "0 auto", padding: "0 20px", position: "relative", marginTop: "-60px" }}>
+      {/* 2. PROFILE INFO - DARK TEXT FOR VISIBILITY */}
+      <div style={{ maxWidth: "800px", margin: "0 auto", padding: "0 20px", position: "relative", marginTop: "-80px" }}>
         <div style={{ background: "white", borderRadius: "16px", padding: "30px", boxShadow: "0 10px 25px rgba(0,0,0,0.1)", textAlign: "center" }}>
           
           <div style={{ marginTop: "-90px", marginBottom: "15px" }}>
             <img src={profile.avatar_url || '/images/default-avatar.png'} style={{ width: "130px", height: "130px", borderRadius: "50%", border: "5px solid white", boxShadow: "0 4px 10px rgba(0,0,0,0.1)", objectFit: "cover" }} />
           </div>
 
-          <h1 style={{ margin: "0 0 5px 0", fontSize: "1.8rem", color: "#0b2e4a", display: "flex", alignItems: "center", justifyContent: "center", flexWrap: "wrap" }}>
+          <h1 style={{ margin: "0 0 5px 0", fontSize: "1.8rem", color: "#0b2e4a" }}>
             {profile.full_name}
             {getBadgeUI()}
           </h1>
           <p style={{ color: "#666", fontSize: "0.95rem", marginBottom: "20px" }}>@{profile.username || "believer"}</p>
-
-          {profile.bio && <p style={{ color: "#333", fontStyle: "italic", marginBottom: "20px" }}>"{profile.bio}"</p>}
 
           <div style={{ display: "flex", justifyContent: "center", gap: "40px", marginBottom: "25px", borderTop: "1px solid #eee", borderBottom: "1px solid #eee", padding: "15px 0" }}>
             <div style={{ color: "#0b2e4a" }}><div style={{ fontWeight: "800", fontSize: "1.2rem" }}>{posts.filter(p => p.type !== 'Glimpse').length}</div><div style={{ fontSize: "12px", opacity: 0.7 }}>Posts</div></div>
@@ -209,7 +200,6 @@ export default function ProfilePage() {
             <div style={{ color: "#0b2e4a" }}><div style={{ fontWeight: "800", fontSize: "1.2rem" }}>{connectionCount}</div><div style={{ fontSize: "12px", opacity: 0.7 }}>Connections</div></div>
           </div>
 
-          {/* 4. FIXED CONNECT/APPROVAL LOGIC */}
           {!isOwner && (
             <div style={{ display: "flex", justifyContent: "center", gap: "10px" }}>
               <button 
@@ -221,7 +211,7 @@ export default function ProfilePage() {
                               connectionStatus === 'pending_sent' ? "#ffc107" : 
                               connectionStatus === 'pending_received' ? "#29b6f6" : "#2e8b57", 
                   color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", 
-                  cursor: actionLoading ? "not-allowed" : "pointer", transition: "0.3s"
+                  cursor: actionLoading ? "wait" : "pointer"
                 }}
               >
                 {actionLoading ? "Wait..." : 
@@ -235,8 +225,8 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* 3. RESTORED POSTS SECTION */}
-      <div style={{ maxWidth: "800px", margin: "30px auto 0 auto", padding: "0 20px" }}>
+      {/* 3. POSTS SECTION */}
+      <div style={{ maxWidth: "800px", margin: "30px auto 0", padding: "0 20px" }}>
         <div style={{ display: "flex", borderBottom: "2px solid #ddd", marginBottom: "20px" }}>
           <button onClick={() => setActiveTab('all')} style={{ flex: 1, padding: "15px", background: "none", border: "none", borderBottom: activeTab === 'all' ? "3px solid #0b2e4a" : "none", color: activeTab === 'all' ? "#0b2e4a" : "#999", fontWeight: "bold", cursor: "pointer" }}>The Walk</button>
           <button onClick={() => setActiveTab('glimpses')} style={{ flex: 1, padding: "15px", background: "none", border: "none", borderBottom: activeTab === 'glimpses' ? "3px solid #0b2e4a" : "none", color: activeTab === 'glimpses' ? "#0b2e4a" : "#999", fontWeight: "bold", cursor: "pointer" }}>Glimpses</button>
@@ -244,10 +234,14 @@ export default function ProfilePage() {
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: activeTab === 'glimpses' ? "repeat(auto-fill, minmax(180px, 1fr))" : "1fr", gap: "20px" }}>
-          {filteredPosts.length === 0 && <div style={{ textAlign: "center", padding: "50px", color: "#666", background: "white", borderRadius: "12px", border: "1px dashed #ccc" }}>No content shared yet.</div>}
+          {filteredPosts.length === 0 && (
+            <div style={{ textAlign: "center", padding: "50px", color: "#666", background: "white", borderRadius: "12px", border: "1px dashed #ccc", gridColumn: "1/-1" }}>
+              No content shared yet.
+            </div>
+          )}
           {filteredPosts.map(post => (
             activeTab === 'glimpses' ? (
-              <div key={post.id} style={{ aspectRatio: "9/16", background: "black", borderRadius: "12px", overflow: "hidden", position: "relative", boxShadow: "0 4px 10px rgba(0,0,0,0.1)" }}>
+              <div key={post.id} style={{ aspectRatio: "9/16", background: "black", borderRadius: "12px", overflow: "hidden", position: "relative" }}>
                  <video src={post.media_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} controls />
               </div>
             ) : (
