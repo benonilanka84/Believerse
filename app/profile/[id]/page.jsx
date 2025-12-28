@@ -79,43 +79,61 @@ export default function ProfilePage() {
 
   useEffect(() => { loadProfileData(); }, [id]);
 
+  // --- UPDATED: CORRECTED CONNECTION LOGIC WITH EXPLICIT ERROR LOGGING ---
   async function handleConnectionToggle() {
     if (!currentUser) return alert("Please log in to connect.");
     setActionLoading(true);
 
     try {
       if (connectionStatus === 'none') {
+        // --- PHASE 1: SEND REQUEST ---
         const { error } = await supabase
           .from('connection_requests')
-          .insert({ sender_id: currentUser.id, receiver_id: id, status: 'pending' });
+          .insert({ 
+            sender_id: currentUser.id, 
+            receiver_id: id, 
+            status: 'pending' 
+          });
 
-        if (error) throw error;
+        if (error) {
+          console.error("Supabase Insert Error:", error.message);
+          throw error;
+        }
         alert("A request has been sent!");
         setConnectionStatus('pending_sent');
       } 
       else if (connectionStatus === 'pending_received') {
+        // --- PHASE 2: ACCEPT REQUEST ---
         const { error } = await supabase
           .from('connection_requests')
           .update({ status: 'accepted' })
-          .match({ sender_id: id, receiver_id: currentUser.id });
+          .eq('sender_id', id)
+          .eq('receiver_id', currentUser.id);
 
-        if (error) throw error;
+        if (error) {
+          console.error("Supabase Update Error:", error.message);
+          throw error;
+        }
         setConnectionStatus('connected');
         setConnectionCount(prev => prev + 1);
       } 
       else {
+        // --- PHASE 3: DISCONNECT / CANCEL ---
         const { error } = await supabase
           .from('connection_requests')
           .delete()
           .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${id}),and(sender_id.eq.${id},receiver_id.eq.${currentUser.id})`);
 
-        if (error) throw error;
+        if (error) {
+          console.error("Supabase Delete Error:", error.message);
+          throw error;
+        }
         if (connectionStatus === 'connected') setConnectionCount(prev => Math.max(0, prev - 1));
         setConnectionStatus('none');
       }
     } catch (err) {
-      console.error(err);
-      alert("Connection action failed. Please try again.");
+      // Shows the specific database error to stop the guesswork
+      alert("Connection action failed: " + (err.message || "Database connection error"));
     } finally {
       setActionLoading(false);
     }
@@ -160,7 +178,7 @@ export default function ProfilePage() {
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafd", paddingBottom: "40px" }}>
       
-      {/* 1. RESTORED HEADER / COVER PHOTO */}
+      {/* 1. HEADER / COVER PHOTO */}
       <div style={{ 
         height: "400px", 
         background: profile.cover_url ? `url(${profile.cover_url}) center/cover` : "linear-gradient(135deg, #0b2e4a, #2e8b57)",
