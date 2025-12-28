@@ -40,7 +40,7 @@ export default function BelieversPage() {
   }
 
   async function fetchMyNetwork(userId) {
-    // 1. UPDATED: Using connection_requests table
+    // 1. UPDATED: Using correct connection_requests table and column names
     const { data: reqs, error } = await supabase
       .from('connection_requests')
       .select('*')
@@ -83,11 +83,12 @@ export default function BelieversPage() {
     // 3. Fetch Profiles for Requests Tab
     if (incomingRequestIds.length > 0) {
       const { data } = await supabase.from('profiles').select('*').in('id', incomingRequestIds);
-      const richRequests = data.map(p => {
+      const richRequests = (data || []).map(p => {
+        // Corrected mapping to find the request ID where current user is receiver
         const req = reqs.find(r => (r.sender_id === p.id && r.receiver_id === userId && r.status === 'pending'));
         return { ...p, connection_id: req?.id };
       });
-      setPendingRequests(richRequests || []);
+      setPendingRequests(richRequests);
     } else {
       setPendingRequests([]);
     }
@@ -111,7 +112,7 @@ export default function BelieversPage() {
       .or(`full_name.ilike.%${searchQuery}%,username.ilike.%${searchQuery}%`)
       .limit(20);
 
-    // FIXED: Filter out already connected/pending believers from search results
+    // Filter out already connected/pending believers from suggested search results
     if (!error && data) {
       const filteredResults = data.filter(user => !relationshipMap[user.id]);
       setSearchResults(filteredResults);
@@ -120,6 +121,7 @@ export default function BelieversPage() {
   }
 
   async function sendRequest(targetId) {
+    // UPDATED: Using connection_requests table
     const { error } = await supabase.from('connection_requests').insert({
       sender_id: currentUser.id,
       receiver_id: targetId,
@@ -129,10 +131,13 @@ export default function BelieversPage() {
     if (!error) {
       alert("Request Sent!");
       setRelationshipMap(prev => ({ ...prev, [targetId]: 'sent' }));
+    } else {
+      alert("Error sending request: " + error.message);
     }
   }
 
   async function acceptRequest(requestId, userId) {
+    // UPDATED: Using connection_requests table
     const { error } = await supabase
       .from('connection_requests')
       .update({ status: 'accepted' })
@@ -140,17 +145,20 @@ export default function BelieversPage() {
 
     if (!error) {
       alert("Connected!");
+      // Update local state for immediate UI feedback
       const userProfile = pendingRequests.find(u => u.id === userId);
       setPendingRequests(prev => prev.filter(u => u.id !== userId));
-      setConnectedUsers(prev => [...prev, userProfile]);
+      if (userProfile) setConnectedUsers(prev => [...prev, userProfile]);
       setRelationshipMap(prev => ({ ...prev, [userId]: 'connected' }));
+    } else {
+      alert("Error accepting request: " + error.message);
     }
   }
 
   return (
     <div style={{ minHeight: "100vh", background: "#bfdbfe", paddingBottom: "40px" }}>
       
-      {/* 1. GREEN HEADER BAND - KEPT AS PER PREVIOUS TURN */}
+      {/* 1. GREEN HEADER BAND */}
       <div style={{ background: "#15803d", padding: "30px 20px", color: "white", marginBottom: "30px", boxShadow: "0 4px 10px rgba(0,0,0,0.1)" }}>
         <div style={{ maxWidth: "800px", margin: "0 auto", display: "flex", alignItems: "center", gap: "15px" }}>
           <span style={{ fontSize: "2.5rem" }}>🤝</span>
