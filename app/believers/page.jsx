@@ -40,58 +40,40 @@ export default function BelieversPage() {
   }
 
   async function fetchMyNetwork(userId) {
-    // 1. UPDATED: Using correct connection_requests table and column names
+    // 1. UPDATED: Query using connection_requests schema
     const { data: reqs, error } = await supabase
       .from('connection_requests')
-      .select('*')
+      .select('*, sender:profiles!sender_id(*), receiver:profiles!receiver_id(*)')
       .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`);
 
-    if (error) console.error(error);
+    if (error) console.error("Network Fetch Error:", error);
 
     const relMap = {};
-    const connectedIds = [];
-    const incomingRequestIds = [];
+    const connectedList = [];
+    const incomingRequests = [];
 
     if (reqs) {
       reqs.forEach(r => {
         const otherId = r.sender_id === userId ? r.receiver_id : r.sender_id;
+        const otherProfile = r.sender_id === userId ? r.receiver : r.sender;
         
-        // Match status based on your SQL: 'accepted' or 'pending'
         if (r.status === 'accepted') {
           relMap[otherId] = 'connected';
-          connectedIds.push(otherId);
+          if (otherProfile) connectedList.push(otherProfile);
         } else if (r.status === 'pending') {
           if (r.sender_id === userId) {
              relMap[otherId] = 'sent'; 
           } else {
              relMap[otherId] = 'received'; 
-             incomingRequestIds.push(otherId);
+             if (otherProfile) incomingRequests.push({ ...otherProfile, connection_id: r.id });
           }
         }
       });
     }
+
     setRelationshipMap(relMap);
-
-    // 2. Fetch Profiles for Connected Tab
-    if (connectedIds.length > 0) {
-      const { data } = await supabase.from('profiles').select('*').in('id', connectedIds);
-      setConnectedUsers(data || []);
-    } else {
-      setConnectedUsers([]);
-    }
-
-    // 3. Fetch Profiles for Requests Tab
-    if (incomingRequestIds.length > 0) {
-      const { data } = await supabase.from('profiles').select('*').in('id', incomingRequestIds);
-      const richRequests = (data || []).map(p => {
-        // Corrected mapping to find the request ID where current user is receiver
-        const req = reqs.find(r => (r.sender_id === p.id && r.receiver_id === userId && r.status === 'pending'));
-        return { ...p, connection_id: req?.id };
-      });
-      setPendingRequests(richRequests);
-    } else {
-      setPendingRequests([]);
-    }
+    setConnectedUsers(connectedList);
+    setPendingRequests(incomingRequests);
   }
 
   // --- ACTIONS ---
@@ -112,8 +94,8 @@ export default function BelieversPage() {
       .or(`full_name.ilike.%${searchQuery}%,username.ilike.%${searchQuery}%`)
       .limit(20);
 
-    // Filter out already connected/pending believers from suggested search results
     if (!error && data) {
+      // Filter out users who already have a connection or pending request
       const filteredResults = data.filter(user => !relationshipMap[user.id]);
       setSearchResults(filteredResults);
     }
@@ -121,7 +103,6 @@ export default function BelieversPage() {
   }
 
   async function sendRequest(targetId) {
-    // UPDATED: Using connection_requests table
     const { error } = await supabase.from('connection_requests').insert({
       sender_id: currentUser.id,
       receiver_id: targetId,
@@ -132,12 +113,12 @@ export default function BelieversPage() {
       alert("Request Sent!");
       setRelationshipMap(prev => ({ ...prev, [targetId]: 'sent' }));
     } else {
-      alert("Error sending request: " + error.message);
+      console.error(error);
+      alert("Action failed: " + error.message);
     }
   }
 
   async function acceptRequest(requestId, userId) {
-    // UPDATED: Using connection_requests table
     const { error } = await supabase
       .from('connection_requests')
       .update({ status: 'accepted' })
@@ -145,20 +126,18 @@ export default function BelieversPage() {
 
     if (!error) {
       alert("Connected!");
-      // Update local state for immediate UI feedback
-      const userProfile = pendingRequests.find(u => u.id === userId);
+      // Local state cleanup for instant feedback
+      const acceptedUser = pendingRequests.find(u => u.id === userId);
       setPendingRequests(prev => prev.filter(u => u.id !== userId));
-      if (userProfile) setConnectedUsers(prev => [...prev, userProfile]);
+      if (acceptedUser) setConnectedUsers(prev => [...prev, acceptedUser]);
       setRelationshipMap(prev => ({ ...prev, [userId]: 'connected' }));
-    } else {
-      alert("Error accepting request: " + error.message);
     }
   }
 
   return (
     <div style={{ minHeight: "100vh", background: "#bfdbfe", paddingBottom: "40px" }}>
       
-      {/* 1. GREEN HEADER BAND */}
+      {/* 1. GREEN HEADER BAND - KEPT EXACTLY AS PER SCREENSHOT */}
       <div style={{ background: "#15803d", padding: "30px 20px", color: "white", marginBottom: "30px", boxShadow: "0 4px 10px rgba(0,0,0,0.1)" }}>
         <div style={{ maxWidth: "800px", margin: "0 auto", display: "flex", alignItems: "center", gap: "15px" }}>
           <span style={{ fontSize: "2.5rem" }}>🤝</span>
@@ -175,7 +154,7 @@ export default function BelieversPage() {
 
       <div style={{ maxWidth: "800px", margin: "0 auto", padding: "0 20px" }}>
 
-        {/* 2. GLOBAL SEEK BAR */}
+        {/* 2. SEEK BAR */}
         <div style={{ display: "flex", gap: "10px", marginBottom: "30px" }}>
           <input 
             type="text" 
@@ -199,34 +178,27 @@ export default function BelieversPage() {
           </button>
         </div>
 
-        {/* 3. CONDITIONAL VIEW */}
-        
         {isSearching ? (
           <div style={{ background: "white", padding: "20px", borderRadius: "16px", boxShadow: "0 4px 15px rgba(0,0,0,0.05)" }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px', borderBottom: '1px solid #eee', paddingBottom: '10px' }}>
-              <h3 style={{ margin: 0, color: "#0b2e4a" }}>Search Results for "{searchQuery}"</h3>
-              <button onClick={() => { setIsSearching(false); setSearchQuery(""); }} style={{background:'none', border:'none', color:'#d4af37', cursor:'pointer', fontWeight:'bold', fontSize:'14px'}}>❌ Close Search</button>
+              <h3 style={{ margin: 0, color: "#0b2e4a" }}>Results for "{searchQuery}"</h3>
+              <button onClick={() => { setIsSearching(false); setSearchQuery(""); }} style={{background:'none', border:'none', color:'#d4af37', cursor:'pointer', fontWeight:'bold', fontSize:'14px'}}>❌ Close</button>
             </div>
             
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "20px" }}>
-              {searchResults.length === 0 && <p style={{color:'#999', gridColumn:'1/-1', textAlign:'center'}}>No new believers found matching your search.</p>}
-              
+              {searchResults.length === 0 && <p style={{color:'#999', gridColumn:'1/-1', textAlign:'center'}}>No believers found.</p>}
               {searchResults.map(user => (
                   <div key={user.id} style={{ background: "#f8fafd", padding: "20px", borderRadius: "12px", border: "1px solid #eee", textAlign: "center" }}>
                     <img src={user.avatar_url || '/images/default-avatar.png'} style={{ width: "60px", height: "60px", borderRadius: "50%", margin: "0 auto 10px auto", objectFit:"cover" }} />
                     <div style={{ fontWeight: "bold", color: "#0b2e4a" }}>{user.full_name}</div>
-                    
-                    <div style={{marginTop:'10px'}}>
-                        <button onClick={() => sendRequest(user.id)} style={{ width: '100%', padding: "8px", background: "#15803d", color: "white", borderRadius: "6px", border: "none", cursor: "pointer", fontWeight:'bold' }}>+ Request</button>
-                    </div>
+                    <button onClick={() => sendRequest(user.id)} style={{ marginTop:'10px', width: '100%', padding: "8px", background: "#15803d", color: "white", borderRadius: "6px", border: "none", cursor: "pointer", fontWeight:'bold' }}>+ Request</button>
                   </div>
               ))}
             </div>
           </div>
-
         ) : (
           <div>
-            {/* TABS HEADER */}
+            {/* 3. TABS HEADER */}
             <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
               <button 
                 onClick={() => setActiveTab('connected')}
@@ -254,12 +226,10 @@ export default function BelieversPage() {
 
             {/* TAB CONTENT */}
             <div style={{ background: "white", padding: "20px", borderRadius: "16px", minHeight: "300px", boxShadow: "0 4px 15px rgba(0,0,0,0.05)" }}>
-              
-              {activeTab === 'connected' && (
+              {activeTab === 'connected' ? (
                 connectedUsers.length === 0 ? 
                 <div style={{textAlign:'center', padding:'40px', color:'#888'}}>
-                  <p>You haven't connected with anyone yet.</p>
-                  <p style={{fontSize:'14px'}}>Use the <b>Seek bar</b> above to find friends!</p>
+                  <p>No connections yet. Use the Seek bar to find believers!</p>
                 </div> 
                 :
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: "15px" }}>
@@ -273,9 +243,7 @@ export default function BelieversPage() {
                     </div>
                   ))}
                 </div>
-              )}
-
-              {activeTab === 'requests' && (
+              ) : (
                 pendingRequests.length === 0 ? 
                 <div style={{textAlign:'center', padding:'40px', color:'#888'}}>
                   <p>No pending requests.</p>
@@ -286,13 +254,12 @@ export default function BelieversPage() {
                     <div key={user.id} style={{ padding: "20px", borderRadius: "12px", border: "1px solid #eee", textAlign: "center", background:'#f8fafd' }}>
                       <img src={user.avatar_url || '/images/default-avatar.png'} style={{ width: "60px", height: "60px", borderRadius: "50%", margin:'0 auto 10px auto', objectFit:"cover" }} />
                       <div style={{ fontWeight: "bold", color: "#0b2e4a" }}>{user.full_name}</div>
-                      <p style={{fontSize:'12px', color:'#666', marginBottom:'15px'}}>wants to connect</p>
-                      
+                      <p style={{fontSize:'12px', color:'#666', marginBottom:'15px'}}>Sent you a request</p>
                       <button 
                         onClick={() => acceptRequest(user.connection_id, user.id)}
                         style={{ width:'100%', padding: "10px", background: "#15803d", color: "white", borderRadius: "6px", border: "none", cursor: "pointer", fontWeight: "bold" }}
                       >
-                        Accept Request
+                        Accept
                       </button>
                     </div>
                   ))}
