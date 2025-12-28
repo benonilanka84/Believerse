@@ -40,11 +40,11 @@ export default function BelieversPage() {
   }
 
   async function fetchMyNetwork(userId) {
-    // 1. Fetch Connections
-    const { data: conns, error } = await supabase
-      .from('connections')
+    // 1. UPDATED: Using connection_requests table
+    const { data: reqs, error } = await supabase
+      .from('connection_requests')
       .select('*')
-      .or(`user_a.eq.${userId},user_b.eq.${userId}`);
+      .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`);
 
     if (error) console.error(error);
 
@@ -52,15 +52,16 @@ export default function BelieversPage() {
     const connectedIds = [];
     const incomingRequestIds = [];
 
-    if (conns) {
-      conns.forEach(c => {
-        const otherId = c.user_a === userId ? c.user_b : c.user_a;
+    if (reqs) {
+      reqs.forEach(r => {
+        const otherId = r.sender_id === userId ? r.receiver_id : r.sender_id;
         
-        if (c.status === 'connected') {
+        // Match status based on your SQL: 'accepted' or 'pending'
+        if (r.status === 'accepted') {
           relMap[otherId] = 'connected';
           connectedIds.push(otherId);
-        } else if (c.status === 'pending') {
-          if (c.user_a === userId) {
+        } else if (r.status === 'pending') {
+          if (r.sender_id === userId) {
              relMap[otherId] = 'sent'; 
           } else {
              relMap[otherId] = 'received'; 
@@ -83,8 +84,8 @@ export default function BelieversPage() {
     if (incomingRequestIds.length > 0) {
       const { data } = await supabase.from('profiles').select('*').in('id', incomingRequestIds);
       const richRequests = data.map(p => {
-        const conn = conns.find(c => (c.user_a === p.id && c.user_b === userId && c.status === 'pending'));
-        return { ...p, connection_id: conn?.id };
+        const req = reqs.find(r => (r.sender_id === p.id && r.receiver_id === userId && r.status === 'pending'));
+        return { ...p, connection_id: req?.id };
       });
       setPendingRequests(richRequests || []);
     } else {
@@ -110,14 +111,18 @@ export default function BelieversPage() {
       .or(`full_name.ilike.%${searchQuery}%,username.ilike.%${searchQuery}%`)
       .limit(20);
 
-    if (!error) setSearchResults(data || []);
+    // FIXED: Filter out already connected/pending believers from search results
+    if (!error && data) {
+      const filteredResults = data.filter(user => !relationshipMap[user.id]);
+      setSearchResults(filteredResults);
+    }
     setLoading(false);
   }
 
   async function sendRequest(targetId) {
-    const { error } = await supabase.from('connections').insert({
-      user_a: currentUser.id,
-      user_b: targetId,
+    const { error } = await supabase.from('connection_requests').insert({
+      sender_id: currentUser.id,
+      receiver_id: targetId,
       status: 'pending'
     });
 
@@ -127,11 +132,11 @@ export default function BelieversPage() {
     }
   }
 
-  async function acceptRequest(connectionId, userId) {
+  async function acceptRequest(requestId, userId) {
     const { error } = await supabase
-      .from('connections')
-      .update({ status: 'connected' })
-      .eq('id', connectionId);
+      .from('connection_requests')
+      .update({ status: 'accepted' })
+      .eq('id', requestId);
 
     if (!error) {
       alert("Connected!");
@@ -145,7 +150,7 @@ export default function BelieversPage() {
   return (
     <div style={{ minHeight: "100vh", background: "#bfdbfe", paddingBottom: "40px" }}>
       
-      {/* 1. GREEN HEADER BAND */}
+      {/* 1. GREEN HEADER BAND - KEPT AS PER PREVIOUS TURN */}
       <div style={{ background: "#15803d", padding: "30px 20px", color: "white", marginBottom: "30px", boxShadow: "0 4px 10px rgba(0,0,0,0.1)" }}>
         <div style={{ maxWidth: "800px", margin: "0 auto", display: "flex", alignItems: "center", gap: "15px" }}>
           <span style={{ fontSize: "2.5rem" }}>🤝</span>
@@ -162,7 +167,7 @@ export default function BelieversPage() {
 
       <div style={{ maxWidth: "800px", margin: "0 auto", padding: "0 20px" }}>
 
-        {/* 2. GLOBAL SEEK BAR (Above Tabs) */}
+        {/* 2. GLOBAL SEEK BAR */}
         <div style={{ display: "flex", gap: "10px", marginBottom: "30px" }}>
           <input 
             type="text" 
@@ -186,10 +191,9 @@ export default function BelieversPage() {
           </button>
         </div>
 
-        {/* 3. CONDITIONAL VIEW: SEARCH vs TABS */}
+        {/* 3. CONDITIONAL VIEW */}
         
         {isSearching ? (
-          /* SEARCH RESULTS VIEW */
           <div style={{ background: "white", padding: "20px", borderRadius: "16px", boxShadow: "0 4px 15px rgba(0,0,0,0.05)" }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px', borderBottom: '1px solid #eee', paddingBottom: '10px' }}>
               <h3 style={{ margin: 0, color: "#0b2e4a" }}>Search Results for "{searchQuery}"</h3>
@@ -197,35 +201,22 @@ export default function BelieversPage() {
             </div>
             
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "20px" }}>
-              {searchResults.length === 0 && <p style={{color:'#999', gridColumn:'1/-1', textAlign:'center'}}>No users found.</p>}
+              {searchResults.length === 0 && <p style={{color:'#999', gridColumn:'1/-1', textAlign:'center'}}>No new believers found matching your search.</p>}
               
-              {searchResults.map(user => {
-                 const status = relationshipMap[user.id]; 
-                 
-                 return (
+              {searchResults.map(user => (
                   <div key={user.id} style={{ background: "#f8fafd", padding: "20px", borderRadius: "12px", border: "1px solid #eee", textAlign: "center" }}>
                     <img src={user.avatar_url || '/images/default-avatar.png'} style={{ width: "60px", height: "60px", borderRadius: "50%", margin: "0 auto 10px auto", objectFit:"cover" }} />
                     <div style={{ fontWeight: "bold", color: "#0b2e4a" }}>{user.full_name}</div>
                     
                     <div style={{marginTop:'10px'}}>
-                      {status === 'connected' ? (
-                        <span style={{ fontSize:'12px', background: "#dcfce7", color: "#166534", padding:'5px 10px', borderRadius:'10px', fontWeight:'bold' }}>✅ Friends</span>
-                      ) : status === 'sent' ? (
-                        <span style={{ fontSize:'12px', background: "#f1f5f9", color: "#64748b", padding:'5px 10px', borderRadius:'10px', fontWeight:'bold' }}>⏳ Sent</span>
-                      ) : status === 'received' ? (
-                         <button onClick={() => { setIsSearching(false); setActiveTab('requests'); }} style={{ width: '100%', padding: "8px", background: "#dbeafe", color: "#1e40af", borderRadius: "6px", border: "none", cursor:'pointer', fontWeight:'bold' }}>🔔 Accept</button>
-                      ) : (
                         <button onClick={() => sendRequest(user.id)} style={{ width: '100%', padding: "8px", background: "#15803d", color: "white", borderRadius: "6px", border: "none", cursor: "pointer", fontWeight:'bold' }}>+ Request</button>
-                      )}
                     </div>
                   </div>
-                 );
-              })}
+              ))}
             </div>
           </div>
 
         ) : (
-          /* TABS VIEW */
           <div>
             {/* TABS HEADER */}
             <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
@@ -256,7 +247,6 @@ export default function BelieversPage() {
             {/* TAB CONTENT */}
             <div style={{ background: "white", padding: "20px", borderRadius: "16px", minHeight: "300px", boxShadow: "0 4px 15px rgba(0,0,0,0.05)" }}>
               
-              {/* CONNECTED LIST */}
               {activeTab === 'connected' && (
                 connectedUsers.length === 0 ? 
                 <div style={{textAlign:'center', padding:'40px', color:'#888'}}>
@@ -277,7 +267,6 @@ export default function BelieversPage() {
                 </div>
               )}
 
-              {/* REQUESTS LIST */}
               {activeTab === 'requests' && (
                 pendingRequests.length === 0 ? 
                 <div style={{textAlign:'center', padding:'40px', color:'#888'}}>
@@ -304,7 +293,6 @@ export default function BelieversPage() {
             </div>
           </div>
         )}
-
       </div>
     </div>
   );
