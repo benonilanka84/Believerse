@@ -8,31 +8,32 @@ export async function POST(req) {
     const API_KEY = process.env.BUNNY_STREAM_API_KEY; 
     const LIBRARY_ID = process.env.BUNNY_STREAM_LIBRARY_ID;
 
-    // Correct Bunny Stream Live Endpoint
+    // Use the official Video creation endpoint but with Live parameters
     const response = await fetch(`https://video.bunnycdn.com/library/${LIBRARY_ID}/videos`, {
       method: 'POST',
       headers: {
         'AccessKey': API_KEY,
         'Content-Type': 'application/json',
+        'accept': 'application/json'
       },
       body: JSON.stringify({ 
         title: title,
-        // Enabling live features explicitly
+        // CRITICAL: Tells Bunny to create a Live Ingest point
         isLive: true 
       })
     });
 
     const data = await response.json();
     
-    // Log the error for your own internal debugging
+    // Log details for debugging if rejection persists
     if (!response.ok) {
-      console.error("Bunny.net Detailed Error:", data);
-      throw new Error(data.message || "Bunny.net API rejected the request.");
+      console.error("Bunny.net Detailed Rejection:", data);
+      return NextResponse.json({ error: data.message || "Bunny.net rejected the request." }, { status: response.status });
     }
 
     return NextResponse.json(data);
   } catch (error) {
     console.error("Broadcaster Studio API Error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Server error occurred while reaching Bunny.net" }, { status: 500 });
   }
 }
