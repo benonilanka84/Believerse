@@ -16,7 +16,7 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState("all");
   const [coverUploading, setCoverUploading] = useState(false);
 
-  // --- NEW: CONNECTION STATES ---
+  // --- CONNECTION STATES ---
   const [isConnected, setIsConnected] = useState(false);
   const [connectionCount, setConnectionCount] = useState(0);
   const [actionLoading, setActionLoading] = useState(false);
@@ -48,7 +48,7 @@ export default function ProfilePage() {
     
     if (postData) setPosts(postData);
 
-    // 3. --- NEW: CHECK CONNECTION STATUS ---
+    // 3. --- CHECK CONNECTION STATUS ---
     if (user && user.id !== id) {
       const { data: connection } = await supabase
         .from('connections')
@@ -60,7 +60,7 @@ export default function ProfilePage() {
       setIsConnected(!!connection);
     }
 
-    // 4. --- NEW: FETCH CONNECTION COUNT ---
+    // 4. --- FETCH CONNECTION COUNT ---
     const { count } = await supabase
       .from('connections')
       .select('*', { count: 'exact', head: true })
@@ -75,36 +75,50 @@ export default function ProfilePage() {
     loadProfileData();
   }, [id]);
 
-  // --- NEW: HANDLE CONNECT/DISCONNECT ---
+  // --- UPDATED: CORRECTED HANDLE CONNECT/DISCONNECT ---
   async function handleConnectionToggle() {
-    if (!currentUser) return alert("Please log in to connect.");
+    if (!currentUser) {
+      alert("Please log in to connect with other believers.");
+      return;
+    }
+    
     setActionLoading(true);
 
     try {
       if (isConnected) {
-        // Disconnect logic
+        // Disconnect (Unfollow) logic
         const { error } = await supabase
           .from('connections')
           .delete()
-          .eq('follower_id', currentUser.id)
-          .eq('following_id', id);
+          .match({ 
+            follower_id: currentUser.id, 
+            following_id: id 
+          });
 
         if (error) throw error;
+        
         setIsConnected(false);
-        setConnectionCount(prev => prev - 1);
+        setConnectionCount(prev => Math.max(0, prev - 1));
       } else {
-        // Connect logic
+        // Connect (Follow) logic
         const { error } = await supabase
           .from('connections')
-          .insert({ follower_id: currentUser.id, following_id: id });
+          .insert([
+            { 
+              follower_id: currentUser.id, 
+              following_id: id 
+            }
+          ]);
 
         if (error) throw error;
+        
         setIsConnected(true);
         setConnectionCount(prev => prev + 1);
       }
     } catch (err) {
-      console.error(err);
-      alert("Connection action failed. Please try again.");
+      console.error("Connection Error:", err);
+      // Explicit error handling for RLS issues
+      alert("Connection action failed. Please ensure you are logged in and try again.");
     } finally {
       setActionLoading(false);
     }
