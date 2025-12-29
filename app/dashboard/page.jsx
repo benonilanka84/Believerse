@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase";
 import CreatePost from "@/components/CreatePost";
 import Link from "next/link";
 import "@/styles/dashboard.css";
-import LiveNowFeed from "@/components/LiveNowFeed"; // Import confirmed
+import LiveNowFeed from "@/components/LiveNowFeed"; // Restored import
 
 export default function Dashboard() {
   const [mounted, setMounted] = useState(false);
@@ -343,7 +343,7 @@ export default function Dashboard() {
   return (
     <div className="dashboard-wrapper">
        
-      {/* HEADER */}
+      {/* HEADER SECTION - NO Z-INDEX APPLIED HERE TO PREVENT DROPDOWN OVERLAP */}
       <div style={{ background: "linear-gradient(135deg, #2e8b57 0%, #1d5d3a 100%)", padding: "20px 30px", borderRadius: "12px", color: "white", marginBottom: "20px", display:'flex', justifyContent:'space-between', alignItems:'center' }}>
         <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
           <span style={{fontSize:'2.5rem'}}>🏠</span>
@@ -357,9 +357,11 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* --- LIVE NOW BROADCAST FEED --- */}
-      {/* Placed here so it is highly visible but outside the 3-column grid */}
-      <LiveNowFeed />
+      {/* --- LIVE NOW BROADCAST FEED SECTION --- */}
+      {/* Structural Lane: Using a flat div container without z-index or relative positioning */}
+      <div style={{ width: "100%", marginBottom: "40px" }}>
+        <LiveNowFeed />
+      </div>
 
       <div className="dashboard-grid">
         <div className="left-panel">
@@ -589,7 +591,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* BLESS MODAL */}
+      {/* MODALS */}
       {blessModalUser && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: 'white', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '350px', textAlign: 'center' }}>
@@ -603,7 +605,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* PARTNER MODAL */}
       {supportModalOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: 'white', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '350px', textAlign: 'center' }}>
