@@ -1,34 +1,38 @@
-import { NextResponse } from 'next/server';
+import { IvsClient, CreateChannelCommand } from "@aws-sdk/client-ivs";
+import { NextResponse } from "next/server";
+
+// Initialize the IVS client with credentials from your .env.local
+const ivsClient = new IvsClient({
+  region: process.env.AWS_REGION, // ap-south-1 (Mumbai)
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  },
+});
 
 export async function POST(req) {
   try {
     const { title } = await req.json();
-    
-    // Use the GLOBAL Account key for this specific action
-    const ACCOUNT_API_KEY = process.env.BUNNY_ACCOUNT_API_KEY; 
-    const LIBRARY_ID = process.env.BUNNY_STREAM_LIBRARY_ID;
 
-    const response = await fetch(`https://video.bunnycdn.com/library/${LIBRARY_ID}/videos`, {
-      method: 'POST',
-      headers: {
-        'AccessKey': ACCOUNT_API_KEY, 
-        'Content-Type': 'application/json',
-        'accept': 'application/json'
-      },
-      body: JSON.stringify({ 
-        title: title,
-        isLive: true 
-      })
+    // Configure the new channel
+    const command = new CreateChannelCommand({
+      name: `believerse-${Date.now()}`,
+      type: "STANDARD",      // Best quality for Full HD streaming
+      latencyMode: "LOW",    // Essential for real-time prayer/chat interaction
+      tags: { "Title": title }
     });
 
-    const data = await response.json();
-    
-    if (!response.ok) {
-      return NextResponse.json({ error: data.message }, { status: response.status });
-    }
+    const response = await ivsClient.send(command);
 
-    return NextResponse.json(data);
+    // Return all necessary data to the frontend
+    return NextResponse.json({
+      ingestEndpoint: response.channel.ingestEndpoint, // For OBS Server URL
+      streamKey: response.streamKey.value,           // For OBS Stream Key
+      playbackUrl: response.channel.playbackUrl,      // For the Viewer Page
+      channelArn: response.channel.arn               // CRITICAL: Used to stop/delete the channel
+    });
   } catch (error) {
-    return NextResponse.json({ error: "API connection error" }, { status: 500 });
+    console.error("AWS IVS Creation Error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

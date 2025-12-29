@@ -10,6 +10,7 @@
     "test": "jest"
   },
   "dependencies": {
+    "@aws-sdk/client-ivs": "^3.958.0",
     "@supabase/supabase-js": "^2.0.0",
     "html-to-image": "^1.11.13",
     "next": "14.2.35",
