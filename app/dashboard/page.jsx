@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import CreatePost from "@/components/CreatePost";
 import Link from "next/link";
 import "@/styles/dashboard.css";
+import LiveNowFeed from "@/components/LiveNowFeed"; // Import confirmed
 
 export default function Dashboard() {
   const [mounted, setMounted] = useState(false);
@@ -327,7 +328,7 @@ export default function Dashboard() {
     if (targetPost && user.id !== targetPost.user_id) {
         await supabase.from('notifications').insert({
             user_id: targetPost.user_id, 
-            actor_id: user.id,             
+            actor_id: user.id,               
             type: 'comment',
             content: 'commented on your post.',
             link: '/dashboard'
@@ -354,24 +355,16 @@ export default function Dashboard() {
             <p style={{ margin: 0, opacity: 0.9, fontSize: '14px' }}>Walking with God and fellow Believers</p>
           </div>
         </div>
-        
-        {/* LEAD ENGINEER NOTE: Temporarily hidden for Razorpay Compliance. 
-            Auditors interpret 'Partner' as unregulated donation requests. */}
-        {/* <button 
-          onClick={handlePartnerClick} 
-          style={{ background: 'rgba(255,255,255,0.15)', border: '2px solid rgba(255,255,255,0.6)', borderRadius: '30px', padding: '10px 24px', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px', fontSize: '18px', fontWeight: '700', transition: 'all 0.2s ease', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}
-          onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.25)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-          onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.transform = 'translateY(0)'; }}
-        >
-          <span style={{fontSize:'28px'}}>🕊️</span> Partner
-        </button> 
-        */}
       </div>
+
+      {/* --- LIVE NOW BROADCAST FEED --- */}
+      {/* Placed here so it is highly visible but outside the 3-column grid */}
+      <LiveNowFeed />
 
       <div className="dashboard-grid">
         <div className="left-panel">
            
-          {/* DAILY BIBLE VERSE WIDGET - Logic fix: force refresh with date key */}
+          {/* DAILY BIBLE VERSE WIDGET */}
           <DailyVerseWidget key={new Date().toDateString()} />
           <DailyPrayerWidget />
            
@@ -447,14 +440,12 @@ export default function Dashboard() {
                      {post.title && <h4 style={{margin:'0 0 5px 0', color: '#0b2e4a'}}>{post.title}</h4>}
                      <p style={{whiteSpace:'pre-wrap', color:'#333'}}>{post.content}</p>
                      
-                     {/* --- FIXED VIDEO PLAYER LOGIC (Padding-Bottom technique) --- */}
                      {post.media_url && (
                         (post.media_url.includes("iframe.mediadelivery.net") || post.media_url.includes("video.bunnycdn")) ? (
                           <div style={{ 
                               position: 'relative', 
                               width: '100%', 
                               height: 0, 
-                              /* 177.77% padding-bottom = 9/16 aspect ratio, 56.25% = 16/9 aspect ratio */
                               paddingBottom: post.type === 'Glimpse' ? '177.77%' : '56.25%', 
                               marginTop: '10px', 
                               background: 'black', 
@@ -484,8 +475,6 @@ export default function Dashboard() {
                           />
                         )
                      )}
-                     {/* ------------------------------- */}
-
                    </>
                  )}
                  
