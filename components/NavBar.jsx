@@ -134,7 +134,7 @@ export default function NavBar() {
           )}
         </Link>
 
-        {/* --- LIVE PILL BUTTON (Selected from your reference) --- */}
+        {/* --- LIVE PILL BUTTON --- */}
         <Link href="/live" style={{ textDecoration: "none" }} title="Go Live">
           <div style={{ 
             background: "#e63946", 
@@ -167,52 +167,158 @@ export default function NavBar() {
             )}
           </div>
 
-          {/* FIXED PROFILE MENU */}
+          {/* IMPROVED PROFILE MENU */}
           {isProfileOpen && (
             <div style={{ 
               position: "absolute", 
               right: 0, 
               top: "58px", 
               background: "white", 
-              border: "1px solid #e1e8ed", 
-              borderRadius: "14px", 
-              boxShadow: "0 15px 35px rgba(0,0,0,0.12)", 
-              width: "250px", 
+              border: "1px solid #e5e7eb", 
+              borderRadius: "12px", 
+              boxShadow: "0 10px 40px rgba(0,0,0,0.15)", 
+              minWidth: "280px", 
               overflow: "hidden", 
               zIndex: 2000 
             }}>
-              {/* Header Info block */}
-              <div style={{ padding: "18px", borderBottom: "1px solid #f0f4f8", background: "#f8fafd" }}>
-                <div style={{ fontWeight: "700", color: "#0b2e4a", fontSize: "15px" }}>{profile?.full_name || "Believer"}</div>
-                <div style={{ fontSize: "12px", color: "#64748b", marginTop: "3px", wordBreak: "break-all" }}>{user?.email}</div>
+              {/* Header Info Block */}
+              <div style={{ 
+                padding: "20px 20px 16px 20px", 
+                borderBottom: "1px solid #f3f4f6", 
+                background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)"
+              }}>
+                <div style={{ 
+                  fontWeight: "700", 
+                  color: "#0b2e4a", 
+                  fontSize: "16px",
+                  marginBottom: "6px",
+                  letterSpacing: "-0.01em"
+                }}>
+                  {profile?.full_name || "Believer"}
+                </div>
+                <div style={{ 
+                  fontSize: "13px", 
+                  color: "#64748b", 
+                  wordBreak: "break-word",
+                  lineHeight: "1.4"
+                }}>
+                  {user?.email}
+                </div>
               </div>
               
               {/* Menu Links List */}
               <div style={{ padding: "8px 0" }}>
-                <Link href="/profile/edit" className="menu-item" onClick={() => setIsProfileOpen(false)}>
-                  <span className="menu-icon">✏️</span> Edit Profile
+                <Link 
+                  href="/profile/edit" 
+                  className="profile-menu-item" 
+                  onClick={() => setIsProfileOpen(false)}
+                  style={{
+                    display: "block",
+                    padding: "12px 20px",
+                    textDecoration: "none",
+                    color: "#334155",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                    transition: "all 0.15s ease"
+                  }}
+                >
+                  <span style={{ marginRight: "12px", fontSize: "16px" }}>✏️</span>
+                  Edit Profile
                 </Link>
-                <Link href="/settings" className="menu-item" onClick={() => setIsProfileOpen(false)}>
-                  <span className="menu-icon">⚙️</span> Settings
+
+                <Link 
+                  href="/settings" 
+                  className="profile-menu-item" 
+                  onClick={() => setIsProfileOpen(false)}
+                  style={{
+                    display: "block",
+                    padding: "12px 20px",
+                    textDecoration: "none",
+                    color: "#334155",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                    transition: "all 0.15s ease"
+                  }}
+                >
+                  <span style={{ marginRight: "12px", fontSize: "16px" }}>⚙️</span>
+                  Settings
                 </Link>
-                <Link href="/about" className="menu-item" onClick={() => setIsProfileOpen(false)}>
-                  <span className="menu-icon">ℹ️</span> About Us
+
+                <Link 
+                  href="/about" 
+                  className="profile-menu-item" 
+                  onClick={() => setIsProfileOpen(false)}
+                  style={{
+                    display: "block",
+                    padding: "12px 20px",
+                    textDecoration: "none",
+                    color: "#334155",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                    transition: "all 0.15s ease"
+                  }}
+                >
+                  <span style={{ marginRight: "12px", fontSize: "16px" }}>ℹ️</span>
+                  About Us
                 </Link>
-                <Link href="/terms" className="menu-item" onClick={() => setIsProfileOpen(false)}>
-                  <span className="menu-icon">📜</span> Terms & Conditions
+
+                <Link 
+                  href="/terms" 
+                  className="profile-menu-item" 
+                  onClick={() => setIsProfileOpen(false)}
+                  style={{
+                    display: "block",
+                    padding: "12px 20px",
+                    textDecoration: "none",
+                    color: "#334155",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                    transition: "all 0.15s ease"
+                  }}
+                >
+                  <span style={{ marginRight: "12px", fontSize: "16px" }}>📜</span>
+                  Terms & Conditions
                 </Link>
                 
                 {profile?.role === 'admin' && (
-                  <Link href="/admin" className="menu-item admin-link" onClick={() => setIsProfileOpen(false)}>
-                    <span className="menu-icon">🛡️</span> Admin Panel
+                  <Link 
+                    href="/admin" 
+                    className="profile-menu-item admin-item" 
+                    onClick={() => setIsProfileOpen(false)}
+                    style={{
+                      display: "block",
+                      padding: "12px 20px",
+                      textDecoration: "none",
+                      color: "#dc2626",
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      background: "#fef2f2",
+                      transition: "all 0.15s ease"
+                    }}
+                  >
+                    <span style={{ marginRight: "12px", fontSize: "16px" }}>🛡️</span>
+                    Admin Panel
                   </Link>
                 )}
               </div>
 
-              {/* Sign Out block */}
-              <div style={{ borderTop: "1px solid #f0f4f8", padding: "8px 0" }}>
-                <div onClick={handleLogout} className="menu-item signout-btn">
-                  <span className="menu-icon">🚪</span> Sign Out
+              {/* Sign Out Block */}
+              <div style={{ borderTop: "1px solid #f3f4f6", padding: "8px 0" }}>
+                <div 
+                  onClick={handleLogout} 
+                  className="profile-menu-item signout-item"
+                  style={{
+                    padding: "12px 20px",
+                    textDecoration: "none",
+                    color: "#dc2626",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                    transition: "all 0.15s ease"
+                  }}
+                >
+                  <span style={{ marginRight: "12px", fontSize: "16px" }}>🚪</span>
+                  Sign Out
                 </div>
               </div>
             </div>
@@ -221,41 +327,26 @@ export default function NavBar() {
       </div>
 
       <style jsx>{`
-        /* FORCED STYLING FIXES */
-        .menu-item { 
-          display: flex !important; 
-          align-items: center; 
-          gap: 14px; 
-          padding: 12px 20px; 
-          text-decoration: none !important; /* Removes purple underlines */
-          color: #334155 !important; /* Fixes link colors */
-          font-size: 14px; 
-          font-weight: 500;
-          cursor: pointer; 
-          width: 100%;
-          box-sizing: border-box;
-          transition: all 0.2s ease;
+        .profile-menu-item:hover {
+          background: #f8fafc !important;
+          color: #0f172a !important;
         }
-        .menu-item:hover { 
-          background: #f1f5f9; 
-          color: #0b2e4a !important; 
+        
+        .admin-item:hover {
+          background: #fee2e2 !important;
+          color: #b91c1c !important;
         }
-        .menu-icon { 
-          font-size: 16px; 
-          width: 22px; 
-          text-align: center; 
-          opacity: 0.8;
+        
+        .signout-item:hover {
+          background: #fef2f2 !important;
+          color: #b91c1c !important;
         }
-        .admin-link {
-          background: #fff5f5;
-          color: #d32f2f !important;
-          font-weight: 700;
+        
+        @media (max-width: 1024px) { 
+          .nav-links { 
+            display: none !important; 
+          } 
         }
-        .signout-btn {
-          color: #e11d48 !important;
-          font-weight: 700;
-        }
-        @media (max-width: 1024px) { .nav-links { display: none !important; } }
       `}</style>
     </nav>
   );
