@@ -13,7 +13,6 @@ export default function PricingPage() {
   
   const router = useRouter();
 
-  // --- 1. PRICING CONFIGURATION ---
   const pricing = {
     gold: {
       INR: { monthly: 99, yearly: 999, symbol: "₹" },
@@ -52,7 +51,6 @@ export default function PricingPage() {
   
   const getPrice = (planObj) => billingCycle === "monthly" ? planObj.monthly : planObj.yearly;
 
-  // --- 2. PAYMENT LOGIC ---
   const loadRazorpayScript = () => {
     return new Promise((resolve) => {
       const script = document.createElement("script");
@@ -65,7 +63,6 @@ export default function PricingPage() {
 
   const handlePurchase = async (planName, planObj) => {
     setProcessing(true);
-    
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       alert("Please log in or sign up to upgrade your plan.");
@@ -84,22 +81,20 @@ export default function PricingPage() {
     const amount = getPrice(planObj);
     
     try {
-      // 1. Create Order with Metadata
       const response = await fetch("/api/razorpay", { 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           amount: amount, 
           currency: currency,
-          userId: user.id, // Passed to Razorpay Notes
-          planName: planName // Passed to Razorpay Notes
+          userId: user.id,
+          planName: planName
         }), 
       });
 
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Order failed");
 
-      // 2. Open Razorpay Checkout
       const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID, 
         amount: data.order.amount,
@@ -109,7 +104,6 @@ export default function PricingPage() {
         image: "/images/final-logo.png",
         order_id: data.order.id,
         handler: async function (response) {
-          // 3. Manual Verification (Immediate update)
           const verifyRes = await fetch("/api/razorpay/verify", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -127,7 +121,7 @@ export default function PricingPage() {
             alert("Hallelujah! Your account has been upgraded.");
             window.location.href = "/dashboard";
           } else {
-            alert("Payment verified, but account update is pending. Please check your profile in 5 minutes.");
+            alert("Payment verified, but account update is pending.");
           }
         },
         prefill: { email: user.email },
@@ -138,7 +132,6 @@ export default function PricingPage() {
       paymentObject.open();
 
     } catch (error) {
-      console.error(error);
       alert("Initialization failed. Please try again.");
     } finally {
       setProcessing(false);
@@ -152,7 +145,7 @@ export default function PricingPage() {
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafd", padding: "40px 20px" }}>
       
-      {/* INAUGURAL BANNER */}
+      {/* 1. INAUGURAL BANNER */}
       {billingCycle === "monthly" && (
         <div style={{ 
           background: "linear-gradient(90deg, #d4af37 0%, #f9d976 100%)", 
@@ -163,12 +156,11 @@ export default function PricingPage() {
           <h3 style={{ margin: "0 0 5px 0", fontSize: "1.2rem" }}>🎉 Inaugural Launch Offer!</h3>
           <p style={{ margin: 0, fontSize: "0.95rem", fontWeight: "500" }}>
             Get <strong>3 Months of Gold</strong> for just <strong>{activeGold?.symbol || "$"}1</strong>. 
-            <br/><span style={{fontSize:"0.85rem", opacity:0.8}}>Professional digital content access for early believers.</span>
           </p>
         </div>
       )}
 
-      {/* HERO */}
+      {/* 2. HERO SECTION */}
       <div style={{ textAlign: "center", marginBottom: "40px", maxWidth: "800px", margin: "0 auto 40px auto" }}>
         <h1 style={{ color: "#0b2e4a", fontSize: "2.8rem", fontWeight: "800", marginBottom: "15px" }}>
           Premium Access
@@ -180,7 +172,7 @@ export default function PricingPage() {
                 style={{
                     padding: "10px 25px", borderRadius: "25px", border: "none", cursor: "pointer", fontWeight: "bold", fontSize: "14px",
                     background: billingCycle === "monthly" ? "white" : "transparent",
-                    color: billingCycle === "monthly" ? "#0b2e4a" : "#666",
+                    color: "#0b2e4a",
                     boxShadow: billingCycle === "monthly" ? "0 2px 5px rgba(0,0,0,0.1)" : "none",
                     transition: "all 0.3s"
                 }}
@@ -190,7 +182,7 @@ export default function PricingPage() {
                 style={{
                     padding: "10px 25px", borderRadius: "25px", border: "none", cursor: "pointer", fontWeight: "bold", fontSize: "14px",
                     background: billingCycle === "yearly" ? "white" : "transparent",
-                    color: billingCycle === "yearly" ? "#0b2e4a" : "#666",
+                    color: "#0b2e4a",
                     boxShadow: billingCycle === "yearly" ? "0 2px 5px rgba(0,0,0,0.1)" : "none",
                     transition: "all 0.3s"
                 }}
@@ -198,32 +190,39 @@ export default function PricingPage() {
         </div>
       </div>
 
-      {/* PLANS */}
+      {/* 3. PLANS GRID */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "25px", maxWidth: "1200px", margin: "0 auto 60px auto" }}>
 
-        {/* COMMUNITY (FREE) */}
-        <div style={{ background: "white", borderRadius: "16px", padding: "35px", border: "1px solid #eee" }}>
-          <h3 style={{ color: "#666", fontSize: "1.4rem", fontWeight: "600", marginBottom: "10px" }}>Community</h3>
-          <div style={{ fontSize: "2.5rem", fontWeight: "800", color: "#333", marginBottom: "20px" }}>Free</div>
-          <ul style={{ listStyle: "none", padding: 0, margin: "0 0 30px 0", lineHeight: "2.2", fontSize: "0.95rem" }}>
+        {/* COMMUNITY CARD - FIXED BACKGROUND */}
+        <div style={{ background: "#ffffff", borderRadius: "20px", padding: "40px", border: "1px solid #e1e8ed", boxShadow: "0 10px 25px rgba(0,0,0,0.02)" }}>
+          <h3 style={{ color: "#5a7184", fontSize: "1.4rem", fontWeight: "600", marginBottom: "10px" }}>Community</h3>
+          <div style={{ fontSize: "2.8rem", fontWeight: "800", color: "#0b2e4a", marginBottom: "20px" }}>Free</div>
+          <ul style={{ listStyle: "none", padding: 0, margin: "0 0 35px 0", lineHeight: "2.4", fontSize: "1rem", color: "#334155" }}>
             <li>📖 Unlimited Content Access</li>
             <li>🙏 Post Prayer Requests</li>
             <li>🛡️ <strong>100% Privacy</strong></li>
             <li>✨ Standard Profile Badge</li>
-            <li style={{ color: "#999" }}>❌ Create Fellowships</li>
-            <li style={{ color: "#999" }}>❌ Long Video Uploads</li>
+            <li style={{ color: "#cbd5e1" }}>❌ Create Fellowships</li>
+            <li style={{ color: "#cbd5e1" }}>❌ Long Video Uploads</li>
           </ul>
-          <button style={{ width: "100%", padding: "14px", borderRadius: "10px", border: "1px solid #ccc", background: "white", color: "#666", fontWeight: "700" }}>Current Plan</button>
+          <button style={{ width: "100%", padding: "16px", borderRadius: "12px", border: "2px solid #e1e8ed", background: "#f8fafd", color: "#64748b", fontWeight: "700" }}>Current Plan</button>
         </div>
 
-        {/* GOLD */}
-        <div style={{ background: "white", borderRadius: "16px", padding: "35px", border: "2px solid #d4af37", position: "relative", boxShadow: "0 10px 30px rgba(212, 175, 55, 0.15)" }}>
-          <div style={{ position: "absolute", top: "-12px", left: "50%", transform: "translateX(-50%)", background: "#d4af37", color: "white", padding: "4px 12px", borderRadius: "20px", fontSize: "0.8rem", fontWeight: "bold" }}>CREATOR FAVORITE</div>
-          <h3 style={{ color: "#d4af37", fontSize: "1.4rem", fontWeight: "600", marginBottom: "10px" }}>Gold Supporter</h3>
-          <div style={{ fontSize: "2.5rem", fontWeight: "800", color: "#333", marginBottom: "20px" }}>
-            {activeGold?.symbol}{getPrice(activeGold)} <span style={{ fontSize: "0.9rem", color: "#999", fontWeight: "500" }}>/{billingCycle === "monthly" ? "mo" : "yr"}</span>
+        {/* GOLD CARD - FIXED VISIBILITY */}
+        <div style={{ 
+            background: "#fffdf5", // Tinted background to fix white-on-white
+            borderRadius: "20px", 
+            padding: "40px", 
+            border: "2px solid #d4af37", 
+            position: "relative", 
+            boxShadow: "0 15px 35px rgba(212, 175, 55, 0.12)" 
+        }}>
+          <div style={{ position: "absolute", top: "-14px", left: "50%", transform: "translateX(-50%)", background: "#d4af37", color: "white", padding: "6px 16px", borderRadius: "20px", fontSize: "0.75rem", fontWeight: "800", textTransform: "uppercase" }}>CREATOR FAVORITE</div>
+          <h3 style={{ color: "#d4af37", fontSize: "1.4rem", fontWeight: "700", marginBottom: "10px" }}>Gold Supporter</h3>
+          <div style={{ fontSize: "2.8rem", fontWeight: "800", color: "#0b2e4a", marginBottom: "20px" }}>
+            {activeGold?.symbol}{getPrice(activeGold)} <span style={{ fontSize: "0.9rem", color: "#64748b", fontWeight: "500" }}>/{billingCycle === "monthly" ? "mo" : "yr"}</span>
           </div>
-          <ul style={{ listStyle: "none", padding: 0, margin: "0 0 30px 0", lineHeight: "2.2", fontSize: "0.95rem" }}>
+          <ul style={{ listStyle: "none", padding: 0, margin: "0 0 35px 0", lineHeight: "2.4", fontSize: "1rem", color: "#334155" }}>
             <li>🚫 <strong>Ad-Free Experience</strong></li>
             <li>📹 <strong>Unlimited</strong> Glimpses</li>
             <li>🎥 60 Min Video Uploads</li>
@@ -232,23 +231,23 @@ export default function PricingPage() {
             <li>🥇 <strong>Gold Profile Badge</strong></li>
           </ul>
           {billingCycle === "monthly" ? (
-             <button onClick={handleInauguralOffer} disabled={processing} style={{ width: "100%", padding: "14px", borderRadius: "10px", border: "none", background: "linear-gradient(90deg, #d4af37 0%, #e6c256 100%)", color: "white", fontWeight: "800", cursor: "pointer", boxShadow: "0 4px 15px rgba(212, 175, 55, 0.4)" }}>
+             <button onClick={handleInauguralOffer} disabled={processing} style={{ width: "100%", padding: "16px", borderRadius: "12px", border: "none", background: "linear-gradient(90deg, #d4af37 0%, #e6c256 100%)", color: "white", fontWeight: "800", cursor: "pointer", boxShadow: "0 8px 20px rgba(212, 175, 55, 0.3)" }}>
                {processing ? "Processing..." : `Claim Offer: ${activeGold?.symbol}1`}
              </button>
           ) : (
-             <button onClick={() => handlePurchase("Gold", activeGold)} disabled={processing} style={{ width: "100%", padding: "14px", borderRadius: "10px", border: "none", background: "#d4af37", color: "white", fontWeight: "700", cursor: "pointer" }}>
+             <button onClick={() => handlePurchase("Gold", activeGold)} disabled={processing} style={{ width: "100%", padding: "16px", borderRadius: "12px", border: "none", background: "#d4af37", color: "white", fontWeight: "800", cursor: "pointer" }}>
                {processing ? "Processing..." : "Get Gold Yearly"}
              </button>
           )}
         </div>
 
-        {/* PLATINUM */}
-        <div style={{ background: "linear-gradient(145deg, #0b2e4a 0%, #1a4f7a 100%)", borderRadius: "16px", padding: "35px", position: "relative", color: "white", boxShadow: "0 10px 40px rgba(11, 46, 74, 0.25)" }}>
-          <h3 style={{ color: "#4fc3f7", fontSize: "1.4rem", fontWeight: "600", marginBottom: "10px" }}>Platinum Partner</h3>
-          <div style={{ fontSize: "2.5rem", fontWeight: "800", color: "white", marginBottom: "20px" }}>
+        {/* PLATINUM CARD */}
+        <div style={{ background: "linear-gradient(145deg, #0b2e4a 0%, #1a4f7a 100%)", borderRadius: "20px", padding: "40px", position: "relative", color: "white", boxShadow: "0 20px 40px rgba(11, 46, 74, 0.3)" }}>
+          <h3 style={{ color: "#4fc3f7", fontSize: "1.4rem", fontWeight: "700", marginBottom: "10px" }}>Platinum Partner</h3>
+          <div style={{ fontSize: "2.8rem", fontWeight: "800", color: "white", marginBottom: "20px" }}>
             {activePlat?.symbol}{getPrice(activePlat)} <span style={{ fontSize: "0.9rem", color: "#81d4fa", fontWeight: "500" }}>/{billingCycle === "monthly" ? "mo" : "yr"}</span>
           </div>
-          <ul style={{ listStyle: "none", padding: 0, margin: "0 0 30px 0", lineHeight: "2.2", fontSize: "0.95rem" }}>
+          <ul style={{ listStyle: "none", padding: 0, margin: "0 0 35px 0", lineHeight: "2.4", fontSize: "1rem" }}>
             <li>✅ Everything in Gold</li>
             <li>🎥 3 Hour Video Uploads</li>
             <li>💾 <strong>500 GB</strong> Storage</li>
@@ -256,15 +255,18 @@ export default function PricingPage() {
             <li>🏛️ Ministry Content Tools</li>
             <li>💙 Founder Priority Access</li>
           </ul>
-          <button onClick={() => handlePurchase("Platinum", activePlat)} disabled={processing} style={{ width: "100%", padding: "14px", borderRadius: "10px", border: "none", background: "#29b6f6", color: "#0b2e4a", fontWeight: "700", cursor: "pointer", boxShadow: "0 4px 10px rgba(41, 182, 246, 0.4)" }}>
+          <button onClick={() => handlePurchase("Platinum", activePlat)} disabled={processing} style={{ width: "100%", padding: "16px", borderRadius: "12px", border: "none", background: "#29b6f6", color: "#0b2e4a", fontWeight: "800", cursor: "pointer", boxShadow: "0 8px 20px rgba(41, 182, 246, 0.4)" }}>
             {processing ? "Processing..." : "Get Platinum"}
           </button>
         </div>
 
       </div>
 
-      <div style={{ textAlign: "center", marginTop: "40px" }}>
-        <Link href="/dashboard" style={{ textDecoration: "none", color: "#666" }}>⬅ Back to Dashboard</Link>
+      {/* FOOTER NAVIGATION */}
+      <div style={{ textAlign: "center", marginTop: "40px", paddingBottom: "60px" }}>
+        <Link href="/dashboard" style={{ textDecoration: "none", color: "#64748b", fontWeight: "700", display: "inline-flex", alignItems: "center", gap: "8px" }}>
+          ⬅ Back to Dashboard
+        </Link>
       </div>
     </div>
   );

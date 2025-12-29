@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react"; // Added useEffect for session recovery
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 
@@ -8,6 +8,38 @@ export default function LiveStudioPage() {
   const [title, setTitle] = useState("");
   const [streamData, setStreamData] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  /**
+   * SESSION RECOVERY (Fixed Issue 2)
+   * When the page loads, check if the user already has an active live session.
+   */
+  useEffect(() => {
+    async function recoverActiveSession() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('live_streams')
+        .select('*')
+        .eq('host_id', user.id)
+        .eq('status', 'live')
+        .single();
+
+      if (data && !error) {
+        // Reconstruct streamData from the database record
+        // We need to extract the ingestEndpoint from the server_url if saved correctly
+        setStreamData({
+          channelArn: data.channel_arn,
+          streamKey: data.stream_key,
+          playbackUrl: data.playback_url,
+          // Extract endpoint for display logic
+          ingestEndpoint: data.server_url?.replace('rtmps://', '').replace(':443/app/', '') 
+        });
+        setTitle(data.title);
+      }
+    }
+    recoverActiveSession();
+  }, []);
 
   /**
    * START BROADCAST
@@ -28,12 +60,14 @@ export default function LiveStudioPage() {
 
       const { data: { user } } = await supabase.auth.getUser();
       
+      // Save full dynamic AWS details to Supabase
       await supabase.from('live_streams').insert({
         host_id: user.id,
         title: title,
         playback_url: data.playbackUrl, 
         channel_arn: data.channelArn,
         stream_key: data.streamKey,
+        server_url: `rtmps://${data.ingestEndpoint}:443/app/`,
         status: 'live'
       });
 

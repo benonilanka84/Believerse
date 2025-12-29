@@ -10,20 +10,12 @@ export default function NavBar() {
   const pathname = usePathname();
   const router = useRouter();
   
-  // Data States
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
-  
-  // UI States
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  
-  // Real-time Message Badge State
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
-
-  // Refs for click-outside detection
   const profileRef = useRef(null);
 
-  // --- 1. INITIALIZATION ---
   useEffect(() => {
     const init = async () => {
       const { data } = await supabase.auth.getUser();
@@ -62,9 +54,7 @@ export default function NavBar() {
       })
       .subscribe();
     
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }
 
   const handleLogout = async () => {
@@ -123,7 +113,7 @@ export default function NavBar() {
         })}
       </div>
 
-      {/* 3. RIGHT: ACTIONS (NOW WITH LIVE CAMERA) */}
+      {/* 3. RIGHT: ACTIONS */}
       <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
         
         <Link href="/pricing">
@@ -136,7 +126,6 @@ export default function NavBar() {
           </button>
         </Link>
 
-        {/* MESSENGER */}
         <Link href="/chat" onClick={() => setHasUnreadMessages(false)} style={{ position: 'relative', fontSize: "22px", textDecoration: 'none' }} title="Messenger">
           💬
           {hasUnreadMessages && (
@@ -144,14 +133,13 @@ export default function NavBar() {
           )}
         </Link>
 
-        {/* NEW: LIVE STUDIO CAMERA ICON */}
         <Link href="/live" style={{ fontSize: "22px", textDecoration: "none", color: "#0b2e4a", padding: "5px" }} title="Go Live">
           📷
         </Link>
         
         <Notifications />
 
-        {/* PROFILE AVATAR */}
+        {/* PROFILE AVATAR & DROPDOWN */}
         <div ref={profileRef} style={{ position: "relative" }}>
           <div onClick={() => setIsProfileOpen(!isProfileOpen)} style={{ cursor: "pointer", width: 40, height: 40, borderRadius: "50%", border: "2px solid #eee", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", background: "#0b2e4a", color: "white", fontWeight: "bold", fontSize: "16px" }}>
             {profile?.avatar_url ? (
@@ -162,28 +150,82 @@ export default function NavBar() {
           </div>
 
           {isProfileOpen && (
-            <div style={{ position: "absolute", right: 0, top: "55px", background: "white", border: "1px solid #eee", borderRadius: "12px", boxShadow: "0 5px 20px rgba(0,0,0,0.15)", width: "220px", overflow: "hidden", zIndex: 1002 }}>
+            <div style={{ 
+                position: "absolute", 
+                right: 0, 
+                top: "55px", 
+                background: "white", 
+                border: "1px solid #eee", 
+                borderRadius: "12px", 
+                boxShadow: "0 10px 25px rgba(0,0,0,0.15)", 
+                width: "240px", 
+                overflow: "hidden", 
+                zIndex: 2000 // Maximized Z-Index to prevent dashboard overlap
+            }}>
+              {/* Header Info - Restored visibility */}
               <div style={{ padding: "15px", borderBottom: "1px solid #eee", background: "#fafafa" }}>
-                <div style={{ fontWeight: "bold", color: "#0b2e4a", fontSize: "14px" }}>{profile?.full_name || "Believer"}</div>
-                <div style={{ fontSize: "11px", color: "#777", marginTop: "2px" }}>{user?.email}</div>
+                <div style={{ fontWeight: "bold", color: "#0b2e4a", fontSize: "14px" }}>
+                    {profile?.full_name || "Believer"}
+                </div>
+                <div style={{ fontSize: "11px", color: "#777", marginTop: "2px", wordBreak: "break-all" }}>
+                    {user?.email}
+                </div>
               </div>
               
-              <div style={{ padding: "5px 0" }}>
-                <Link href="/profile/edit" className="menu-item" onClick={() => setIsProfileOpen(false)}>✏️ Edit Profile</Link>
-                <Link href="/settings" className="menu-item" onClick={() => setIsProfileOpen(false)}>⚙️ Settings</Link>
-                {profile?.role === 'admin' && <Link href="/admin" className="menu-item" style={{background: "#fff5f5", color: "#d32f2f"}}>🛡️ Admin Panel</Link>}
+              {/* Primary Links - Fixed Vertical Alignment */}
+              <div style={{ display: "flex", flexDirection: "column", padding: "8px 0" }}>
+                <Link href="/profile/edit" className="menu-item" onClick={() => setIsProfileOpen(false)}>
+                    <span>✏️</span> Edit Profile
+                </Link>
+                <Link href="/settings" className="menu-item" onClick={() => setIsProfileOpen(false)}>
+                    <span>⚙️</span> Settings
+                </Link>
+                {profile?.role === 'admin' && (
+                  <Link href="/admin" className="menu-item" style={{background: "#fff5f5", color: "#d32f2f"}}>
+                    <span>🛡️</span> Admin Panel
+                  </Link>
+                )}
               </div>
 
-              <div style={{ borderTop: "1px solid #eee", padding: "5px 0" }}>
-                <div onClick={handleLogout} className="menu-item" style={{color: "#e74c3c", fontWeight: "600"}}>🚪 Sign Out</div>
+              {/* RESTORED STATIC LINKS */}
+              <div style={{ borderTop: "1px solid #eee", padding: "8px 0", background: "#fcfcfc" }}>
+                <Link href="/about" className="menu-item" onClick={() => setIsProfileOpen(false)}>
+                    <span>ℹ️</span> About The Believerse
+                </Link>
+                <Link href="/terms" className="menu-item" onClick={() => setIsProfileOpen(false)}>
+                    <span>⚖️</span> Terms & Privacy
+                </Link>
+              </div>
+
+              {/* Footer Action */}
+              <div style={{ borderTop: "1px solid #eee", padding: "8px 0" }}>
+                <div onClick={handleLogout} className="menu-item" style={{color: "#e74c3c", fontWeight: "600"}}>
+                    <span>🚪</span> Sign Out
+                </div>
               </div>
             </div>
           )}
         </div>
       </div>
+
       <style jsx>{`
-        .menu-item { display: flex; align-items: center; gap: 10px; padding: 10px 15px; text-decoration: none; color: #444; fontSize: 13px; cursor: pointer; }
-        .menu-item:hover { background: #f9f9f9; }
+        /* FORCED VERTICAL STACKING */
+        .menu-item { 
+            display: flex !important; 
+            align-items: center; 
+            gap: 12px; 
+            padding: 12px 15px; 
+            text-decoration: none; 
+            color: #444; 
+            font-size: 14px; 
+            cursor: pointer; 
+            width: 100%; /* Prevents items from drifting side-by-side */
+            transition: background 0.2s;
+            box-sizing: border-box;
+        }
+        .menu-item:hover { background: #f5f7f9; color: #0b2e4a; }
+        .menu-item span { font-size: 16px; width: 20px; text-align: center; }
+        
         @media (max-width: 1024px) { .nav-links { display: none !important; } }
       `}</style>
     </nav>

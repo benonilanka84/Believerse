@@ -15,10 +15,7 @@ export default function BiblePage() {
   const [searchResults, setSearchResults] = useState([]);
   const [bookmarks, setBookmarks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [fontSize, setFontSize] = useState(16);
-
-  // --- NEW: STATE FOR QUICK CHAPTER PICKER ---
-  const [showChapterPicker, setShowChapterPicker] = useState(false);
+  const [fontSize, setFontSize] = useState(18); // Increased default for better readability
 
   const languages = {
     'en-kjv': { name: 'English (KJV)', flag: '🇬🇧', file: 'en-kjv.json' },
@@ -165,6 +162,7 @@ export default function BiblePage() {
         setSelectedChapter(prevBook.chapters.length);
       }
     }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleNextChapter = () => {
@@ -179,6 +177,7 @@ export default function BiblePage() {
         setSelectedChapter(1);
       }
     }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   function shareVerse(verse) {
@@ -187,11 +186,8 @@ export default function BiblePage() {
     
     if (typeof window !== 'undefined') {
       if (window.navigator && window.navigator.share) {
-        window.navigator.share({
-          title: 'Bible Verse',
-          text: text
-        }).catch(console.error);
-      } else if (window.navigator && window.navigator.clipboard) {
+        window.navigator.share({ title: 'Bible Verse', text: text }).catch(console.error);
+      } else {
         window.navigator.clipboard.writeText(text);
         alert('Verse copied to clipboard!');
       }
@@ -202,184 +198,200 @@ export default function BiblePage() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: "calc(100vh - 100px)", display: "flex", alignItems: "center", justifyContent: "center", background: "#b4dcff" }}>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fafd" }}>
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: "4rem", marginBottom: "20px" }}>📖</div>
-          <p style={{ color: "#0b2e4a", fontSize: "18px" }}>Loading Bible...</p>
+          <div style={{ fontSize: "4rem", marginBottom: "20px", animation: "pulse 2s infinite" }}>📖</div>
+          <p style={{ color: "#0b2e4a", fontSize: "18px", fontWeight: "600" }}>Loading the Word...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: "calc(100vh - 100px)", background: "#b4dcff", padding: "20px" }}>
+    <div style={{ minHeight: "100vh", background: "#f0f4f8", padding: "20px" }}>
       <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
         
-        {/* Header */}
-        <div style={{ background: "linear-gradient(135deg, #2e8b57 0%, #1d5d3a 100%)", padding: "30px", borderRadius: "16px", color: "white", marginBottom: "20px", boxShadow: "0 4px 15px rgba(0,0,0,0.1)" }}>
-          <h1 style={{ margin: 0, fontSize: "2.2rem" }}>📖 Holy Bible</h1>
-          <p style={{ margin: "8px 0 0 0", opacity: 0.9, fontSize: "1.1rem" }}>Read the Word of God in your language</p>
+        {/* HEADER SECTION - REFINED WITH THEME COLORS */}
+        <div style={{ 
+          background: "linear-gradient(135deg, #0b2e4a 0%, #1a4f7a 100%)", 
+          padding: "40px", 
+          borderRadius: "20px", 
+          color: "white", 
+          marginBottom: "25px", 
+          boxShadow: "0 10px 30px rgba(11, 46, 74, 0.1)" 
+        }}>
+          <h1 style={{ margin: 0, fontSize: "2.5rem", letterSpacing: "-1px" }}>📖 Holy Bible</h1>
+          <div style={{ width: "60px", height: "4px", background: "#d4af37", borderRadius: "2px", margin: "15px 0" }}></div>
+          <p style={{ margin: 0, opacity: 0.8, fontSize: "1.1rem" }}>"Thy word is a lamp unto my feet, and a light unto my path."</p>
         </div>
 
-        {/* Controls */}
-        <div style={{ background: "white", padding: "20px", borderRadius: "12px", marginBottom: "20px", boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "200px 1fr auto", gap: "15px", alignItems: "center", marginBottom: "15px" }}>
-            <select value={selectedLanguage} onChange={(e) => setSelectedLanguage(e.target.value)} style={{ padding: "12px", borderRadius: "8px", border: "2px solid #e0e0e0", fontSize: "14px", fontWeight: "600", cursor: "pointer" }}>
+        {/* CONTROLS SECTION */}
+        <div style={{ background: "white", padding: "25px", borderRadius: "16px", marginBottom: "25px", boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "250px 1fr auto", gap: "20px", alignItems: "center" }}>
+            <select 
+              value={selectedLanguage} 
+              onChange={(e) => setSelectedLanguage(e.target.value)} 
+              style={{ padding: "14px", borderRadius: "10px", border: "2px solid #e1e8ed", fontSize: "14px", fontWeight: "700", color: "#0b2e4a", outline: "none" }}
+            >
               {Object.entries(languages).map(([code, lang]) => (
                 <option key={code} value={code}>{lang.flag} {lang.name}</option>
               ))}
             </select>
 
             <div style={{ position: "relative" }}>
-              <input type="text" placeholder="Search verses..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSearch()} style={{ width: "100%", padding: "12px 45px 12px 15px", borderRadius: "8px", border: "2px solid #e0e0e0", fontSize: "14px" }} />
-              <button onClick={handleSearch} style={{ position: "absolute", right: "5px", top: "50%", transform: "translateY(-50%)", background: "#2e8b57", color: "white", border: "none", padding: "8px 15px", borderRadius: "6px", cursor: "pointer", fontWeight: "600" }}>🔍</button>
+              <input 
+                type="text" 
+                placeholder="Search the Word..." 
+                value={searchQuery} 
+                onChange={(e) => setSearchQuery(e.target.value)} 
+                onKeyPress={(e) => e.key === 'Enter' && handleSearch()} 
+                style={{ width: "100%", padding: "14px 50px 14px 20px", borderRadius: "10px", border: "2px solid #e1e8ed", fontSize: "15px", outline: "none" }} 
+              />
+              <button onClick={handleSearch} style={{ position: "absolute", right: "8px", top: "50%", transform: "translateY(-50%)", background: "#0b2e4a", color: "white", border: "none", padding: "10px 15px", borderRadius: "8px", cursor: "pointer" }}>🔍</button>
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <button onClick={() => setFontSize(Math.max(12, fontSize - 2))} style={{ padding: "8px 12px", background: "#f0f0f0", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }}>A-</button>
-              <button onClick={() => setFontSize(Math.min(24, fontSize + 2))} style={{ padding: "8px 12px", background: "#f0f0f0", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }}>A+</button>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <button onClick={() => setFontSize(Math.max(12, fontSize - 2))} style={{ width: "40px", height: "40px", background: "#f0f4f8", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "bold" }}>A-</button>
+              <button onClick={() => setFontSize(Math.min(32, fontSize + 2))} style={{ width: "40px", height: "40px", background: "#f0f4f8", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "bold" }}>A+</button>
             </div>
           </div>
 
+          {/* Search Results */}
           {searchResults.length > 0 && (
-            <div style={{ marginTop: "15px", padding: "15px", background: "#f9f9f9", borderRadius: "8px", maxHeight: "300px", overflowY: "auto" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+            <div style={{ marginTop: "20px", padding: "20px", background: "#f9fbfd", borderRadius: "12px", border: "1px solid #e1e8ed", maxHeight: "400px", overflowY: "auto" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "15px" }}>
                 <strong style={{ color: "#0b2e4a" }}>Found {searchResults.length} verses</strong>
-                <button onClick={() => setSearchResults([])} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "20px" }}>×</button>
+                <button onClick={() => setSearchResults([])} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "20px", color: "#666" }}>×</button>
               </div>
               {searchResults.map((result, i) => (
-                <div key={i} onClick={() => goToVerse(result)} style={{ padding: "10px", marginBottom: "8px", background: "white", borderRadius: "6px", cursor: "pointer", borderLeft: "3px solid #2e8b57" }}>
-                  <div style={{ fontWeight: "600", color: "#2e8b57", marginBottom: "5px", fontSize: "13px" }}>{result.bookname} {result.chapter}:{result.verse}</div>
-                  <div style={{ color: "#666", fontSize: "14px" }}>{result.text.substring(0, 150)}...</div>
+                <div key={i} onClick={() => goToVerse(result)} style={{ padding: "15px", marginBottom: "10px", background: "white", borderRadius: "10px", cursor: "pointer", border: "1px solid #eee", borderLeft: "4px solid #d4af37", transition: "transform 0.2s" }}>
+                  <div style={{ fontWeight: "700", color: "#0b2e4a", marginBottom: "5px" }}>{result.bookname} {result.chapter}:{result.verse}</div>
+                  <div style={{ color: "#5a7184", fontSize: "14px", lineHeight: "1.5" }}>{result.text}</div>
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        {/* Reader Layout */}
-        <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: "20px" }}>
+        {/* MAIN READER LAYOUT */}
+        <div style={{ display: "grid", gridTemplateColumns: "320px 1fr", gap: "25px", alignItems: "start" }}>
           
-          {/* Sidebar */}
-          <div style={{ background: "white", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 8px rgba(0,0,0,0.08)", maxHeight: "calc(100vh - 300px)", overflowY: "auto", position: "sticky", top: "20px" }}>
-            <h3 style={{ margin: "0 0 15px 0", color: "#0b2e4a" }}>Books</h3>
-            {bibleData?.books?.map((book) => (
-              <button key={book.id} onClick={() => { setSelectedBook(book.id); setSelectedChapter(1); }} style={{ width: "100%", textAlign: "left", padding: "10px 12px", marginBottom: "4px", background: selectedBook === book.id ? "#2e8b57" : "transparent", color: selectedBook === book.id ? "white" : "#333", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "14px", fontWeight: selectedBook === book.id ? "600" : "normal", transition: "all 0.2s" }}>
-                {book.name}
-              </button>
-            ))}
-          </div>
+          {/* SIDEBAR WITH FIXED CHAPTER LIST */}
+          <aside style={{ background: "white", borderRadius: "16px", padding: "20px", boxShadow: "0 4px 12px rgba(0,0,0,0.05)", height: "calc(100vh - 250px)", overflowY: "auto", position: "sticky", top: "20px" }}>
+            <h3 style={{ margin: "0 0 20px 0", color: "#0b2e4a", fontSize: "1.1rem", fontWeight: "800", textTransform: "uppercase" }}>Books</h3>
+            {bibleData?.books?.map((book) => {
+              const isSelected = selectedBook === book.id;
+              return (
+                <div key={book.id} style={{ marginBottom: "5px" }}>
+                  <button 
+                    onClick={() => { setSelectedBook(book.id); setSelectedChapter(1); }} 
+                    style={{ width: "100%", textAlign: "left", padding: "12px 15px", background: isSelected ? "#0b2e4a" : "transparent", color: isSelected ? "white" : "#333", border: "none", borderRadius: "10px", cursor: "pointer", fontSize: "15px", fontWeight: isSelected ? "700" : "500", transition: "all 0.2s" }}
+                  >
+                    {book.name}
+                  </button>
+                  
+                  {/* RESTORED: NESTED CHAPTER NUMBERS GRID */}
+                  {isSelected && (
+                    <div style={{ 
+                        display: "grid", 
+                        gridTemplateColumns: "repeat(5, 1fr)", 
+                        gap: "6px", 
+                        padding: "15px 10px", 
+                        background: "#f8fafd", 
+                        borderRadius: "0 0 10px 10px",
+                        marginTop: "-5px",
+                        borderBottom: "1px solid #e1e8ed"
+                    }}>
+                      {book.chapters.map((ch) => (
+                        <button 
+                          key={ch.chapter} 
+                          onClick={() => { setSelectedChapter(ch.chapter); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                          style={{ 
+                            padding: "8px 0", 
+                            borderRadius: "6px", 
+                            border: "none", 
+                            background: selectedChapter === ch.chapter ? "#d4af37" : "white",
+                            color: selectedChapter === ch.chapter ? "white" : "#0b2e4a",
+                            fontSize: "12px",
+                            fontWeight: "bold",
+                            cursor: "pointer",
+                            boxShadow: "0 2px 4px rgba(0,0,0,0.05)"
+                          }}
+                        >
+                          {ch.chapter}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </aside>
 
-          {/* Reader Content */}
-          <div style={{ background: "white", borderRadius: "12px", padding: "30px", boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}>
+          {/* CONTENT AREA */}
+          <main style={{ background: "white", borderRadius: "20px", padding: "40px", boxShadow: "0 4px 20px rgba(0,0,0,0.04)" }}>
             
-            {/* --- UPDATED: CHAPTER NAV WITH INSTANT PICKER --- */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "30px", paddingBottom: "20px", borderBottom: "2px solid #f0f0f0", position: 'relative' }}>
-              <button onClick={handlePrevChapter} style={{ padding: "10px 20px", background: "#f0f0f0", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "600" }}>← Previous</button>
+            {/* Navigation Bar */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "40px", paddingBottom: "25px", borderBottom: "2px solid #f0f4f8" }}>
+              <button onClick={handlePrevChapter} style={{ padding: "12px 20px", background: "#f0f4f8", border: "none", borderRadius: "10px", cursor: "pointer", fontWeight: "700", color: "#0b2e4a" }}>← Prev</button>
               
-              <div style={{ textAlign: "center", position: 'relative' }}>
-                <h2 
-                  onClick={() => setShowChapterPicker(!showChapterPicker)}
-                  style={{ margin: 0, color: "#0b2e4a", fontSize: "28px", cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
-                >
-                  {getCurrentBook()?.name} {selectedChapter} <span style={{fontSize: '18px'}}>{showChapterPicker ? '▲' : '▼'}</span>
+              <div style={{ textAlign: "center" }}>
+                <h2 style={{ margin: 0, color: "#0b2e4a", fontSize: "2.2rem", fontWeight: "800" }}>
+                  {getCurrentBook()?.name} {selectedChapter}
                 </h2>
-                <p style={{ margin: "5px 0 0 0", color: "#666", fontSize: "14px" }}>Chapter {selectedChapter} of {getCurrentBook()?.chapters.length}</p>
-
-                {/* Instant Chapter Picker Overlay */}
-                {showChapterPicker && (
-                  <div style={{
-                    position: "absolute",
-                    top: "100%",
-                    left: "50%",
-                    transform: "translateX(-50%)",
-                    background: "white",
-                    boxShadow: "0 8px 30px rgba(0,0,0,0.15)",
-                    borderRadius: "12px",
-                    padding: "20px",
-                    zIndex: 100,
-                    marginTop: "10px",
-                    width: "280px",
-                    display: "grid",
-                    gridTemplateColumns: "repeat(5, 1fr)",
-                    gap: "8px",
-                    maxHeight: "250px",
-                    overflowY: "auto",
-                    border: '1px solid #eee'
-                  }}>
-                    {Array.from({ length: getCurrentBook()?.chapters.length || 0 }, (_, i) => i + 1).map((chapter) => (
-                      <button
-                        key={chapter}
-                        onClick={() => {
-                          setSelectedChapter(chapter);
-                          setShowChapterPicker(false);
-                        }}
-                        style={{
-                          padding: "10px",
-                          borderRadius: "6px",
-                          border: selectedChapter === chapter ? "none" : "1px solid #eee",
-                          background: selectedChapter === chapter ? "#2e8b57" : "white",
-                          color: selectedChapter === chapter ? "white" : "#333",
-                          fontWeight: "bold",
-                          cursor: "pointer",
-                          fontSize: "14px"
-                        }}
-                      >
-                        {chapter}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <p style={{ margin: "5px 0 0 0", color: "#5a7184", fontSize: "14px", fontWeight: "600" }}>Chapter {selectedChapter} of {getCurrentBook()?.chapters.length}</p>
               </div>
 
-              <button onClick={handleNextChapter} style={{ padding: "10px 20px", background: "#f0f0f0", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "600" }}>Next →</button>
+              <button onClick={handleNextChapter} style={{ padding: "12px 20px", background: "#f0f4f8", border: "none", borderRadius: "10px", cursor: "pointer", fontWeight: "700", color: "#0b2e4a" }}>Next →</button>
             </div>
 
-            {/* Verses */}
-            <div style={{ marginBottom: "30px" }}>
+            {/* Verses Display */}
+            <div style={{ marginBottom: "40px" }}>
               {verses.map((verse) => (
-                <div key={verse.verse} style={{ display: "flex", gap: "15px", marginBottom: "20px", padding: "15px", borderRadius: "8px", transition: "background 0.2s" }}>
-                  <div style={{ color: "#2e8b57", fontWeight: "bold", fontSize: "14px", minWidth: "30px", flexShrink: 0 }}>{verse.verse}</div>
+                <div key={verse.verse} style={{ display: "flex", gap: "20px", marginBottom: "25px", padding: "10px", borderRadius: "12px", transition: "background 0.2s" }}>
+                  <div style={{ color: "#d4af37", fontWeight: "800", fontSize: "16px", minWidth: "35px", flexShrink: 0, paddingTop: "4px" }}>{verse.verse}</div>
                   <div style={{ flex: 1 }}>
-                    <p style={{ margin: 0, color: "#333", lineHeight: "1.8", fontSize: `${fontSize}px` }}>{verse.text}</p>
+                    <p style={{ margin: 0, color: "#2c3e50", lineHeight: "1.9", fontSize: `${fontSize}px`, fontWeight: "400" }}>{verse.text}</p>
                   </div>
-                  <div style={{ display: "flex", gap: "8px" }}>
-                    <button onClick={() => toggleBookmark(verse)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "18px" }}>{isBookmarked(verse) ? "🔖" : "📑"}</button>
-                    <button onClick={() => shareVerse(verse)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "18px" }}>📤</button>
+                  <div style={{ display: "flex", gap: "10px", opacity: 0.6 }}>
+                    <button onClick={() => toggleBookmark(verse)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "20px" }} title="Bookmark">{isBookmarked(verse) ? "🔖" : "📑"}</button>
+                    <button onClick={() => shareVerse(verse)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "20px" }} title="Share">📤</button>
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Chapter Jump List at bottom */}
-            <div style={{ paddingTop: "20px", borderTop: "2px solid #f0f0f0" }}>
-              <p style={{ color: "#666", marginBottom: "15px", fontSize: "14px" }}>Quick jump:</p>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(45px, 1fr))", gap: "8px" }}>
-                {Array.from({ length: getCurrentBook()?.chapters.length || 0 }, (_, i) => i + 1).map((chapter) => (
-                  <button key={chapter} onClick={() => setSelectedChapter(chapter)} style={{ padding: "10px", background: selectedChapter === chapter ? "#2e8b57" : "#f0f0f0", color: selectedChapter === chapter ? "white" : "#333", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: selectedChapter === chapter ? "600" : "normal" }}>
-                    {chapter}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+            <footer style={{ paddingTop: "30px", borderTop: "2px solid #f0f4f8", textAlign: "center" }}>
+              <p style={{ color: "#5a7184", fontSize: "14px" }}>End of {getCurrentBook()?.name} Chapter {selectedChapter}</p>
+            </footer>
+          </main>
         </div>
 
-        {/* Bookmarks */}
+        {/* BOOKMARKS SECTION */}
         {bookmarks.length > 0 && (
-          <div style={{ background: "white", borderRadius: "12px", padding: "25px", marginTop: "20px", boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}>
-            <h3 style={{ margin: "0 0 20px 0", color: "#0b2e4a" }}>🔖 My Bookmarks ({bookmarks.length})</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "15px" }}>
-              {bookmarks.slice(-10).reverse().map((bookmark) => (
-                <div key={bookmark.id} style={{ padding: "15px", background: "#f9f9f9", borderRadius: "8px", borderLeft: "3px solid #2e8b57", cursor: "pointer" }} onClick={() => { setSelectedBook(bookmark.bookid); setSelectedChapter(bookmark.chapter); }}>
-                  <div style={{ fontWeight: "600", color: "#2e8b57", marginBottom: "8px", fontSize: "14px" }}>{bookmark.bookname} {bookmark.chapter}:{bookmark.verse}</div>
-                  <div style={{ color: "#666", fontSize: "14px", lineHeight: "1.6" }}>{bookmark.text.substring(0, 100)}...</div>
+          <section style={{ background: "#0b2e4a", borderRadius: "20px", padding: "30px", marginTop: "40px", color: "white" }}>
+            <h3 style={{ margin: "0 0 25px 0", color: "#d4af37", display: "flex", alignItems: "center", gap: "10px" }}>
+              <span>🔖</span> My Recent Bookmarks ({bookmarks.length})
+            </h3>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "20px" }}>
+              {bookmarks.slice(-6).reverse().map((bookmark) => (
+                <div key={bookmark.id} style={{ padding: "20px", background: "rgba(255,255,255,0.05)", borderRadius: "15px", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer", transition: "background 0.2s" }} onClick={() => { setSelectedBook(bookmark.bookid); setSelectedChapter(bookmark.chapter); window.scrollTo({top: 0, behavior: 'smooth'}); }}>
+                  <div style={{ fontWeight: "700", color: "#d4af37", marginBottom: "10px" }}>{bookmark.bookname} {bookmark.chapter}:{bookmark.verse}</div>
+                  <div style={{ color: "#e1e8ed", fontSize: "14px", lineHeight: "1.6", fontStyle: "italic" }}>"{bookmark.text.substring(0, 120)}..."</div>
                 </div>
               ))}
             </div>
-          </div>
+          </section>
         )}
       </div>
+      
+      <style jsx>{`
+        @keyframes pulse {
+          0% { opacity: 1; }
+          50% { opacity: 0.5; }
+          100% { opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 }
