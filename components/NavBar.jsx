@@ -10,12 +10,20 @@ export default function NavBar() {
   const pathname = usePathname();
   const router = useRouter();
   
+  // Data States
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
+  
+  // UI States
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  
+  // Real-time Message Badge State
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
+
+  // Refs for click-outside detection
   const profileRef = useRef(null);
 
+  // --- 1. INITIALIZATION ---
   useEffect(() => {
     const init = async () => {
       const { data } = await supabase.auth.getUser();
@@ -54,7 +62,9 @@ export default function NavBar() {
       })
       .subscribe();
     
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }
 
   const handleLogout = async () => {
@@ -116,7 +126,7 @@ export default function NavBar() {
       {/* 3. RIGHT: ACTIONS */}
       <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
         
-        <Link href="/pricing">
+        <Link href="/pricing" style={{ textDecoration: 'none' }}>
           <button style={{ 
             background: "white", border: "2px solid #d4af37", color: "#d4af37", 
             padding: "6px 16px", borderRadius: "20px", fontWeight: "bold", 
@@ -126,6 +136,7 @@ export default function NavBar() {
           </button>
         </Link>
 
+        {/* MESSENGER */}
         <Link href="/chat" onClick={() => setHasUnreadMessages(false)} style={{ position: 'relative', fontSize: "22px", textDecoration: 'none' }} title="Messenger">
           💬
           {hasUnreadMessages && (
@@ -133,8 +144,22 @@ export default function NavBar() {
           )}
         </Link>
 
-        <Link href="/live" style={{ fontSize: "22px", textDecoration: "none", color: "#0b2e4a", padding: "5px" }} title="Go Live">
-          📷
+        {/* --- RESTORED: PROFESSIONAL "LIVE" PILL BUTTON --- */}
+        <Link href="/live" style={{ textDecoration: "none" }} title="Go Live">
+          <div style={{ 
+            background: "#e63946", 
+            color: "white", 
+            padding: "6px 14px", 
+            borderRadius: "20px", 
+            display: "flex", 
+            alignItems: "center", 
+            gap: "8px", 
+            fontWeight: "800", 
+            fontSize: "12px",
+            boxShadow: "0 4px 10px rgba(230, 57, 70, 0.2)"
+          }}>
+            <span style={{ fontSize: "14px" }}>▶</span> LIVE
+          </div>
         </Link>
         
         <Notifications />
@@ -149,58 +174,51 @@ export default function NavBar() {
             )}
           </div>
 
+          {/* Profile Menu - FULL RESTORATION */}
           {isProfileOpen && (
             <div style={{ 
-                position: "absolute", 
-                right: 0, 
-                top: "55px", 
-                background: "white", 
-                border: "1px solid #eee", 
-                borderRadius: "12px", 
-                boxShadow: "0 10px 25px rgba(0,0,0,0.15)", 
-                width: "240px", 
-                overflow: "hidden", 
-                zIndex: 2000 // Maximized Z-Index to prevent dashboard overlap
+              position: "absolute", 
+              right: 0, 
+              top: "55px", 
+              background: "white", 
+              border: "1px solid #eee", 
+              borderRadius: "12px", 
+              boxShadow: "0 10px 25px rgba(0,0,0,0.15)", 
+              width: "240px", 
+              overflow: "hidden", 
+              zIndex: 2000 // Maximized Z-Index to prevent dashboard overlap
             }}>
-              {/* Header Info - Restored visibility */}
+              {/* Header Info - Styled in Navy Blue */}
               <div style={{ padding: "15px", borderBottom: "1px solid #eee", background: "#fafafa" }}>
-                <div style={{ fontWeight: "bold", color: "#0b2e4a", fontSize: "14px" }}>
-                    {profile?.full_name || "Believer"}
-                </div>
-                <div style={{ fontSize: "11px", color: "#777", marginTop: "2px", wordBreak: "break-all" }}>
-                    {user?.email}
-                </div>
+                <div style={{ fontWeight: "bold", color: "#0b2e4a", fontSize: "14px" }}>{profile?.full_name || "Believer"}</div>
+                <div style={{ fontSize: "11px", color: "#777", marginTop: "2px", wordBreak: "break-all" }}>{user?.email}</div>
               </div>
               
-              {/* Primary Links - Fixed Vertical Alignment */}
-              <div style={{ display: "flex", flexDirection: "column", padding: "8px 0" }}>
+              {/* Primary Links - Vertical Stack Fix */}
+              <div style={{ display: "flex", flexDirection: "column", padding: "5px 0" }}>
                 <Link href="/profile/edit" className="menu-item" onClick={() => setIsProfileOpen(false)}>
-                    <span>✏️</span> Edit Profile
+                  <span>✏️</span> Edit Profile
                 </Link>
                 <Link href="/settings" className="menu-item" onClick={() => setIsProfileOpen(false)}>
-                    <span>⚙️</span> Settings
+                  <span>⚙️</span> Settings
+                </Link>
+                <Link href="/about" className="menu-item" onClick={() => setIsProfileOpen(false)}>
+                  <span>ℹ️</span> About Us
+                </Link>
+                <Link href="/terms" className="menu-item" onClick={() => setIsProfileOpen(false)}>
+                  <span>📜</span> Terms & Conditions
                 </Link>
                 {profile?.role === 'admin' && (
-                  <Link href="/admin" className="menu-item" style={{background: "#fff5f5", color: "#d32f2f"}}>
+                  <Link href="/admin" className="menu-item" style={{ background: "#fff5f5", color: "#d32f2f", fontWeight: "bold" }} onClick={() => setIsProfileOpen(false)}>
                     <span>🛡️</span> Admin Panel
                   </Link>
                 )}
               </div>
 
-              {/* RESTORED STATIC LINKS */}
-              <div style={{ borderTop: "1px solid #eee", padding: "8px 0", background: "#fcfcfc" }}>
-                <Link href="/about" className="menu-item" onClick={() => setIsProfileOpen(false)}>
-                    <span>ℹ️</span> About The Believerse
-                </Link>
-                <Link href="/terms" className="menu-item" onClick={() => setIsProfileOpen(false)}>
-                    <span>⚖️</span> Terms & Privacy
-                </Link>
-              </div>
-
               {/* Footer Action */}
-              <div style={{ borderTop: "1px solid #eee", padding: "8px 0" }}>
-                <div onClick={handleLogout} className="menu-item" style={{color: "#e74c3c", fontWeight: "600"}}>
-                    <span>🚪</span> Sign Out
+              <div style={{ borderTop: "1px solid #eee", padding: "5px 0" }}>
+                <div onClick={handleLogout} className="menu-item" style={{ color: "#e74c3c", fontWeight: "600" }}>
+                  <span>🚪</span> Sign Out
                 </div>
               </div>
             </div>
@@ -209,23 +227,23 @@ export default function NavBar() {
       </div>
 
       <style jsx>{`
-        /* FORCED VERTICAL STACKING */
+        /* Vertical Alignment Control */
         .menu-item { 
-            display: flex !important; 
-            align-items: center; 
-            gap: 12px; 
-            padding: 12px 15px; 
-            text-decoration: none; 
-            color: #444; 
-            font-size: 14px; 
-            cursor: pointer; 
-            width: 100%; /* Prevents items from drifting side-by-side */
-            transition: background 0.2s;
-            box-sizing: border-box;
+          display: flex !important; 
+          align-items: center; 
+          gap: 12px; 
+          padding: 10px 15px; 
+          text-decoration: none; 
+          color: #444; 
+          font-size: 13px; 
+          cursor: pointer; 
+          width: 100%;
+          box-sizing: border-box;
+          transition: background 0.2s;
         }
-        .menu-item:hover { background: #f5f7f9; color: #0b2e4a; }
+        .menu-item:hover { background: #f9f9f9; color: #0b2e4a; }
         .menu-item span { font-size: 16px; width: 20px; text-align: center; }
-        
+
         @media (max-width: 1024px) { .nav-links { display: none !important; } }
       `}</style>
     </nav>
