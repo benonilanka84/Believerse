@@ -10,20 +10,12 @@ export default function NavBar() {
   const pathname = usePathname();
   const router = useRouter();
   
-  // Data States
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
-  
-  // UI States
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  
-  // Real-time Message Badge State
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
-
-  // Refs for click-outside detection
   const profileRef = useRef(null);
 
-  // --- 1. INITIALIZATION ---
   useEffect(() => {
     const init = async () => {
       const { data } = await supabase.auth.getUser();
@@ -62,9 +54,7 @@ export default function NavBar() {
       })
       .subscribe();
     
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }
 
   const handleLogout = async () => {
@@ -126,7 +116,7 @@ export default function NavBar() {
       {/* 3. RIGHT: ACTIONS */}
       <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
         
-        <Link href="/pricing" style={{ textDecoration: 'none' }}>
+        <Link href="/pricing" style={{ textDecoration: "none" }}>
           <button style={{ 
             background: "white", border: "2px solid #d4af37", color: "#d4af37", 
             padding: "6px 16px", borderRadius: "20px", fontWeight: "bold", 
@@ -144,21 +134,24 @@ export default function NavBar() {
           )}
         </Link>
 
-        {/* --- RESTORED: PROFESSIONAL "LIVE" PILL BUTTON --- */}
+        {/* --- LIVE PILL BUTTON (Selected from your reference) --- */}
         <Link href="/live" style={{ textDecoration: "none" }} title="Go Live">
           <div style={{ 
             background: "#e63946", 
             color: "white", 
-            padding: "6px 14px", 
-            borderRadius: "20px", 
+            padding: "8px 16px", 
+            borderRadius: "25px", 
             display: "flex", 
             alignItems: "center", 
             gap: "8px", 
-            fontWeight: "800", 
-            fontSize: "12px",
-            boxShadow: "0 4px 10px rgba(230, 57, 70, 0.2)"
+            fontWeight: "900", 
+            fontSize: "13px",
+            boxShadow: "0 4px 10px rgba(230, 57, 70, 0.25)"
           }}>
-            <span style={{ fontSize: "14px" }}>▶</span> LIVE
+            <div style={{ background: 'white', color: '#e63946', width: '18px', height: '18px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', paddingLeft: '2px' }}>
+              ▶
+            </div>
+            LIVE
           </div>
         </Link>
         
@@ -166,7 +159,7 @@ export default function NavBar() {
 
         {/* PROFILE AVATAR & DROPDOWN */}
         <div ref={profileRef} style={{ position: "relative" }}>
-          <div onClick={() => setIsProfileOpen(!isProfileOpen)} style={{ cursor: "pointer", width: 40, height: 40, borderRadius: "50%", border: "2px solid #eee", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", background: "#0b2e4a", color: "white", fontWeight: "bold", fontSize: "16px" }}>
+          <div onClick={() => setIsProfileOpen(!isProfileOpen)} style={{ cursor: "pointer", width: 42, height: 42, borderRadius: "50%", border: "2px solid #f0f4f8", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", background: "#0b2e4a", color: "white", fontWeight: "bold", fontSize: "16px", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
             {profile?.avatar_url ? (
               <img src={profile.avatar_url} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             ) : (
@@ -174,51 +167,52 @@ export default function NavBar() {
             )}
           </div>
 
-          {/* Profile Menu - FULL RESTORATION */}
+          {/* FIXED PROFILE MENU */}
           {isProfileOpen && (
             <div style={{ 
               position: "absolute", 
               right: 0, 
-              top: "55px", 
+              top: "58px", 
               background: "white", 
-              border: "1px solid #eee", 
-              borderRadius: "12px", 
-              boxShadow: "0 10px 25px rgba(0,0,0,0.15)", 
-              width: "240px", 
+              border: "1px solid #e1e8ed", 
+              borderRadius: "14px", 
+              boxShadow: "0 15px 35px rgba(0,0,0,0.12)", 
+              width: "250px", 
               overflow: "hidden", 
-              zIndex: 2000 // Maximized Z-Index to prevent dashboard overlap
+              zIndex: 2000 
             }}>
-              {/* Header Info - Styled in Navy Blue */}
-              <div style={{ padding: "15px", borderBottom: "1px solid #eee", background: "#fafafa" }}>
-                <div style={{ fontWeight: "bold", color: "#0b2e4a", fontSize: "14px" }}>{profile?.full_name || "Believer"}</div>
-                <div style={{ fontSize: "11px", color: "#777", marginTop: "2px", wordBreak: "break-all" }}>{user?.email}</div>
+              {/* Header Info block */}
+              <div style={{ padding: "18px", borderBottom: "1px solid #f0f4f8", background: "#f8fafd" }}>
+                <div style={{ fontWeight: "700", color: "#0b2e4a", fontSize: "15px" }}>{profile?.full_name || "Believer"}</div>
+                <div style={{ fontSize: "12px", color: "#64748b", marginTop: "3px", wordBreak: "break-all" }}>{user?.email}</div>
               </div>
               
-              {/* Primary Links - Vertical Stack Fix */}
-              <div style={{ display: "flex", flexDirection: "column", padding: "5px 0" }}>
+              {/* Menu Links List */}
+              <div style={{ padding: "8px 0" }}>
                 <Link href="/profile/edit" className="menu-item" onClick={() => setIsProfileOpen(false)}>
-                  <span>✏️</span> Edit Profile
+                  <span className="menu-icon">✏️</span> Edit Profile
                 </Link>
                 <Link href="/settings" className="menu-item" onClick={() => setIsProfileOpen(false)}>
-                  <span>⚙️</span> Settings
+                  <span className="menu-icon">⚙️</span> Settings
                 </Link>
                 <Link href="/about" className="menu-item" onClick={() => setIsProfileOpen(false)}>
-                  <span>ℹ️</span> About Us
+                  <span className="menu-icon">ℹ️</span> About Us
                 </Link>
                 <Link href="/terms" className="menu-item" onClick={() => setIsProfileOpen(false)}>
-                  <span>📜</span> Terms & Conditions
+                  <span className="menu-icon">📜</span> Terms & Conditions
                 </Link>
+                
                 {profile?.role === 'admin' && (
-                  <Link href="/admin" className="menu-item" style={{ background: "#fff5f5", color: "#d32f2f", fontWeight: "bold" }} onClick={() => setIsProfileOpen(false)}>
-                    <span>🛡️</span> Admin Panel
+                  <Link href="/admin" className="menu-item admin-link" onClick={() => setIsProfileOpen(false)}>
+                    <span className="menu-icon">🛡️</span> Admin Panel
                   </Link>
                 )}
               </div>
 
-              {/* Footer Action */}
-              <div style={{ borderTop: "1px solid #eee", padding: "5px 0" }}>
-                <div onClick={handleLogout} className="menu-item" style={{ color: "#e74c3c", fontWeight: "600" }}>
-                  <span>🚪</span> Sign Out
+              {/* Sign Out block */}
+              <div style={{ borderTop: "1px solid #f0f4f8", padding: "8px 0" }}>
+                <div onClick={handleLogout} className="menu-item signout-btn">
+                  <span className="menu-icon">🚪</span> Sign Out
                 </div>
               </div>
             </div>
@@ -227,23 +221,40 @@ export default function NavBar() {
       </div>
 
       <style jsx>{`
-        /* Vertical Alignment Control */
+        /* FORCED STYLING FIXES */
         .menu-item { 
           display: flex !important; 
           align-items: center; 
-          gap: 12px; 
-          padding: 10px 15px; 
-          text-decoration: none; 
-          color: #444; 
-          font-size: 13px; 
+          gap: 14px; 
+          padding: 12px 20px; 
+          text-decoration: none !important; /* Removes purple underlines */
+          color: #334155 !important; /* Fixes link colors */
+          font-size: 14px; 
+          font-weight: 500;
           cursor: pointer; 
           width: 100%;
           box-sizing: border-box;
-          transition: background 0.2s;
+          transition: all 0.2s ease;
         }
-        .menu-item:hover { background: #f9f9f9; color: #0b2e4a; }
-        .menu-item span { font-size: 16px; width: 20px; text-align: center; }
-
+        .menu-item:hover { 
+          background: #f1f5f9; 
+          color: #0b2e4a !important; 
+        }
+        .menu-icon { 
+          font-size: 16px; 
+          width: 22px; 
+          text-align: center; 
+          opacity: 0.8;
+        }
+        .admin-link {
+          background: #fff5f5;
+          color: #d32f2f !important;
+          font-weight: 700;
+        }
+        .signout-btn {
+          color: #e11d48 !important;
+          font-weight: 700;
+        }
         @media (max-width: 1024px) { .nav-links { display: none !important; } }
       `}</style>
     </nav>
