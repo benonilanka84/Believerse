@@ -10,17 +10,17 @@ export async function POST(req) {
     const { data, error } = await resend.emails.send({
       from: 'The Believerse <support@thebelieverse.com>',
       to: email,
-      subject: 'Welcome to The Believerse',
-      // This uses your Resend Template ID
-      template_id: 'regular-believer-welcome', 
+      subject: 'Welcome to the Sanctuary',
+      // FIXED: Property name must be 'templateId'
+      templateId: 'regular-believer-welcome', 
       variables: {
-        full_name: full_name // Matches {{full_name}} in your template
+        full_name: full_name // Matches registered variable
       }
     });
 
-    if (error) return NextResponse.json({ error }, { status: 400 });
-    return NextResponse.json({ message: 'Welcome email sent' });
+    if (error) return NextResponse.json({ error }, { status: 422 });
+    return NextResponse.json({ message: 'Welcome email sent', data });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: { message: err.message } }, { status: 500 });
   }
 }

@@ -11,11 +11,11 @@ export async function POST(req) {
       from: 'The Believerse <support@thebelieverse.com>',
       to: email,
       subject: `Your ${tier_name} Stewardship is Confirmed`,
-      // This matches the ALIAS in your Resend Dashboard
-      template: 'tier-membership-confirmation', 
+      // FIXED: Property name must be 'templateId'
+      templateId: 'tier-membership-confirmation', 
       variables: {
-        full_name: full_name, 
-        tier_name: tier_name  
+        full_name: full_name, // Matches registered variable
+        tier_name: tier_name  // Matches registered variable
       }
     });
 
