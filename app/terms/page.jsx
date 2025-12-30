@@ -4,76 +4,75 @@ export default function TermsPage() {
   return (
     <div style={styles.wrapper}>
       <div style={styles.card}>
-        <h1>The Believerse — Terms of Service</h1>
+        <h1 style={{ color: "#0b2e4a" }}>The Believerse — Terms of Fellowship</h1>
 
         <p>
-          Welcome to <strong>The Believerse</strong>, a digital platform providing 
-          premium community networking and content services for believers. By accessing 
-          our platform, you agree to the following commercial terms:
+          Welcome to <strong>The Believerse</strong>, a sacred digital space for 
+          fellowship and the sharing of glimpses. By entering our sanctuary, 
+          you agree to these terms of stewardship and community conduct:
         </p>
 
-        <h3>1. Platform Services</h3>
+        <h3>1. Our Purpose</h3>
         <p>
-          The Believerse is a technology platform that provides digital networking 
-          tools, content hosting, and community management services. Users pay for 
-          access to premium platform features and digital resources.
+          The Believerse is a platform dedicated to the Body of Christ. We provide 
+          tools for networking, content hosting, and prayer. Access to our 
+          full sanctuary is a stewardship-based model where believers support 
+          the digital infrastructure required to keep this space ad-free and holy.
         </p>
 
-        <h3>2. Restricted Activities</h3>
+        <h3>2. Kingdom Conduct</h3>
         <p>
-          Users must use the platform for its intended purpose of faith-based 
-          networking. We strictly prohibit the use of our payment gateway for 
-          unauthorized financial activities, including but not limited to 
-          unregulated schemes, fraudulent investments, or unauthorized fund collection.
+          All glimpses and interactions must honor our walk with Christ. We 
+          strictly prohibit the use of our platform for unauthorized financial 
+          schemes, fraudulent activities, or any collection of funds not 
+          explicitly authorized for digital sanctuary access.
         </p>
 
-        {/* --- RE-WRITTEN FOR RAZORPAY COMPLIANCE --- */}
-
-        <h3>3. Payments & Premium Subscriptions</h3>
+        <h3>3. Stewardship & Partnerships (Payments)</h3>
         <p>
-          The Believerse offers paid premium access and digital service packages 
-          processed via secure third-party gateways (e.g., Razorpay). All 
-          transactions are for <strong>digital service access</strong>. We do 
-          not accept unregulated donations. Pricing for all service tiers is 
-          clearly displayed at the point of purchase.
+          To maintain this digital sanctuary, we offer paid partnership tiers 
+          processed through secure gateways (e.g., Razorpay). These payments 
+          are for <strong>digital service access</strong> and premium fellowship 
+          features. We do not accept unregulated donations; all transactions are 
+          for specific digital resource access as displayed at the point of choice.
         </p>
 
-        <h3>4. Refund & Cancellation Policy</h3>
+        <h3>4. Grace & Cancellation Policy</h3>
         <p>
-          As we provide immediate digital access to platform features and content 
-          services, <strong>all service fees are generally non-refundable</strong>.
+          As we provide immediate digital access to our sanctuary and its 
+          resources, <strong>service fees are generally considered final</strong>.
         </p>
         <ul style={{ paddingLeft: "20px", lineHeight: "1.8" }}>
           <li>
-            <strong>Cancellations:</strong> Users may cancel their premium 
-            subscription at any time through their account settings. Cancellation 
-            will terminate future billing cycles.
+            <strong>Cancellations:</strong> You may release your partnership 
+            subscription at any time through your settings. This will stop 
+            all future billing cycles immediately.
           </li>
           <li>
-            <strong>Technical Refunds:</strong> In the event of a technical 
-            error resulting in duplicate billing, please contact 
-            <strong> contact@thebelieverse.com</strong> within 7 days for a 
-            billing adjustment.
+            <strong>Billing Discrepancies:</strong> If a technical error 
+            occurs during your transaction, please reach out to 
+            <strong> support@thebelieverse.com</strong> within 7 days so we 
+            may rectify the error in a spirit of fairness.
           </li>
         </ul>
 
-        <h3>5. Digital Delivery Policy</h3>
+        <h3>5. Digital Provision</h3>
         <p>
           The Believerse provides exclusively digital services. 
-          <strong>Delivery:</strong> Upon successful transaction completion, 
-          premium account features and digital content access are provisioned 
-          to the user's account immediately (or within a maximum of 24 hours).
+          <strong>Provision:</strong> Upon successful transaction, your 
+          partner features and sanctuary access are updated immediately (or 
+          within a maximum of 24 hours).
         </p>
 
         <hr style={{ margin: "30px 0", border: "1px solid #eee" }} />
 
-        <h3>Contact for Billing Support</h3>
-        <p style={{ fontSize: "1.1rem", fontWeight: "bold", color: "#2d6be3" }}>
+        <h3>Contact Our Stewards</h3>
+        <p style={{ fontSize: "1.1rem", fontWeight: "bold", color: "#d4af37" }}>
           📧 contact@thebelieverse.com
         </p>
 
         <Link href="/dashboard" style={styles.link}>
-          ⬅ Back to Dashboard
+          ⬅ Back to Sanctuary
         </Link>
       </div>
     </div>
@@ -83,5 +82,5 @@ export default function TermsPage() {
 const styles = {
   wrapper: { minHeight: "100vh", padding: "40px", display: "flex", justifyContent: "center", alignItems: "flex-start", background: "#b4dcff" },
   card: { maxWidth: "900px", padding: "30px", background: "white", borderRadius: "12px", boxShadow: "0 8px 20px rgba(0,0,0,0.2)", color: "#333" },
-  link: { display: "inline-block", marginTop: "20px", padding: "10px 20px", background: "#2d6be3", color: "white", borderRadius: "8px", textDecoration: "none", fontWeight: "600" },
+  link: { display: "inline-block", marginTop: "20px", padding: "10px 20px", background: "#0b2e4a", color: "white", borderRadius: "8px", textDecoration: "none", fontWeight: "600" },
 };

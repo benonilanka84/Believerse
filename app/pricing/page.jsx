@@ -9,46 +9,47 @@ export default function PricingPage() {
   const [currency, setCurrency] = useState("USD"); 
   const [billingCycle, setBillingCycle] = useState("monthly");
   const [loadingGeo, setLoadingGeo] = useState(true);
-  const [processing, setProcessing] = useState(false);
+  const [processing, setProcessing] = useState(null); 
+  const [currentPlan, setCurrentPlan] = useState("free"); 
   
   const router = useRouter();
 
   const pricing = {
     gold: {
       INR: { monthly: 99, yearly: 999, symbol: "₹" },
-      GBP: { monthly: 8, yearly: 80, symbol: "£" },
-      SGD: { monthly: 10, yearly: 100, symbol: "S$" },
       USD: { monthly: 4.99, yearly: 49.99, symbol: "$" }
     },
     platinum: {
       INR: { monthly: 499, yearly: 4999, symbol: "₹" },
-      GBP: { monthly: 16, yearly: 160, symbol: "£" },
-      SGD: { monthly: 20, yearly: 200, symbol: "S$" },
       USD: { monthly: 14.99, yearly: 149.99, symbol: "$" }
     }
   };
 
   useEffect(() => {
-    async function detectCountry() {
+    async function initPage() {
       try {
         const res = await fetch('https://ipapi.co/json/');
         const data = await res.json();
-        if (data.country_code === "IN") setCurrency("INR");
-        else if (data.country_code === "GB") setCurrency("GBP");
-        else if (data.country_code === "SG") setCurrency("SGD");
-        else setCurrency("USD"); 
-      } catch (error) {
-        setCurrency("USD");
-      } finally {
-        setLoadingGeo(false);
+        setCurrency(data.country_code === "IN" ? "INR" : "USD");
+      } catch (e) { setCurrency("USD"); }
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("subscription_tier")
+          .eq("id", user.id)
+          .single();
+        // Normalize to lowercase to ensure match with button logic
+        if (profile) setCurrentPlan(profile.subscription_tier?.toLowerCase() || "free");
       }
+      setLoadingGeo(false);
     }
-    detectCountry();
+    initPage();
   }, []);
 
   const activeGold = pricing.gold[currency];
   const activePlat = pricing.platinum[currency];
-  
   const getPrice = (planObj) => billingCycle === "monthly" ? planObj.monthly : planObj.yearly;
 
   const loadRazorpayScript = () => {
@@ -62,84 +63,68 @@ export default function PricingPage() {
   };
 
   const handlePurchase = async (planName, planObj) => {
-    setProcessing(true);
+    setProcessing(planName.toLowerCase());
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      alert("Please log in or sign up to upgrade your plan.");
+      alert("Please log in to upgrade.");
       router.push("/login");
-      setProcessing(false);
       return;
     }
 
-    const res = await loadRazorpayScript();
-    if (!res) {
-      alert("Payment gateway failed to load.");
-      setProcessing(false);
+    const scriptLoaded = await loadRazorpayScript();
+    if (!scriptLoaded) {
+      alert("Gateway failed to load.");
+      setProcessing(null);
       return;
     }
 
-    const amount = getPrice(planObj);
-    
     try {
+      // NOTE: To fix the mandate issue, the backend endpoint MUST use Razorpay Subscriptions API
       const response = await fetch("/api/razorpay", { 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          amount: amount, 
-          currency: currency,
+          amount: getPrice(planObj), 
+          currency,
           userId: user.id,
-          planName: planName
+          planName,
+          isSubscription: true // Added flag for backend to switch to Subscription API
         }), 
       });
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "Order failed");
+      if (!response.ok) throw new Error(data.message);
 
       const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID, 
-        amount: data.order.amount,
-        currency: data.order.currency,
+        // For Subscriptions, we pass subscription_id instead of order_id
+        // If data.subscriptionId exists, use it; otherwise fallback to order_id
+        ...(data.subscriptionId ? { subscription_id: data.subscriptionId } : { order_id: data.order.id }),
         name: "The Believerse",
-        description: `${planName} Subscription`,
+        description: `${planName} Plan`,
         image: "/images/final-logo.png",
-        order_id: data.order.id,
-        handler: async function (response) {
-          const verifyRes = await fetch("/api/razorpay/verify", {
+        handler: async function (res) {
+          const verify = await fetch("/api/razorpay/verify", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-              planName: planName,
-              billingCycle: billingCycle,
-              userId: user.id
-            })
+            body: JSON.stringify({ ...res, planName, userId: user.id })
           });
-
-          if (verifyRes.ok) {
-            alert("Hallelujah! Your account has been upgraded.");
-            window.location.href = "/dashboard";
-          } else {
-            alert("Payment verified, but account update is pending.");
+          if (verify.ok) {
+            alert("Hallelujah! Upgrade successful.");
+            window.location.reload();
           }
         },
         prefill: { email: user.email },
         theme: { color: "#d4af37" },
       };
 
-      const paymentObject = new window.Razorpay(options);
-      paymentObject.open();
-
+      const rzp = new window.Razorpay(options);
+      rzp.open();
     } catch (error) {
-      alert("Initialization failed. Please try again.");
+      alert("Error: " + error.message);
     } finally {
-      setProcessing(false);
+      setProcessing(null);
     }
-  };
-
-  const handleInauguralOffer = () => {
-    handlePurchase("Gold", { monthly: 1, yearly: 1 }); 
   };
 
   return (
@@ -155,46 +140,27 @@ export default function PricingPage() {
         }}>
           <h3 style={{ margin: "0 0 5px 0", fontSize: "1.2rem" }}>🎉 Inaugural Launch Offer!</h3>
           <p style={{ margin: 0, fontSize: "0.95rem", fontWeight: "500" }}>
-            Get <strong>3 Months of Gold</strong> for just <strong>{activeGold?.symbol || "$"}1</strong>. 
+            Get <strong>3 Months of Gold</strong> for just <strong>{activeGold?.symbol || "₹"}1</strong>.
+            <br/><span style={{fontSize:"0.85rem", opacity:0.8}}>(Auto-renews at ₹99/mo after 90 days)</span>
           </p>
         </div>
       )}
 
       {/* 2. HERO SECTION */}
       <div style={{ textAlign: "center", marginBottom: "40px", maxWidth: "800px", margin: "0 auto 40px auto" }}>
-        <h1 style={{ color: "#0b2e4a", fontSize: "2.8rem", fontWeight: "800", marginBottom: "15px" }}>
-          Premium Access
-        </h1>
-        
+        <h1 style={{ color: "#0b2e4a", fontSize: "2.8rem", fontWeight: "800", marginBottom: "15px" }}>Premium Access</h1>
         <div style={{ background: "#e0e0e0", borderRadius: "30px", padding: "4px", display: "inline-flex" }}>
-            <button 
-                onClick={() => setBillingCycle("monthly")}
-                style={{
-                    padding: "10px 25px", borderRadius: "25px", border: "none", cursor: "pointer", fontWeight: "bold", fontSize: "14px",
-                    background: billingCycle === "monthly" ? "white" : "transparent",
-                    color: "#0b2e4a",
-                    boxShadow: billingCycle === "monthly" ? "0 2px 5px rgba(0,0,0,0.1)" : "none",
-                    transition: "all 0.3s"
-                }}
-            >Monthly</button>
-            <button 
-                onClick={() => setBillingCycle("yearly")}
-                style={{
-                    padding: "10px 25px", borderRadius: "25px", border: "none", cursor: "pointer", fontWeight: "bold", fontSize: "14px",
-                    background: billingCycle === "yearly" ? "white" : "transparent",
-                    color: "#0b2e4a",
-                    boxShadow: billingCycle === "yearly" ? "0 2px 5px rgba(0,0,0,0.1)" : "none",
-                    transition: "all 0.3s"
-                }}
-            >Yearly <span style={{fontSize:"10px", color:"#2e8b57", marginLeft:"4px"}}>(Save 17%)</span></button>
+            <button onClick={() => setBillingCycle("monthly")} style={{ padding: "10px 25px", borderRadius: "25px", border: "none", cursor: "pointer", fontWeight: "bold", background: billingCycle === "monthly" ? "white" : "transparent", color: "#0b2e4a" }}>Monthly</button>
+            <button onClick={() => setBillingCycle("yearly")} style={{ padding: "10px 25px", borderRadius: "25px", border: "none", cursor: "pointer", fontWeight: "bold", background: billingCycle === "yearly" ? "white" : "transparent", color: "#0b2e4a" }}>
+              Yearly <span style={{fontSize:"10px", color:"#2e8b57", marginLeft:"4px"}}>(Save 17%)</span>
+            </button>
         </div>
       </div>
 
-      {/* 3. PLANS GRID */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "25px", maxWidth: "1200px", margin: "0 auto 60px auto" }}>
 
-        {/* COMMUNITY CARD - FIXED BACKGROUND */}
-        <div style={{ background: "#ffffff", borderRadius: "20px", padding: "40px", border: "1px solid #e1e8ed", boxShadow: "0 10px 25px rgba(0,0,0,0.02)" }}>
+        {/* COMMUNITY CARD */}
+        <div style={{ background: "#ffffff", borderRadius: "20px", padding: "40px", border: "1px solid #e1e8ed" }}>
           <h3 style={{ color: "#5a7184", fontSize: "1.4rem", fontWeight: "600", marginBottom: "10px" }}>Community</h3>
           <div style={{ fontSize: "2.8rem", fontWeight: "800", color: "#0b2e4a", marginBottom: "20px" }}>Free</div>
           <ul style={{ listStyle: "none", padding: 0, margin: "0 0 35px 0", lineHeight: "2.4", fontSize: "1rem", color: "#334155" }}>
@@ -205,22 +171,17 @@ export default function PricingPage() {
             <li style={{ color: "#cbd5e1" }}>❌ Create Fellowships</li>
             <li style={{ color: "#cbd5e1" }}>❌ Long Video Uploads</li>
           </ul>
-          <button style={{ width: "100%", padding: "16px", borderRadius: "12px", border: "2px solid #e1e8ed", background: "#f8fafd", color: "#64748b", fontWeight: "700" }}>Current Plan</button>
+          <button disabled style={{ width: "100%", padding: "16px", borderRadius: "12px", border: "2px solid #e1e8ed", background: "#f8fafd", color: "#64748b", fontWeight: "700" }}>
+            {currentPlan === "free" ? "Current Plan" : "Basic Access"}
+          </button>
         </div>
 
-        {/* GOLD CARD - FIXED VISIBILITY */}
-        <div style={{ 
-            background: "#fffdf5", // Tinted background to fix white-on-white
-            borderRadius: "20px", 
-            padding: "40px", 
-            border: "2px solid #d4af37", 
-            position: "relative", 
-            boxShadow: "0 15px 35px rgba(212, 175, 55, 0.12)" 
-        }}>
-          <div style={{ position: "absolute", top: "-14px", left: "50%", transform: "translateX(-50%)", background: "#d4af37", color: "white", padding: "6px 16px", borderRadius: "20px", fontSize: "0.75rem", fontWeight: "800", textTransform: "uppercase" }}>CREATOR FAVORITE</div>
+        {/* GOLD CARD */}
+        <div style={{ background: "#fffdf5", borderRadius: "20px", padding: "40px", border: "2px solid #d4af37", position: "relative" }}>
+          <div style={{ position: "absolute", top: "-14px", left: "50%", transform: "translateX(-50%)", background: "#d4af37", color: "white", padding: "6px 16px", borderRadius: "20px", fontSize: "0.75rem", fontWeight: "800" }}>CREATOR FAVORITE</div>
           <h3 style={{ color: "#d4af37", fontSize: "1.4rem", fontWeight: "700", marginBottom: "10px" }}>Gold Supporter</h3>
           <div style={{ fontSize: "2.8rem", fontWeight: "800", color: "#0b2e4a", marginBottom: "20px" }}>
-            {activeGold?.symbol}{getPrice(activeGold)} <span style={{ fontSize: "0.9rem", color: "#64748b", fontWeight: "500" }}>/{billingCycle === "monthly" ? "mo" : "yr"}</span>
+            {activeGold?.symbol}{getPrice(activeGold)} <span style={{fontSize:"0.9rem", color:"#64748b"}}>/{billingCycle === "monthly" ? "mo" : "yr"}</span>
           </div>
           <ul style={{ listStyle: "none", padding: 0, margin: "0 0 35px 0", lineHeight: "2.4", fontSize: "1rem", color: "#334155" }}>
             <li>🚫 <strong>Ad-Free Experience</strong></li>
@@ -230,22 +191,20 @@ export default function PricingPage() {
             <li>👥 Create & Lead Fellowships</li>
             <li>🥇 <strong>Gold Profile Badge</strong></li>
           </ul>
-          {billingCycle === "monthly" ? (
-             <button onClick={handleInauguralOffer} disabled={processing} style={{ width: "100%", padding: "16px", borderRadius: "12px", border: "none", background: "linear-gradient(90deg, #d4af37 0%, #e6c256 100%)", color: "white", fontWeight: "800", cursor: "pointer", boxShadow: "0 8px 20px rgba(212, 175, 55, 0.3)" }}>
-               {processing ? "Processing..." : `Claim Offer: ${activeGold?.symbol}1`}
-             </button>
-          ) : (
-             <button onClick={() => handlePurchase("Gold", activeGold)} disabled={processing} style={{ width: "100%", padding: "16px", borderRadius: "12px", border: "none", background: "#d4af37", color: "white", fontWeight: "800", cursor: "pointer" }}>
-               {processing ? "Processing..." : "Get Gold Yearly"}
-             </button>
-          )}
+          <button 
+            onClick={() => handlePurchase("Gold", activeGold)} 
+            disabled={processing === 'gold' || currentPlan === 'gold'} 
+            style={{ width: "100%", padding: "16px", borderRadius: "12px", border: "none", background: (currentPlan === 'gold' || currentPlan === 'platinum') ? "#f8fafd" : "#d4af37", color: (currentPlan === 'gold' || currentPlan === 'platinum') ? "#64748b" : "white", fontWeight: "800", cursor: "pointer" }}
+          >
+            {processing === 'gold' ? "Processing..." : (currentPlan === 'gold' || currentPlan === 'platinum') ? "Current Plan" : "Claim Offer: ₹1"}
+          </button>
         </div>
 
         {/* PLATINUM CARD */}
-        <div style={{ background: "linear-gradient(145deg, #0b2e4a 0%, #1a4f7a 100%)", borderRadius: "20px", padding: "40px", position: "relative", color: "white", boxShadow: "0 20px 40px rgba(11, 46, 74, 0.3)" }}>
+        <div style={{ background: "linear-gradient(145deg, #0b2e4a 0%, #1a4f7a 100%)", borderRadius: "20px", padding: "40px", color: "white" }}>
           <h3 style={{ color: "#4fc3f7", fontSize: "1.4rem", fontWeight: "700", marginBottom: "10px" }}>Platinum Partner</h3>
           <div style={{ fontSize: "2.8rem", fontWeight: "800", color: "white", marginBottom: "20px" }}>
-            {activePlat?.symbol}{getPrice(activePlat)} <span style={{ fontSize: "0.9rem", color: "#81d4fa", fontWeight: "500" }}>/{billingCycle === "monthly" ? "mo" : "yr"}</span>
+            {activePlat?.symbol}{getPrice(activePlat)} <span style={{fontSize:"0.9rem", color:"#81d4fa"}}>/{billingCycle === "monthly" ? "mo" : "yr"}</span>
           </div>
           <ul style={{ listStyle: "none", padding: 0, margin: "0 0 35px 0", lineHeight: "2.4", fontSize: "1rem" }}>
             <li>✅ Everything in Gold</li>
@@ -255,18 +214,14 @@ export default function PricingPage() {
             <li>🏛️ Ministry Content Tools</li>
             <li>💙 Founder Priority Access</li>
           </ul>
-          <button onClick={() => handlePurchase("Platinum", activePlat)} disabled={processing} style={{ width: "100%", padding: "16px", borderRadius: "12px", border: "none", background: "#29b6f6", color: "#0b2e4a", fontWeight: "800", cursor: "pointer", boxShadow: "0 8px 20px rgba(41, 182, 246, 0.4)" }}>
-            {processing ? "Processing..." : "Get Platinum"}
+          <button 
+            onClick={() => handlePurchase("Platinum", activePlat)} 
+            disabled={processing === 'platinum' || currentPlan === 'platinum'} 
+            style={{ width: "100%", padding: "16px", borderRadius: "12px", border: "none", background: currentPlan === 'platinum' ? "#f8fafd" : "#29b6f6", color: currentPlan === 'platinum' ? "#64748b" : "#0b2e4a", fontWeight: "800", cursor: "pointer" }}
+          >
+            {processing === 'platinum' ? "Processing..." : currentPlan === 'platinum' ? "Current Plan" : "Get Platinum"}
           </button>
         </div>
-
-      </div>
-
-      {/* FOOTER NAVIGATION */}
-      <div style={{ textAlign: "center", marginTop: "40px", paddingBottom: "60px" }}>
-        <Link href="/dashboard" style={{ textDecoration: "none", color: "#64748b", fontWeight: "700", display: "inline-flex", alignItems: "center", gap: "8px" }}>
-          ⬅ Back to Dashboard
-        </Link>
       </div>
     </div>
   );

@@ -7,133 +7,133 @@ export default function AboutPage() {
     <div style={{ minHeight: "100vh", background: "#b4dcff", padding: "40px 20px" }}>
       <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
         
-        {/* Section 1: Technology Branding */}
+        {/* Section 1: Vision Branding */}
         <div style={{ textAlign: "center", marginBottom: "60px" }}>
           <img 
             src="/images/logo-community.png" 
-            alt="The Believerse Platform"
+            alt="The Believerse Sanctuary"
             style={{ width: "100%", maxWidth: "500px", height: "auto", borderRadius: "20px", boxShadow: "0 15px 40px rgba(0,0,0,0.25)", marginBottom: "30px" }}
           />
           
           <h1 style={{ fontSize: "3rem", fontWeight: "700", color: "#0b2e4a", marginBottom: "10px" }}>
-            The <span style={{ color: "#d4af37" }}>B</span>elievers<span style={{ color: "#2e8b57" }}>e</span> Platform
+            The <span style={{ color: "#d4af37" }}>B</span>elievers<span style={{ color: "#2e8b57" }}>e</span> 
           </h1>
           
           <p style={{ fontSize: "1.5rem", color: "#2e8b57", fontWeight: "600", marginBottom: "20px" }}>
-            "Advanced Digital Infrastructure for Faith-Based Networking"
+            "A Digital Sanctuary for Fellowship, Prayer, and the Word"
           </p>
         </div>
 
-        {/* Commercial/SaaS Focus Cards */}
+        {/* Faith-Centered Vision Cards */}
         <div style={{ display: "grid", gap: "30px", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))" }}>
           
-          {/* Mission: Technology Focus */}
+          {/* Our Calling */}
           <div style={{ background: "white", padding: "30px", borderRadius: "16px", boxShadow: "0 8px 20px rgba(0,0,0,0.1)" }}>
             <h2 style={{ color: "#0b2e4a", marginBottom: "15px", fontSize: "1.8rem" }}>
-              🛠️ Our Platform
+              🕊️ Our Calling
             </h2>
             <p style={{ color: "#333", lineHeight: "1.8", fontSize: "1.05rem" }}>
-              The Believerse is a <strong>specialized Technology Platform (SaaS)</strong> designed to provide digital infrastructure for content delivery and professional networking. We provide premium tools for creators and organizations to host secure, moderated, and uplifting digital content including high-definition video, interactive media, and community management services.
+              The Believerse is a <strong>Sacred Digital Space</strong> built to host the glimpses of our walk with Christ. We provide high-integrity infrastructure so that believers, ministries, and creators can share the Gospel through high-definition video and interactive fellowship without the noise of the world.
             </p>
           </div>
 
-          {/* Vision: Service Focus */}
+          {/* Our Vision */}
           <div style={{ background: "white", padding: "30px", borderRadius: "16px", boxShadow: "0 8px 20px rgba(0,0,0,0.1)" }}>
             <h2 style={{ color: "#0b2e4a", marginBottom: "15px", fontSize: "1.8rem" }}>
-              📡 Our Service Vision
+              🌍 The Great Commission
             </h2>
             <p style={{ color: "#333", lineHeight: "1.8", fontSize: "1.05rem" }}>
-              To become the world’s leading digital service provider for faith-based communities, offering robust SaaS solutions that empower unity and content integrity across global generations.
+              Our vision is to unite the global Body of Christ through technology that honors Him. We aim to empower every believer with tools that protect their spirit while fostering authentic, global unity across generations.
             </p>
           </div>
 
-          {/* Value Proposition */}
+          {/* Core Values */}
           <div style={{ background: "white", padding: "30px", borderRadius: "16px", boxShadow: "0 8px 20px rgba(0,0,0,0.1)" }}>
             <h2 style={{ color: "#0b2e4a", marginBottom: "15px", fontSize: "1.8rem" }}>
-              💎 Premium Standards
+              💎 Kingdom Standards
             </h2>
             <p style={{ color: "#2e8b57", lineHeight: "1.8", fontSize: "1.3rem", fontWeight: "600", fontStyle: "italic" }}>
-              "Secure. Professional. Service-Oriented."
+              "Sacred. Private. Christ-Centered."
             </p>
           </div>
         </div>
 
-        {/* Technical Differentiation */}
+        {/* Content Integrity */}
         <div style={{ background: "white", padding: "40px", borderRadius: "16px", boxShadow: "0 8px 20px rgba(0,0,0,0.1)", marginTop: "30px" }}>
           <h2 style={{ color: "#0b2e4a", marginBottom: "20px", fontSize: "2rem", textAlign: "center" }}>
-            ⚖️ Advanced Content Integrity
+            🛡️ Guarding the Sanctuary
           </h2>
           <p style={{ color: "#333", lineHeight: "1.8", fontSize: "1.1rem", textAlign: "center", maxWidth: "800px", margin: "0 auto" }}>
-            Unlike generic platforms, The Believerse provides <strong>specialized moderation technology</strong> and educational content frameworks. Our architecture is optimized for high-reliability streaming and secure peer-to-peer digital interactions, ensuring a safe and premium environment for every user.
+            The Believerse is not just another platform; it is a <strong>moderated environment</strong> dedicated to truth. We utilize advanced technology to ensure that every sermon, song, and glimpse shared within our walls remains uplifting and aligned with Kingdom values.
           </p>
         </div>
 
-        {/* Targets: Framing as 'Users' */}
+        {/* Fellowship Demographics */}
         <div style={{ background: "white", padding: "40px", borderRadius: "16px", boxShadow: "0 8px 20px rgba(0,0,0,0.1)", marginTop: "30px" }}>
           <h2 style={{ color: "#0b2e4a", marginBottom: "25px", fontSize: "2rem", textAlign: "center" }}>
-            🌐 Service Demographics
+            ⛪ Fellowship in the Believerse
           </h2>
           <div style={{ display: "grid", gap: "20px", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))" }}>
             <div style={{ textAlign: "center", padding: "20px" }}>
-              <div style={{ fontSize: "3rem", marginBottom: "10px" }}>👤</div>
-              <h3 style={{ color: "#0b2e4a", marginBottom: "8px" }}>Individual Users</h3>
-              <p style={{ color: "#666" }}>Subscribers utilizing premium networking features</p>
+              <div style={{ fontSize: "3rem", marginBottom: "10px" }}>🙏</div>
+              <h3 style={{ color: "#0b2e4a", marginBottom: "8px" }}>Individual Believers</h3>
+              <p style={{ color: "#666" }}>Daily walkers sharing glimpses of faith</p>
             </div>
             <div style={{ textAlign: "center", padding: "20px" }}>
-              <div style={{ fontSize: "3rem", marginBottom: "10px" }}>📹</div>
-              <h3 style={{ color: "#0b2e4a", marginBottom: "8px" }}>Digital Creators</h3>
-              <p style={{ color: "#666" }}>Service users hosting sermons, music, and media</p>
+              <div style={{ fontSize: "3rem", marginBottom: "10px" }}>📖</div>
+              <h3 style={{ color: "#0b2e4a", marginBottom: "8px" }}>Kingdom Creators</h3>
+              <p style={{ color: "#666" }}>Stewards of the Word, Music, and Art</p>
             </div>
             <div style={{ textAlign: "center", padding: "20px" }}>
-              <div style={{ fontSize: "3rem", marginBottom: "10px" }}>💻</div>
-              <h3 style={{ color: "#0b2e4a", marginBottom: "8px" }}>IT Organizations</h3>
-              <p style={{ color: "#666" }}>Ministries utilizing our digital infrastructure</p>
+              <div style={{ fontSize: "3rem", marginBottom: "10px" }}>🤝</div>
+              <h3 style={{ color: "#0b2e4a", marginBottom: "8px" }}>Church Ministries</h3>
+              <p style={{ color: "#666" }}>Ministries utilizing our digital walls for outreach</p>
             </div>
             <div style={{ textAlign: "center", padding: "20px" }}>
               <div style={{ fontSize: "3rem", marginBottom: "10px" }}>🛡️</div>
-              <h3 style={{ color: "#0b2e4a", marginBottom: "8px" }}>Admins</h3>
-              <p style={{ color: "#666" }}>Entities managing secure group environments</p>
+              <h3 style={{ color: "#0b2e4a", marginBottom: "8px" }}>Stewards</h3>
+              <p style={{ color: "#666" }}>Entities managing secure fellowships</p>
             </div>
           </div>
         </div>
 
-        {/* FRAME as SERVICE EXPANSION */}
+        {/* Roadmap */}
         <div style={{ background: "white", padding: "40px", borderRadius: "16px", boxShadow: "0 8px 20px rgba(0,0,0,0.1)", marginTop: "30px" }}>
           <h2 style={{ color: "#0b2e4a", marginBottom: "25px", fontSize: "2rem", textAlign: "center" }}>
-            🚀 Service Roadmap
+            🌱 Growing the Vine
           </h2>
           <ul style={{ listStyle: "none", padding: 0, display: "grid", gap: "15px", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", maxWidth: "900px", margin: "0 auto" }}>
             <li style={{ color: "#333", fontSize: "1.05rem", padding: "10px 0", borderLeft: "4px solid #2e8b57", paddingLeft: "15px" }}>
-              📹 Enterprise-grade Live Streaming
+              ✨ Global Live Ministry Streaming
             </li>
             <li style={{ color: "#333", fontSize: "1.05rem", padding: "10px 0", borderLeft: "4px solid #2e8b57", paddingLeft: "15px" }}>
-              📱 Dedicated Mobile SaaS Applications
+              📱 Mobile Sanctuary Applications
             </li>
             <li style={{ color: "#333", fontSize: "1.05rem", padding: "10px 0", borderLeft: "4px solid #2e8b57", paddingLeft: "15px" }}>
-              🌍 Global Multi-Region Support
+              🌍 Multi-Language Prayer Support
             </li>
             <li style={{ color: "#333", fontSize: "1.05rem", padding: "10px 0", borderLeft: "4px solid #2e8b57", paddingLeft: "15px" }}>
-              💰 Integrated Creator Monetization Tools
+              🙌 Partnership & Support Tools
             </li>
           </ul>
         </div>
 
-        {/* Contact Framing: Billing Support */}
-        <div style={{ background: "linear-gradient(135deg, #2e8b57 0%, #1d5d3a 100%)", padding: "50px 40px", borderRadius: "16px", boxShadow: "0 8px 20px rgba(0,0,0,0.1)", marginTop: "30px", textAlign: "center", color: "white" }}>
-          <h2 style={{ fontSize: "2rem", marginBottom: "20px" }}>📩 Billing & Support</h2>
-          <p style={{ fontSize: "1.2rem", marginBottom: "20px" }}>For technical inquiries or subscription support.</p>
-          <a href="mailto:contact@thebelieverse.com" style={{ display: "inline-block", padding: "15px 40px", background: "white", color: "#2e8b57", borderRadius: "10px", textDecoration: "none", fontWeight: "700", fontSize: "1.1rem", boxShadow: "0 4px 15px rgba(0,0,0,0.2)", marginBottom: "15px" }}>
-            contact@thebelieverse.com
+        {/* Support Section */}
+        <div style={{ background: "linear-gradient(135deg, #0b2e4a 0%, #1d5d3a 100%)", padding: "50px 40px", borderRadius: "16px", boxShadow: "0 8px 20px rgba(0,0,0,0.1)", marginTop: "30px", textAlign: "center", color: "white" }}>
+          <h2 style={{ fontSize: "2rem", marginBottom: "20px" }}>📩 Support the Walk</h2>
+          <p style={{ fontSize: "1.2rem", marginBottom: "20px" }}>For technical fellowship or partnership inquiries.</p>
+          <a href="mailto:support@thebelieverse.com" style={{ display: "inline-block", padding: "15px 40px", background: "white", color: "#0b2e4a", borderRadius: "10px", textDecoration: "none", fontWeight: "700", fontSize: "1.1rem", boxShadow: "0 4px 15px rgba(0,0,0,0.2)", marginBottom: "15px" }}>
+            support@thebelieverse.com
           </a>
           <p style={{ fontSize: "1rem", marginTop: "20px", opacity: "0.9" }}>
-            🏢 Registered Operations: <strong>Vijayawada, India</strong>
+            Building from: <strong>Vijayawada, India</strong>
           </p>
         </div>
 
-        {/* Back to Dashboard */}
+        {/* Back to Sanctuary */}
         <div style={{ textAlign: "center", marginTop: "40px" }}>
-          <Link href="/dashboard" style={{ display: "inline-block", padding: "12px 30px", background: "#2d6be3", color: "white", borderRadius: "10px", textDecoration: "none", fontWeight: "600", fontSize: "1.05rem" }}>
-            ⬅ Back to Dashboard
+          <Link href="/dashboard" style={{ display: "inline-block", padding: "12px 30px", background: "#d4af37", color: "white", borderRadius: "10px", textDecoration: "none", fontWeight: "600", fontSize: "1.05rem" }}>
+            ⬅ Back to Sanctuary
           </Link>
         </div>
 
