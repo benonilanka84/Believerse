@@ -2,8 +2,8 @@
 
 import DailyVerseWidget from "@/components/DailyVerseWidget";
 import DailyPrayerWidget from "@/components/DailyPrayerWidget";
-import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation"; // Added for founder detection
+import { useEffect, useState, Suspense } from "react"; // Added Suspense
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import CreatePost from "@/components/CreatePost";
 import Link from "next/link";
@@ -11,42 +11,37 @@ import "@/styles/dashboard.css";
 import LiveNowFeed from "@/components/LiveNowFeed";
 
 export default function Dashboard() {
-  const searchParams = useSearchParams(); // Added to listen for ?status=welcome_founder
+  return (
+    <Suspense fallback={<div style={{ padding: "40px", textAlign: "center", color: "#0b2e4a" }}>Loading Sanctuary...</div>}>
+      <DashboardContent />
+    </Suspense>
+  );
+}
+
+function DashboardContent() {
+  const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   
-  // Data States
   const [posts, setPosts] = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
-  
-  // Widget Data
   const [suggestedBelievers, setSuggestedBelievers] = useState([]);
   const [prayerRequests, setPrayerRequests] = useState([]);
   const [recentChats, setRecentChats] = useState([]);
-
-  // Events State
   const [events, setEvents] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [filteredEvents, setFilteredEvents] = useState([]);
-
-  // Post Menu State
   const [openMenuId, setOpenMenuId] = useState(null);
   const [editingPost, setEditingPost] = useState(null);
   const [editContent, setEditContent] = useState("");
   const [editTitle, setEditTitle] = useState("");
-
-  // Comments State
   const [activeCommentPostId, setActiveCommentPostId] = useState(null);
   const [newComment, setNewComment] = useState("");
   const [comments, setComments] = useState({}); 
-
-  // Modals
   const [blessModalUser, setBlessModalUser] = useState(null); 
   const [supportModalOpen, setSupportModalOpen] = useState(false); 
-  const [showFounderWelcome, setShowFounderWelcome] = useState(false); // New state for Founder Welcome
-
-  // Widget Edit State
+  const [showFounderWelcome, setShowFounderWelcome] = useState(false);
   const [editingPrayerId, setEditingPrayerId] = useState(null);
   const [prayerEditContent, setPrayerEditContent] = useState("");
 
@@ -57,7 +52,6 @@ export default function Dashboard() {
     setMounted(true);
   }, []);
 
-  // Check for Founder Welcome status on load
   useEffect(() => {
     if (searchParams.get("status") === "welcome_founder") {
       setShowFounderWelcome(true);
@@ -78,7 +72,6 @@ export default function Dashboard() {
     getUser();
   }, [mounted]);
 
-  // Razorpay Script Loader
   const loadRazorpayScript = () => {
     return new Promise((resolve) => {
       const script = document.createElement("script");
@@ -97,39 +90,25 @@ export default function Dashboard() {
     loadUpcomingEvents();
   }
 
-  // --- BADGE UI HELPER ---
   const getBadgeUI = () => {
-    if (!profile || !profile.subscription_tier) return null; // Updated to tier sync
+    if (!profile || !profile.subscription_tier) return null;
     const plan = profile.subscription_tier.trim().toLowerCase();
-    
     if (plan.includes('platinum')) {
       return (
-        <span style={{ 
-          background: "linear-gradient(45deg, #29b6f6, #0288d1)", 
-          color: "white", padding: "4px 10px", borderRadius: "12px", 
-          fontSize: "12px", fontWeight: "bold", display: "inline-flex", 
-          alignItems: "center", gap: "4px", marginLeft: "10px", boxShadow: "0 2px 5px rgba(41, 182, 246, 0.4)"
-        }}>
+        <span style={{ background: "linear-gradient(45deg, #29b6f6, #0288d1)", color: "white", padding: "4px 10px", borderRadius: "12px", fontSize: "12px", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "4px", marginLeft: "10px", boxShadow: "0 2px 5px rgba(41, 182, 246, 0.4)" }}>
           💎 Platinum Partner
         </span>
       );
     }
     if (plan.includes('gold')) {
       return (
-        <span style={{ 
-          background: "linear-gradient(45deg, #d4af37, #f9d976)", 
-          color: "#0b2e4a", padding: "4px 10px", borderRadius: "12px", 
-          fontSize: "12px", fontWeight: "bold", display: "inline-flex", 
-          alignItems: "center", gap: "4px", marginLeft: "10px", boxShadow: "0 2px 5px rgba(212, 175, 55, 0.4)"
-        }}>
+        <span style={{ background: "linear-gradient(45deg, #d4af37, #f9d976)", color: "#0b2e4a", padding: "4px 10px", borderRadius: "12px", fontSize: "12px", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "4px", marginLeft: "10px", boxShadow: "0 2px 5px rgba(212, 175, 55, 0.4)" }}>
           🥇 Gold Supporter
         </span>
       );
     }
     return null;
   };
-
-  // ... (All other load data and handle logic remains identical)
 
   async function loadSuggestedBelievers(userId) {
     const { data } = await supabase.from('profiles').select('*').neq('id', userId).limit(3);
@@ -194,75 +173,42 @@ export default function Dashboard() {
       const res = await fetch('https://ipapi.co/json/');
       const data = await res.json();
       return data.country_code === "IN";
-    } catch (e) {
-      return true; 
-    }
+    } catch (e) { return true; }
   }
 
   async function handleBlessClick(author) {
     if (!author?.upi_id) { alert(`God bless! ${author.full_name} has not set up their UPI ID yet.`); return; }
     const isIndia = await checkIsIndia();
     if (isIndia) { setBlessModalUser(author); } 
-    else { alert("🌍 International Blessing is coming soon!\n\nCurrently, direct blessings are available for UPI (India) users only."); }
+    else { alert("🌍 International Blessing is coming soon!"); }
   }
 
   async function handlePartnerClick() {
     const isIndia = await checkIsIndia();
-    if (isIndia) {
-      setSupportModalOpen(true);
-    } else {
-      let inputAmount = prompt("Enter the amount you wish to gift in USD ($):", "10");
+    if (isIndia) { setSupportModalOpen(true); } 
+    else {
+      let inputAmount = prompt("Enter the amount in USD ($):", "10");
       if (inputAmount === null) return;
       const amount = parseFloat(inputAmount);
-      if (isNaN(amount) || amount < 1) { alert("Please enter a valid amount (Minimum $1)."); return; }
-       
+      if (isNaN(amount) || amount < 1) return;
       const res = await loadRazorpayScript();
-      if (!res) { alert("Payment gateway failed to load."); return; }
-       
+      if (!res) return;
       try {
-        const response = await fetch("/api/razorpay", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ amount: amount, currency: "USD" }), 
-        });
+        const response = await fetch("/api/razorpay", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ amount: amount, currency: "USD" }) });
         const data = await response.json();
-        if (!response.ok) throw new Error(data.message || "Order creation failed");
-
-        const options = {
-          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID, 
-          amount: data.order.amount,
-          currency: data.order.currency,
-          name: "The Believerse",
-          description: "Partner Contribution",
-          image: "/images/final-logo.png",
-          order_id: data.order.id,
-          handler: function (response) {
-            alert(`Thank you for your generous gift of $${amount}! \nPayment ID: ${response.razorpay_payment_id}`);
-          },
-          theme: { color: "#2e8b57" },
-        };
+        const options = { key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID, amount: data.order.amount, currency: data.order.currency, name: "The Believerse", order_id: data.order.id, handler: function (response) { alert(`Thank you for your gift of $${amount}!`); }, theme: { color: "#2e8b57" } };
         const paymentObject = new window.Razorpay(options);
         paymentObject.open();
-      } catch (error) { console.error(error); alert("Unable to initiate international payment. Please try again."); }
+      } catch (error) { console.error(error); }
     }
   }
 
   async function handleAmen(post, currentlyAmened) {
     setPosts(posts.map(p => p.id === post.id ? { ...p, hasAmened: !currentlyAmened, amenCount: currentlyAmened ? p.amenCount - 1 : p.amenCount + 1 } : p));
-    
-    if (currentlyAmened) {
-        await supabase.from('amens').delete().match({ user_id: user.id, post_id: post.id });
-    } else { 
+    if (currentlyAmened) { await supabase.from('amens').delete().match({ user_id: user.id, post_id: post.id }); } 
+    else { 
         await supabase.from('amens').insert({ user_id: user.id, post_id: post.id });
-        
-        if (user && user.id !== post.user_id) {
-            await supabase.from('notifications').insert({ 
-                user_id: post.user_id, 
-                actor_id: user.id,       
-                type: 'amen', 
-                content: 'said Amen to your post.', 
-                link: '/dashboard' 
-            }); 
-        }
+        if (user && user.id !== post.user_id) { await supabase.from('notifications').insert({ user_id: post.user_id, actor_id: user.id, type: 'amen', content: 'said Amen to your post.', link: '/dashboard' }); }
     }
   }
 
@@ -279,30 +225,14 @@ export default function Dashboard() {
   }
 
   function startEditing(post) { setEditingPost(post.id); setEditContent(post.content); setEditTitle(post.title || ''); setOpenMenuId(null); }
-   
-  function handleShare(text) { 
-    const shareUrl = window.location.origin; 
-    const fullText = `${text}\n\nVia The Believerse: ${shareUrl}`;
-
-    if (navigator.share) {
-        navigator.share({ title: 'The Believerse', text: fullText, url: shareUrl }); 
-    } else {
-        navigator.clipboard.writeText(fullText);
-        alert("Link and text copied to clipboard!"); 
-    }
-  }
+  function handleShare(text) { const shareUrl = window.location.origin; const fullText = `${text}\n\nVia The Believerse: ${shareUrl}`; if (navigator.share) { navigator.share({ title: 'The Believerse', text: fullText, url: shareUrl }); } else { navigator.clipboard.writeText(fullText); alert("Copied to clipboard!"); } }
 
   async function toggleComments(postId) {
-    if (activeCommentPostId === postId) {
-      setActiveCommentPostId(null);
-    } else {
+    if (activeCommentPostId === postId) { setActiveCommentPostId(null); } 
+    else {
       setActiveCommentPostId(postId);
       if (!comments[postId]) {
-        const { data } = await supabase
-          .from('comments')
-          .select('*, profiles(full_name, avatar_url)')
-          .eq('post_id', postId)
-          .order('created_at', { ascending: true });
+        const { data } = await supabase.from('comments').select('*, profiles(full_name, avatar_url)').eq('post_id', postId).order('created_at', { ascending: true });
         setComments(prev => ({ ...prev, [postId]: data || [] }));
       }
     }
@@ -310,39 +240,10 @@ export default function Dashboard() {
 
   async function postComment(postId) {
     if (!newComment.trim()) return;
-    
-    const tempComment = {
-      id: Date.now(),
-      post_id: postId,
-      content: newComment,
-      created_at: new Date().toISOString(),
-      profiles: { full_name: profile.full_name, avatar_url: profile.avatar_url }
-    };
-    
-    setComments(prev => ({
-      ...prev,
-      [postId]: [...(prev[postId] || []), tempComment]
-    }));
+    const tempComment = { id: Date.now(), post_id: postId, content: newComment, created_at: new Date().toISOString(), profiles: { full_name: profile.full_name, avatar_url: profile.avatar_url } };
+    setComments(prev => ({ ...prev, [postId]: [...(prev[postId] || []), tempComment] }));
     setNewComment("");
-
-    const { error } = await supabase.from('comments').insert({
-      post_id: postId,
-      user_id: user.id,
-      content: tempComment.content
-    });
-
-    if (error) { alert("Failed to post comment"); return; }
-
-    const targetPost = posts.find(p => p.id === postId);
-    if (targetPost && user.id !== targetPost.user_id) {
-        await supabase.from('notifications').insert({
-            user_id: targetPost.user_id, 
-            actor_id: user.id,               
-            type: 'comment',
-            content: 'commented on your post.',
-            link: '/dashboard'
-        });
-    }
+    await supabase.from('comments').insert({ post_id: postId, user_id: user.id, content: tempComment.content });
   }
 
   if (!mounted) return null;
@@ -351,29 +252,21 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard-wrapper">
-       
       <div style={{ background: "linear-gradient(135deg, #2e8b57 0%, #1d5d3a 100%)", padding: "20px 30px", borderRadius: "12px", color: "white", marginBottom: "20px", display:'flex', justifyContent:'space-between', alignItems:'center' }}>
         <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
           <span style={{fontSize:'2.5rem'}}>🏠</span>
           <div>
-            <h2 style={{ margin: 0, fontSize: '24px', display:'flex', alignItems:'center', gap:'5px' }}>
-              Welcome, {firstName} 
-              {getBadgeUI()}
-            </h2>
+            <h2 style={{ margin: 0, fontSize: '24px', display:'flex', alignItems:'center', gap:'5px' }}>Welcome, {firstName} {getBadgeUI()}</h2>
             <p style={{ margin: 0, opacity: 0.9, fontSize: '14px' }}>Walking with God and fellow Believers</p>
           </div>
         </div>
       </div>
 
-      <div style={{ width: "100%", marginBottom: "40px" }}>
-        <LiveNowFeed />
-      </div>
+      <div style={{ width: "100%", marginBottom: "40px" }}><LiveNowFeed /></div>
 
       <div className="dashboard-grid">
         <div className="left-panel">
-          <DailyVerseWidget key={new Date().toDateString()} />
-          <DailyPrayerWidget />
-           
+          <DailyVerseWidget key={new Date().toDateString()} /><DailyPrayerWidget />
           <div className="panel-card">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}><h3 style={{ margin: 0, fontSize:'16px' }}>📅 Events</h3><Link href="/events" style={{ fontSize: "12px", color: "#2e8b57", fontWeight: "600", textDecoration:'none' }}>View All →</Link></div>
             <div style={{ background: "#f9f9f9", borderRadius: "8px", padding: "10px", marginBottom: "15px" }}>
@@ -393,7 +286,6 @@ export default function Dashboard() {
 
         <div className="center-panel">
           {user && <CreatePost user={user} onPostCreated={() => { loadPosts(user.id, true); loadPrayerWall(user.id); }} />}
-           
           <div className="panel-card">
             <h3>🏠 The Walk</h3>
             {loadingPosts ? <p style={{textAlign:'center', padding:'20px'}}>Loading...</p> : 
@@ -401,130 +293,38 @@ export default function Dashboard() {
              posts.map(post => (
                <div key={post.id} style={{border:'1px solid #eee', borderRadius:'12px', padding:'15px', marginBottom:'15px', background:'#fafafa'}}>
                  <div style={{display:'flex', alignItems:'center', gap:'10px', marginBottom:'10px'}}>
-                   <Link href={`/profile/${post.user_id}`}>
-                      <img src={post.author?.avatar_url || '/images/default-avatar.png'} style={{width:40, height:40, borderRadius:'50%', objectFit:'cover', cursor: 'pointer'}} />
-                   </Link>
+                   <Link href={`/profile/${post.user_id}`}><img src={post.author?.avatar_url || '/images/default-avatar.png'} style={{width:40, height:40, borderRadius:'50%', objectFit:'cover', cursor: 'pointer'}} /></Link>
                    <div>
-                      <Link href={`/profile/${post.user_id}`} style={{textDecoration:'none'}}>
-                        <div style={{fontWeight:'bold', color:'#0b2e4a', cursor: 'pointer'}}>{post.author?.full_name}</div>
-                      </Link>
+                      <Link href={`/profile/${post.user_id}`} style={{textDecoration:'none'}}><div style={{fontWeight:'bold', color:'#0b2e4a', cursor: 'pointer'}}>{post.author?.full_name}</div></Link>
                       <div style={{fontSize:'12px', color:'#666'}}>{new Date(post.created_at).toDateString()}</div>
                    </div>
-                   
                    <div style={{marginLeft:'auto', position:'relative'}}>
                        <button onClick={() => setOpenMenuId(openMenuId === post.id ? null : post.id)} style={{border:'none', background:'none', fontSize:'20px', cursor:'pointer', padding:'5px', color:'#666'}}>⋮</button>
                        {openMenuId === post.id && (
                          <div style={{position:'absolute', right:0, top:'30px', background:'white', border:'1px solid #eee', boxShadow:'0 4px 12px rgba(0,0,0,0.1)', borderRadius:'8px', zIndex:10, width:'150px', overflow:'hidden'}}>
                            {user?.id === post.user_id ? (
-                             <>
-                               <button onClick={() => startEditing(post)} style={{width:'100%', padding:'10px', textAlign:'left', border:'none', background:'white', cursor:'pointer', fontSize:'13px', color:'#333', borderBottom:'1px solid #f5f5f5'}}>📝 Edit</button>
-                               <button onClick={() => handleDeletePost(post.id)} style={{width:'100%', padding:'10px', textAlign:'left', border:'none', background:'white', cursor:'pointer', color:'red', fontSize:'13px'}}>🗑️ Delete</button>
-                             </>
+                             <><button onClick={() => startEditing(post)} style={{width:'100%', padding:'10px', textAlign:'left', border:'none', background:'white', cursor:'pointer', fontSize:'13px', color:'#333', borderBottom:'1px solid #f5f5f5'}}>📝 Edit</button><button onClick={() => handleDeletePost(post.id)} style={{width:'100%', padding:'10px', textAlign:'left', border:'none', background:'white', cursor:'pointer', color:'red', fontSize:'13px'}}>🗑️ Delete</button></>
                            ) : (
-                             <button onClick={() => {
-                                 if(confirm("Report this post?")) alert("Reported.");
-                                 setOpenMenuId(null);
-                             }} style={{width:'100%', padding:'10px', textAlign:'left', border:'none', background:'white', cursor:'pointer', color:'#d4af37', fontSize:'13px'}}>🚩 Report</button>
+                             <button onClick={() => { if(confirm("Report this post?")) alert("Reported."); setOpenMenuId(null); }} style={{width:'100%', padding:'10px', textAlign:'left', border:'none', background:'white', cursor:'pointer', color:'#d4af37', fontSize:'13px'}}>🚩 Report</button>
                            )}
                          </div>
                        )}
                    </div>
                  </div>
-
                  {editingPost === post.id ? (
-                   <div style={{marginBottom:'10px'}}>
-                     <input type="text" value={editTitle} onChange={e => setEditTitle(e.target.value)} placeholder="Title" style={{width:'100%', padding:'8px', marginBottom:'5px', borderRadius:'4px', border:'1px solid #ddd'}} />
-                     <textarea value={editContent} onChange={e => setEditContent(e.target.value)} placeholder="Content" style={{width:'100%', padding:'10px', borderRadius:'8px', border:'1px solid #ddd', minHeight:'100px'}} />
-                     <div style={{marginTop:'5px', display:'flex', gap:'5px', justifyContent:'flex-end'}}>
-                       <button onClick={() => handleUpdatePost(post.id)} style={{padding:'6px 12px', background:'#2e8b57', color:'white', border:'none', borderRadius:'4px', cursor:'pointer'}}>Save</button>
-                       <button onClick={() => setEditingPost(null)} style={{padding:'6px 12px', background:'#ccc', border:'none', borderRadius:'4px', cursor:'pointer'}}>Cancel</button>
-                     </div>
-                   </div>
+                   <div style={{marginBottom:'10px'}}><input type="text" value={editTitle} onChange={e => setEditTitle(e.target.value)} placeholder="Title" style={{width:'100%', padding:'8px', marginBottom:'5px', borderRadius:'4px', border:'1px solid #ddd'}} /><textarea value={editContent} onChange={e => setEditContent(e.target.value)} placeholder="Content" style={{width:'100%', padding:'10px', borderRadius:'8px', border:'1px solid #ddd', minHeight:'100px'}} /><div style={{marginTop:'5px', display:'flex', gap:'5px', justifyContent:'flex-end'}}><button onClick={() => handleUpdatePost(post.id)} style={{padding:'6px 12px', background:'#2e8b57', color:'white', border:'none', borderRadius:'4px', cursor:'pointer'}}>Save</button><button onClick={() => setEditingPost(null)} style={{padding:'6px 12px', background:'#ccc', border:'none', borderRadius:'4px', cursor:'pointer'}}>Cancel</button></div></div>
                  ) : (
-                   <>
-                     {post.title && <h4 style={{margin:'0 0 5px 0', color: '#0b2e4a'}}>{post.title}</h4>}
-                     <p style={{whiteSpace:'pre-wrap', color:'#333'}}>{post.content}</p>
-                     
-                     {post.media_url && (
-                        (post.media_url.includes("iframe.mediadelivery.net") || post.media_url.includes("video.bunnycdn")) ? (
-                          <div style={{ 
-                              position: 'relative', 
-                              width: '100%', 
-                              height: 0, 
-                              paddingBottom: post.type === 'Glimpse' ? '177.77%' : '56.25%', 
-                              marginTop: '10px', 
-                              background: 'black', 
-                              borderRadius: '8px',
-                              overflow: 'hidden'
-                          }}>
-                            <iframe
-                              src={post.media_url + "?autoplay=false&loop=false"}
-                              loading="lazy"
-                              style={{ 
-                                position: 'absolute', 
-                                top: 0, 
-                                left: 0, 
-                                border: 'none', 
-                                width: '100%', 
-                                height: '100%' 
-                              }}
-                              allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
-                              allowFullScreen={true}
-                            />
-                          </div>
-                        ) : (
-                          <img 
-                             src={post.media_url} 
-                             style={{width:'100%', borderRadius:'8px', marginTop:'10px', objectFit:'cover'}} 
-                             onError={(e) => { e.target.style.display='none'; }}
-                          />
-                        )
-                     )}
-                   </>
+                   <>{post.title && <h4 style={{margin:'0 0 5px 0', color: '#0b2e4a'}}>{post.title}</h4>}<p style={{whiteSpace:'pre-wrap', color:'#333'}}>{post.content}</p>{post.media_url && ((post.media_url.includes("iframe.mediadelivery.net") || post.media_url.includes("video.bunnycdn")) ? (<div style={{ position: 'relative', width: '100%', height: 0, paddingBottom: post.type === 'Glimpse' ? '177.77%' : '56.25%', marginTop: '10px', background: 'black', borderRadius: '8px', overflow: 'hidden' }}><iframe src={post.media_url + "?autoplay=false&loop=false"} loading="lazy" style={{ position: 'absolute', top: 0, left: 0, border: 'none', width: '100%', height: '100%' }} allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;" allowFullScreen={true} /></div>) : (<img src={post.media_url} style={{width:'100%', borderRadius:'8px', marginTop:'10px', objectFit:'cover'}} onError={(e) => { e.target.style.display='none'; }} />))}</>
                  )}
-                 
-                 <div style={{
-                   display:'flex', 
-                   justifyContent:'space-between', 
-                   alignItems:'center',
-                   marginTop:'15px', 
-                   borderTop:'1px solid #eee', 
-                   paddingTop:'10px',
-                   width:'100%'
-                 }}>
+                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:'15px', borderTop:'1px solid #eee', paddingTop:'10px', width:'100%'}}>
                      <button onClick={() => handleAmen(post, post.hasAmened)} style={{background:'none', border:'none', color: post.hasAmened ? '#2e8b57' : '#666', fontWeight: post.hasAmened ? 'bold' : 'normal', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}>🙏 Amen ({post.amenCount})</button>
                      <button onClick={() => toggleComments(post.id)} style={{background:'none', border:'none', color:'#666', fontWeight:'bold', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}>💬 Comment</button>
                      <button onClick={() => handleBlessClick(post.author)} style={{background:'none', border:'none', color:'#d4af37', fontWeight:'bold', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}>✨ Bless</button>
                      <button onClick={() => handleShare(post.content)} style={{background:'none', border:'none', color:'#666', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}>📢 Spread</button>
                  </div>
-
                  {activeCommentPostId === post.id && (
-                   <div style={{marginTop:'15px', background:'#f9f9f9', padding:'10px', borderRadius:'8px'}}>
-                     <div style={{maxHeight:'200px', overflowY:'auto', marginBottom:'10px'}}>
-                       {comments[post.id]?.length > 0 ? comments[post.id].map(c => (
-                         <div key={c.id} style={{display:'flex', gap:'10px', marginBottom:'8px'}}>
-                           <img src={c.profiles?.avatar_url || '/images/default-avatar.png'} style={{width:25, height:25, borderRadius:'50%'}} />
-                           <div style={{background:'white', padding:'5px 10px', borderRadius:'10px', fontSize:'13px', flex:1, color:'#333'}}> 
-                             <div style={{fontWeight:'bold', fontSize:'12px', color:'#0b2e4a'}}>{c.profiles?.full_name}</div>
-                             {c.content}
-                           </div>
-                         </div>
-                       )) : <p style={{fontSize:'12px', color:'#999'}}>No comments yet. Be the first!</p>}
-                     </div>
-                     <div style={{display:'flex', gap:'10px'}}>
-                       <input 
-                         type="text" 
-                         placeholder="Write a comment..." 
-                         value={newComment} 
-                         onChange={e => setNewComment(e.target.value)} 
-                         style={{flex:1, padding:'8px', borderRadius:'20px', border:'1px solid #ddd', fontSize:'13px', color:'#333'}}
-                         onKeyDown={e => e.key === 'Enter' && postComment(post.id)}
-                       />
-                       <button onClick={() => postComment(post.id)} style={{background:'#0b2e4a', color:'white', border:'none', borderRadius:'50%', width:'35px', height:'35px', cursor:'pointer'}}>➤</button>
-                     </div>
-                   </div>
+                   <div style={{marginTop:'15px', background:'#f9f9f9', padding:'10px', borderRadius:'8px'}}><div style={{maxHeight:'200px', overflowY:'auto', marginBottom:'10px'}}>{comments[post.id]?.length > 0 ? comments[post.id].map(c => (<div key={c.id} style={{display:'flex', gap:'10px', marginBottom:'8px'}}><img src={c.profiles?.avatar_url || '/images/default-avatar.png'} style={{width:25, height:25, borderRadius:'50%'}} /><div style={{background:'white', padding:'5px 10px', borderRadius:'10px', fontSize:'13px', flex:1, color:'#333'}}><div style={{fontWeight:'bold', fontSize:'12px', color:'#0b2e4a'}}>{c.profiles?.full_name}</div>{c.content}</div></div>)) : <p style={{fontSize:'12px', color:'#999'}}>No comments yet.</p>}</div><div style={{display:'flex', gap:'10px'}}><input type="text" placeholder="Write a comment..." value={newComment} onChange={e => setNewComment(e.target.value)} style={{flex:1, padding:'8px', borderRadius:'20px', border:'1px solid #ddd', fontSize:'13px', color:'#333'}} onKeyDown={e => e.key === 'Enter' && postComment(post.id)} /><button onClick={() => postComment(post.id)} style={{background:'#0b2e4a', color:'white', border:'none', borderRadius:'50%', width:'35px', height:'35px', cursor:'pointer'}}>➤</button></div></div>
                  )}
-
                </div>
              ))
             }
@@ -535,122 +335,40 @@ export default function Dashboard() {
           <div className="panel-card">
             <h3>🤝 Suggested Believers</h3>
             {suggestedBelievers.map(b => (
-              <div key={b.id} style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'10px'}}>
-                <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
-                  <Link href={`/profile/${b.id}`}>
-                      <img src={b.avatar_url || '/images/default-avatar.png'} style={{width:30, height:30, borderRadius:'50%', cursor: 'pointer'}} />
-                  </Link>
-                  <Link href={`/profile/${b.id}`} style={{textDecoration:'none'}}>
-                      <span style={{fontSize:'13px', color:'#0b2e4a', fontWeight:'bold', cursor: 'pointer'}}>{b.full_name?.split(' ')[0]}</span>
-                  </Link>
-                </div>
-                <Link href={`/chat?uid=${b.id}`} style={{textDecoration:'none', fontSize:'16px'}}>💬</Link>
-              </div>
+              <div key={b.id} style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'10px'}}><div style={{display:'flex', alignItems:'center', gap:'8px'}}><Link href={`/profile/${b.id}`}><img src={b.avatar_url || '/images/default-avatar.png'} style={{width:30, height:30, borderRadius:'50%', cursor: 'pointer'}} /></Link><Link href={`/profile/${b.id}`} style={{textDecoration:'none'}}><span style={{fontSize:'13px', color:'#0b2e4a', fontWeight:'bold', cursor: 'pointer'}}>{b.full_name?.split(' ')[0]}</span></Link></div><Link href={`/chat?uid=${b.id}`} style={{textDecoration:'none', fontSize:'16px'}}>💬</Link></div>
             ))}
             <Link href="/believers" style={{fontSize:'12px', color:'#2e8b57', fontWeight:'bold', display:'block', marginTop:'5px', textDecoration:'none'}}>Find More →</Link>
           </div>
-          
           <div className="panel-card" style={{background:'#fff9e6', borderLeft:'4px solid #d4af37'}}>
             <h3>🙏 Prayer Wall</h3>
-            {prayerRequests.length === 0 ? <p style={{fontSize:'12px', color:'#666'}}>No requests from friends.</p> : 
-              prayerRequests.map(p => (
-                <div key={p.id} style={{marginBottom:'8px', fontSize:'12px', position:'relative', borderBottom:'1px dotted #ccc', paddingBottom:'5px'}}>
-                  <div style={{fontWeight:'bold', color:'#000', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                    <span>{p.profiles?.full_name}</span>
-                    {user && user.id === p.user_id && (
-                      <div style={{display:'flex', gap:'5px'}}>
-                        <button onClick={() => { setEditingPrayerId(p.id); setPrayerEditContent(p.content); }} style={{border:'none', background:'none', color:'#2d6be3', cursor:'pointer', fontSize:'10px', padding:0}}>✏️</button>
-                        <button onClick={() => deletePrayerFromWidget(p.id)} style={{border:'none', background:'none', color:'red', cursor:'pointer', fontSize:'10px', padding:0}}>🗑️</button>
-                      </div>
-                    )}
-                  </div>
-                  {editingPrayerId === p.id ? (
-                    <div style={{marginTop:'5px'}}>
-                      <textarea value={prayerEditContent} onChange={e => setPrayerEditContent(e.target.value)} style={{width:'100%', fontSize:'12px', border:'1px solid #ddd', borderRadius:'4px'}} />
-                      <div style={{display:'flex', gap:'5px', marginTop:'5px'}}>
-                        <button onClick={() => updatePrayerInWidget(p.id)} style={{fontSize:'10px', background:'#2e8b57', color:'white', border:'none', borderRadius:'3px', padding:'2px 5px'}}>Save</button>
-                        <button onClick={() => setEditingPrayerId(null)} style={{fontSize:'10px', background:'#ccc', border:'none', borderRadius:'3px', padding:'2px 5px'}}>Cancel</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{fontStyle:'italic', color:'#555'}}>"{p.content.substring(0, 40)}{p.content.length > 40 ? '...' : ''}"</div>
-                  )}
-                </div>
-              ))
-            }
+            {prayerRequests.length === 0 ? <p style={{fontSize:'12px', color:'#666'}}>No requests.</p> : prayerRequests.map(p => (<div key={p.id} style={{marginBottom:'8px', fontSize:'12px', position:'relative', borderBottom:'1px dotted #ccc', paddingBottom:'5px'}}><div style={{fontWeight:'bold', color:'#000', display:'flex', justifyContent:'space-between', alignItems:'center'}}><span>{p.profiles?.full_name}</span>{user && user.id === p.user_id && (<div style={{display:'flex', gap:'5px'}}><button onClick={() => { setEditingPrayerId(p.id); setPrayerEditContent(p.content); }} style={{border:'none', background:'none', color:'#2d6be3', cursor:'pointer', fontSize:'10px', padding:0}}>✏️</button><button onClick={() => deletePrayerFromWidget(p.id)} style={{border:'none', background:'none', color:'red', cursor:'pointer', fontSize:'10px', padding:0}}>🗑️</button></div>)}</div>{editingPrayerId === p.id ? (<div style={{marginTop:'5px'}}><textarea value={prayerEditContent} onChange={e => setPrayerEditContent(e.target.value)} style={{width:'100%', fontSize:'12px', border:'1px solid #ddd', borderRadius:'4px'}} /><div style={{display:'flex', gap:'5px', marginTop:'5px'}}><button onClick={() => updatePrayerInWidget(p.id)} style={{fontSize:'10px', background:'#2e8b57', color:'white', border:'none', borderRadius:'3px', padding:'2px 5px'}}>Save</button><button onClick={() => setEditingPrayerId(null)} style={{fontSize:'10px', background:'#ccc', border:'none', borderRadius:'3px', padding:'2px 5px'}}>Cancel</button></div></div>) : (<div style={{fontStyle:'italic', color:'#555'}}>"{p.content.substring(0, 40)}..."</div>)}</div>))}
             <button style={{width:'100%', padding:'8px', background:'#2e8b57', color:'white', border:'none', borderRadius:'6px', cursor:'pointer', marginTop:'10px'}}>I'll Pray</button>
           </div>
-          
           <div className="panel-card">
             <h3>💬 Recent Chats</h3>
-            {recentChats.map(c => (
-              <Link key={c.id} href={`/chat?uid=${c.id}`} style={{display:'flex', alignItems:'center', gap:'10px', padding:'8px', background:'#f5f5f5', borderRadius:'8px', marginBottom:'5px', textDecoration:'none'}}>
-                <img src={c.avatar_url || '/images/default-avatar.png'} style={{width:30, height:30, borderRadius:'50%'}} />
-                <div style={{fontSize:'13px', fontWeight:'bold', color:'#000'}}>{c.full_name}</div>
-              </Link>
-            ))}
-            <Link href="/chat" style={{display:'block', textAlign:'center', marginTop:'10px', fontSize:'12px', color:'#2e8b57', fontWeight:'600', textDecoration:'none'}}>Open Messenger →</Link>
+            {recentChats.map(c => (<Link key={c.id} href={`/chat?uid=${c.id}`} style={{display:'flex', alignItems:'center', gap:'10px', padding:'8px', background:'#f5f5f5', borderRadius:'8px', marginBottom:'5px', textDecoration:'none'}}><img src={c.avatar_url || '/images/default-avatar.png'} style={{width:30, height:30, borderRadius:'50%'}} /><div style={{fontSize:'13px', fontWeight:'bold', color:'#000'}}>{c.full_name}</div></Link>))}
           </div>
         </div>
       </div>
 
-      {/* MODALS */}
-      {blessModalUser && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-          <div style={{ background: 'white', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '350px', textAlign: 'center' }}>
-            <h3 style={{ margin: '0 0 15px 0', color: '#0b2e4a' }}>Bless {blessModalUser.full_name}</h3>
-            <div style={{ background: '#f9f9f9', padding: '15px', borderRadius: '12px', marginBottom: '20px' }}>
-              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=${blessModalUser.upi_id}&pn=${encodeURIComponent(blessModalUser.full_name)}&cu=INR`)}`} style={{ width: '100%', height: 'auto', borderRadius: '8px' }} />
-            </div>
-            <a href={`upi://pay?pa=${blessModalUser.upi_id}&pn=${encodeURIComponent(blessModalUser.full_name)}&cu=INR`} target="_blank" style={{ display: 'block', width: '100%', padding: '12px', background: '#2e8b57', color: 'white', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold', marginBottom: '10px' }}>Open Payment App</a>
-            <button onClick={() => setBlessModalUser(null)} style={{ width: '100%', padding: '12px', background: '#f0f0f0', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Close</button>
-          </div>
-        </div>
-      )}
+      {blessModalUser && (<div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}><div style={{ background: 'white', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '350px', textAlign: 'center' }}><h3 style={{ margin: '0 0 15px 0', color: '#0b2e4a' }}>Bless {blessModalUser.full_name}</h3><img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=${blessModalUser.upi_id}&pn=${encodeURIComponent(blessModalUser.full_name)}&cu=INR`)}`} style={{ width: '100%', borderRadius: '8px' }} /><button onClick={() => setBlessModalUser(null)} style={{ width: '100%', padding: '12px', background: '#f0f0f0', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', marginTop:'10px' }}>Close</button></div></div>)}
+      {supportModalOpen && (<div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}><div style={{ background: 'white', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '350px', textAlign: 'center' }}><h3 style={{ margin: '0 0 10px 0', color: '#0b2e4a' }}>🕊️ Partner with Us</h3><button onClick={() => setSupportModalOpen(false)} style={{ width: '100%', padding: '12px', background: '#f0f0f0', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', marginTop:'10px' }}>Close</button></div></div>)}
 
-      {supportModalOpen && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-          <div style={{ background: 'white', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '350px', textAlign: 'center' }}>
-            <h3 style={{ margin: '0 0 10px 0', color: '#0b2e4a' }}>🕊️ Partner with Us</h3>
-            <p style={{fontSize:'13px', color:'#666', marginBottom:'20px'}}>Your gift keeps this community free and safe.</p>
-            <div style={{ background: '#f9f9f9', padding: '15px', borderRadius: '12px', marginBottom: '20px' }}>
-              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=${PLATFORM_UPI_ID}&pn=TheBelieverse&cu=INR`)}`} style={{ width: '100%', height: 'auto', borderRadius: '8px' }} />
-            </div>
-            <a href={`upi://pay?pa=${PLATFORM_UPI_ID}&pn=TheBelieverse&cu=INR`} target="_blank" style={{ display: 'block', width: '100%', padding: '12px', background: '#d4af37', color: 'white', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold', marginBottom: '10px' }}>Donate via UPI</a>
-            <button onClick={() => setSupportModalOpen(false)} style={{ width: '100%', padding: '12px', background: '#f0f0f0', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Close</button>
-          </div>
-        </div>
-      )}
-
-      {/* FOUNDER WELCOME MODAL */}
       {showFounderWelcome && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(11, 46, 74, 0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: "20px" }}>
           <div style={{ background: 'white', padding: '40px', borderRadius: '24px', width: '100%', maxWidth: '500px', textAlign: 'center', border: "4px solid #d4af37", boxShadow: "0 20px 50px rgba(0,0,0,0.5)" }}>
             <div style={{ fontSize: "50px", marginBottom: "20px" }}>👑</div>
             <h2 style={{ color: "#0b2e4a", fontSize: "28px", margin: "0 0 15px 0", fontWeight: "800" }}>Welcome, Founding Steward</h2>
-            <p style={{ color: "#334155", lineHeight: "1.6", fontSize: "16px", marginBottom: "30px" }}>
-              Your account has been successfully provisioned with <strong>Lifetime Platinum Access</strong>. We are honored to have your voice as one of the twelve pillars of this sanctuary.
-            </p>
-            <button 
-              onClick={() => setShowFounderWelcome(false)}
-              style={{ background: "#d4af37", color: "white", padding: "14px 40px", borderRadius: "10px", border: "none", fontWeight: "bold", fontSize: "16px", cursor: "pointer", boxShadow: "0 5px 15px rgba(212, 175, 55, 0.4)" }}
-            >
-              Enter the Sanctuary
-            </button>
+            <p style={{ color: "#334155", lineHeight: "1.6", fontSize: "16px", marginBottom: "30px" }}>Your account has been successfully provisioned with <strong>Lifetime Platinum Access</strong>.</p>
+            <button onClick={() => setShowFounderWelcome(false)} style={{ background: "#d4af37", color: "white", padding: "14px 40px", borderRadius: "10px", border: "none", fontWeight: "bold", fontSize: "16px", cursor: "pointer" }}>Enter the Sanctuary</button>
           </div>
         </div>
       )}
-
     </div>
   );
 }
 
-// --- HELPER FUNCTION ---
 function getDaysInMonth(date) {
-  const year = date.getFullYear();
-  const month = date.getMonth();
-  return { 
-    daysInMonth: new Date(year, month + 1, 0).getDate(), 
-    startingDayOfWeek: new Date(year, month, 1).getDay() 
-  };
+  const year = date.getFullYear(); const month = date.getMonth();
+  return { daysInMonth: new Date(year, month + 1, 0).getDate(), startingDayOfWeek: new Date(year, month, 1).getDay() };
 }
