@@ -1,9 +1,14 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation"; // Added for founder detection
 import { supabase } from "@/lib/supabase";
 
 export default function SignupPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const inviteCode = searchParams.get('invite'); // Detects ?invite=...
+
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -39,7 +44,6 @@ export default function SignupPage() {
       return;
     }
 
-    // Check in Supabase profiles table
     const { data, error } = await supabase
       .from("profiles")
       .select("id")
@@ -53,17 +57,14 @@ export default function SignupPage() {
   useEffect(() => {
     const newErrors = {};
 
-    // First name
     if (formData.firstName && formData.firstName.length < 2) {
       newErrors.firstName = "First name too short";
     }
 
-    // Last name
     if (formData.lastName && formData.lastName.length < 2) {
       newErrors.lastName = "Last name too short";
     }
 
-    // Username
     if (formData.username) {
       if (formData.username.length < 3) {
         newErrors.username = "Username must be at least 3 characters";
@@ -72,12 +73,10 @@ export default function SignupPage() {
       }
     }
 
-    // Email
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = "Invalid email format";
     }
 
-    // Password
     const passwordValid = passwordRequirements.every(req => req.test(formData.password));
     if (formData.password && !passwordValid) {
       newErrors.password = "Password doesn't meet requirements";
@@ -85,7 +84,6 @@ export default function SignupPage() {
 
     setErrors(newErrors);
 
-    // Check if form is complete and valid
     const allFieldsFilled = 
       formData.firstName.trim() &&
       formData.lastName.trim() &&
@@ -101,7 +99,6 @@ export default function SignupPage() {
     setIsValid(allFieldsFilled && noErrors && usernameOk);
   }, [formData, agreements, usernameAvailable]);
 
-  // Handle username check with debounce
   useEffect(() => {
     const timer = setTimeout(() => {
       if (formData.username) {
@@ -119,14 +116,15 @@ export default function SignupPage() {
     setMsg("");
 
     try {
-      // Create auth user
+      // Create auth user with Founder metadata if applicable
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
           data: {
             username: formData.username,
-            full_name: `${formData.firstName} ${formData.lastName}`
+            full_name: `${formData.firstName} ${formData.lastName}`,
+            is_founder: inviteCode === 'genesis_founder_2025' // This triggers your SQL logic
           }
         }
       });
@@ -137,7 +135,7 @@ export default function SignupPage() {
         return;
       }
 
-      // Create profile with username
+      // Create profile
       if (authData.user) {
         const { error: profileError } = await supabase
           .from("profiles")
@@ -146,6 +144,7 @@ export default function SignupPage() {
             email: formData.email,
             username: formData.username,
             full_name: `${formData.firstName} ${formData.lastName}`,
+            is_founder: inviteCode === 'genesis_founder_2025', // Syncing status to profile table
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           });
@@ -157,7 +156,6 @@ export default function SignupPage() {
 
       setMsg("✅ Account created! Check your email for verification.");
       
-      // Clear form
       setFormData({
         firstName: "",
         lastName: "",
@@ -184,7 +182,6 @@ export default function SignupPage() {
       padding: "40px 20px"
     }}>
       
-      {/* Overlay */}
       <div style={{
         position: "absolute",
         inset: 0,
@@ -192,7 +189,6 @@ export default function SignupPage() {
         backdropFilter: "blur(2px)"
       }} />
 
-      {/* Content */}
       <div style={{
         position: "relative",
         zIndex: 1,
@@ -201,7 +197,6 @@ export default function SignupPage() {
         margin: "0 auto"
       }}>
         
-        {/* Form Card */}
         <div style={{
           background: "rgba(255, 255, 255, 0.98)",
           borderRadius: "24px",
@@ -211,7 +206,6 @@ export default function SignupPage() {
           border: "1px solid rgba(255,255,255,0.5)"
         }}>
           
-          {/* Header */}
           <div style={{ textAlign: "center", marginBottom: "35px" }}>
             <h1 style={{
               margin: "0 0 10px 0",
@@ -226,13 +220,14 @@ export default function SignupPage() {
               fontSize: "15px",
               color: "#666"
             }}>
-              Create your account to start your walk with Christ
+              {inviteCode === 'genesis_founder_2025' 
+                ? "Accepting your invitation as a Founding Partner" 
+                : "Create your account to start your walk with Christ"}
             </p>
           </div>
 
           <form onSubmit={(e) => e.preventDefault()}>
             
-            {/* Name Row */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", marginBottom: "20px" }}>
               <div>
                 <label style={{
@@ -299,7 +294,6 @@ export default function SignupPage() {
               </div>
             </div>
 
-            {/* Username */}
             <div style={{ marginBottom: "20px" }}>
               <label style={{
                 display: "block",
@@ -336,7 +330,6 @@ export default function SignupPage() {
               )}
             </div>
 
-            {/* Email */}
             <div style={{ marginBottom: "20px" }}>
               <label style={{
                 display: "block",
@@ -369,7 +362,6 @@ export default function SignupPage() {
               )}
             </div>
 
-            {/* Password */}
             <div style={{ marginBottom: "20px" }}>
               <label style={{
                 display: "block",
@@ -396,7 +388,6 @@ export default function SignupPage() {
                 }}
               />
               
-              {/* Password Requirements */}
               {formData.password && (
                 <div style={{
                   marginTop: "10px",
@@ -424,7 +415,6 @@ export default function SignupPage() {
               )}
             </div>
 
-            {/* Checkboxes */}
             <div style={{
               marginBottom: "25px",
               padding: "15px",
@@ -453,7 +443,7 @@ export default function SignupPage() {
                   }}
                 />
                 <span style={{ flex: 1, color: "#333" }}>
-                  I agree to The Believerse <Link href="/terms" style={{ color: "#2d6be3", textDecoration: "underline" }}>Terms & Conditions</Link>
+                  I agree to The Believerse <Link href="/terms" style={{ color: "#2d6be3", textDecoration: "underline" }}>Terms & Fellowship</Link>
                 </span>
               </label>
 
@@ -483,7 +473,6 @@ export default function SignupPage() {
               </label>
             </div>
 
-            {/* Sign Up Button */}
             <button
               onClick={handleSignup}
               disabled={!isValid || loading}
@@ -505,7 +494,6 @@ export default function SignupPage() {
               {loading ? "Creating Account..." : "Create Account"}
             </button>
 
-            {/* Already have account */}
             <div style={{ textAlign: "center", fontSize: "14px", color: "#666" }}>
               Already have an account?{" "}
               <Link href="/" style={{ color: "#2d6be3", fontWeight: "600", textDecoration: "underline" }}>
@@ -513,7 +501,6 @@ export default function SignupPage() {
               </Link>
             </div>
 
-            {/* Message */}
             {msg && (
               <div style={{
                 marginTop: "20px",

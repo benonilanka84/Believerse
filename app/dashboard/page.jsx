@@ -3,13 +3,15 @@
 import DailyVerseWidget from "@/components/DailyVerseWidget";
 import DailyPrayerWidget from "@/components/DailyPrayerWidget";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation"; // Added for founder detection
 import { supabase } from "@/lib/supabase";
 import CreatePost from "@/components/CreatePost";
 import Link from "next/link";
 import "@/styles/dashboard.css";
-import LiveNowFeed from "@/components/LiveNowFeed"; // Restored import
+import LiveNowFeed from "@/components/LiveNowFeed";
 
 export default function Dashboard() {
+  const searchParams = useSearchParams(); // Added to listen for ?status=welcome_founder
   const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -42,6 +44,7 @@ export default function Dashboard() {
   // Modals
   const [blessModalUser, setBlessModalUser] = useState(null); 
   const [supportModalOpen, setSupportModalOpen] = useState(false); 
+  const [showFounderWelcome, setShowFounderWelcome] = useState(false); // New state for Founder Welcome
 
   // Widget Edit State
   const [editingPrayerId, setEditingPrayerId] = useState(null);
@@ -53,6 +56,13 @@ export default function Dashboard() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Check for Founder Welcome status on load
+  useEffect(() => {
+    if (searchParams.get("status") === "welcome_founder") {
+      setShowFounderWelcome(true);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -89,8 +99,8 @@ export default function Dashboard() {
 
   // --- BADGE UI HELPER ---
   const getBadgeUI = () => {
-    if (!profile || !profile.subscription_plan) return null;
-    const plan = profile.subscription_plan.trim().toLowerCase();
+    if (!profile || !profile.subscription_tier) return null; // Updated to tier sync
+    const plan = profile.subscription_tier.trim().toLowerCase();
     
     if (plan.includes('platinum')) {
       return (
@@ -118,6 +128,8 @@ export default function Dashboard() {
     }
     return null;
   };
+
+  // ... (All other load data and handle logic remains identical)
 
   async function loadSuggestedBelievers(userId) {
     const { data } = await supabase.from('profiles').select('*').neq('id', userId).limit(3);
@@ -176,8 +188,6 @@ export default function Dashboard() {
     if (!error && data) { const formatted = data.map(p => ({ ...p, author: p.profiles, amenCount: p.amens.length, hasAmened: p.amens.some(a => a.user_id === currentUserId) })); setPosts(formatted); }
     setLoadingPosts(false);
   }
-
-  // --- ACTIONS ---
 
   async function checkIsIndia() {
     try {
@@ -282,7 +292,6 @@ export default function Dashboard() {
     }
   }
 
-  // --- COMMENTS LOGIC ---
   async function toggleComments(postId) {
     if (activeCommentPostId === postId) {
       setActiveCommentPostId(null);
@@ -343,7 +352,6 @@ export default function Dashboard() {
   return (
     <div className="dashboard-wrapper">
        
-      {/* HEADER SECTION - NO Z-INDEX APPLIED HERE TO PREVENT DROPDOWN OVERLAP */}
       <div style={{ background: "linear-gradient(135deg, #2e8b57 0%, #1d5d3a 100%)", padding: "20px 30px", borderRadius: "12px", color: "white", marginBottom: "20px", display:'flex', justifyContent:'space-between', alignItems:'center' }}>
         <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
           <span style={{fontSize:'2.5rem'}}>🏠</span>
@@ -357,20 +365,15 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* --- LIVE NOW BROADCAST FEED SECTION --- */}
-      {/* Structural Lane: Using a flat div container without z-index or relative positioning */}
       <div style={{ width: "100%", marginBottom: "40px" }}>
         <LiveNowFeed />
       </div>
 
       <div className="dashboard-grid">
         <div className="left-panel">
-           
-          {/* DAILY BIBLE VERSE WIDGET */}
           <DailyVerseWidget key={new Date().toDateString()} />
           <DailyPrayerWidget />
            
-          {/* Calendar Widget */}
           <div className="panel-card">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}><h3 style={{ margin: 0, fontSize:'16px' }}>📅 Events</h3><Link href="/events" style={{ fontSize: "12px", color: "#2e8b57", fontWeight: "600", textDecoration:'none' }}>View All →</Link></div>
             <div style={{ background: "#f9f9f9", borderRadius: "8px", padding: "10px", marginBottom: "15px" }}>
@@ -618,6 +621,26 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* FOUNDER WELCOME MODAL */}
+      {showFounderWelcome && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(11, 46, 74, 0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: "20px" }}>
+          <div style={{ background: 'white', padding: '40px', borderRadius: '24px', width: '100%', maxWidth: '500px', textAlign: 'center', border: "4px solid #d4af37", boxShadow: "0 20px 50px rgba(0,0,0,0.5)" }}>
+            <div style={{ fontSize: "50px", marginBottom: "20px" }}>👑</div>
+            <h2 style={{ color: "#0b2e4a", fontSize: "28px", margin: "0 0 15px 0", fontWeight: "800" }}>Welcome, Founding Steward</h2>
+            <p style={{ color: "#334155", lineHeight: "1.6", fontSize: "16px", marginBottom: "30px" }}>
+              Your account has been successfully provisioned with <strong>Lifetime Platinum Access</strong>. We are honored to have your voice as one of the twelve pillars of this sanctuary.
+            </p>
+            <button 
+              onClick={() => setShowFounderWelcome(false)}
+              style={{ background: "#d4af37", color: "white", padding: "14px 40px", borderRadius: "10px", border: "none", fontWeight: "bold", fontSize: "16px", cursor: "pointer", boxShadow: "0 5px 15px rgba(212, 175, 55, 0.4)" }}
+            >
+              Enter the Sanctuary
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

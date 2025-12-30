@@ -1,9 +1,12 @@
 "use client";
 
-import Link from "next/link";
-import { useState, useEffect } from "react";
+import DailyVerseWidget from "@/components/DailyVerseWidget";
+import DailyPrayerWidget from "@/components/DailyPrayerWidget";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import Link from "next/link";
+import "@/styles/dashboard.css";
 
 export default function Home() {
   const [msg, setMsg] = useState("");
@@ -25,7 +28,7 @@ export default function Home() {
     }
 
     setLoading(true);
-    setMsg(""); // Clear previous errors
+    setMsg(""); 
 
     let emailToLogin = identifier.trim();
 
@@ -45,7 +48,7 @@ export default function Home() {
       emailToLogin = data.email;
     }
 
-    // 2. Sign in with Email (either direct or fetched from username)
+    // 2. Sign in with Email
     const { error } = await supabase.auth.signInWithPassword({
       email: emailToLogin,
       password: password,
@@ -56,20 +59,6 @@ export default function Home() {
       setMsg(error.message);
     } else {
       router.push("/dashboard");
-    }
-  };
-
-  const handleSocialLogin = async (provider) => {
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: provider,
-      options: {
-        redirectTo: `${window.location.origin}/dashboard`,
-      },
-    });
-    if (error) {
-      setMsg(error.message);
-      setLoading(false);
     }
   };
 
@@ -101,7 +90,7 @@ export default function Home() {
         backdropFilter: "blur(2px)"
       }} />
 
-      {/* Main Grid Container with Class for Responsiveness */}
+      {/* Main Grid Container */}
       <div className="login-grid-container" style={{
         position: "relative",
         zIndex: 1,
@@ -110,7 +99,7 @@ export default function Home() {
         margin: "0 auto",
         padding: "40px 20px",
         display: "grid",
-        gridTemplateColumns: "1fr 480px", // Default Desktop
+        gridTemplateColumns: "1fr 480px", 
         gap: "60px",
         alignItems: "flex-start",
         paddingTop: "80px"
@@ -176,26 +165,7 @@ export default function Home() {
             </p>
           </div>
 
-          {/* Social Login - Updated: Only Google */}
-          <div style={{ marginBottom: "20px" }}>
-            <button 
-              onClick={() => handleSocialLogin('google')}
-              style={{
-                width: "100%", // Added full width
-                display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
-                padding: "12px", // Slightly increased padding for better look
-                background: "white", border: "1px solid #ddd", borderRadius: "8px", cursor: "pointer", fontWeight: "600", fontSize: "15px", color: "#333",
-                boxShadow: "0 2px 5px rgba(0,0,0,0.05)"
-              }}>
-              <span style={{fontSize: '18px', fontWeight: 'bold', color: '#DB4437'}}>G</span> Continue with Google
-            </button>
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: "15px", marginBottom: "20px" }}>
-            <div style={{ flex: 1, height: "1px", background: "#e0e0e0" }} />
-            <span style={{ fontSize: "12px", color: "#999", fontWeight: "500" }}>OR EMAIL</span>
-            <div style={{ flex: 1, height: "1px", background: "#e0e0e0" }} />
-          </div>
+          {/* Social Login Section Removed for Brand Integrity */}
 
           <div style={{ marginBottom: "20px" }}>
             <label style={{ display: "block", marginBottom: "8px", fontSize: "14px", fontWeight: "600", color: "#333" }}>
@@ -282,7 +252,6 @@ export default function Home() {
         </div>
       </div>
       
-      {/* Responsive Styles */}
       <style jsx>{`
         @media (max-width: 1024px) {
           .login-grid-container {
