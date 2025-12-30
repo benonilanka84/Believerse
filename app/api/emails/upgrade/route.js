@@ -11,16 +11,21 @@ export async function POST(req) {
       from: 'The Believerse <support@thebelieverse.com>',
       to: email,
       subject: `Your ${tier_name} Stewardship is Confirmed`,
-      template_id: 'partner-upgrade-confirmation',
+      // This matches the ALIAS in your Resend Dashboard
+      template: 'tier-membership-confirmation', 
       variables: {
-        full_name: full_name, // Matches {{full_name}}
-        tier_name: tier_name   // Matches {{tier_name}}
+        full_name: full_name, 
+        tier_name: tier_name  
       }
     });
 
-    if (error) return NextResponse.json({ error }, { status: 400 });
-    return NextResponse.json({ message: 'Upgrade email sent' });
+    if (error) {
+      console.error("Resend API Error:", error);
+      return NextResponse.json({ error }, { status: 422 });
+    }
+
+    return NextResponse.json({ message: 'Upgrade email sent', data });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: { message: err.message } }, { status: 500 });
   }
 }
