@@ -8,6 +8,7 @@ function ChatContent() {
   const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState(null);
   const [chats, setChats] = useState([]);
+  const [unreadCounts, setUnreadCounts] = useState({}); // Tracks unread dots per user
   const [activeChat, setActiveChat] = useState(null);
   const [activeChatUser, setActiveChatUser] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -15,8 +16,6 @@ function ChatContent() {
   
   const searchParams = useSearchParams();
   const messagesEndRef = useRef(null);
-  
-  // Ref to track activeChat inside the realtime callback to avoid stale closures
   const activeChatRef = useRef(null);
 
   useEffect(() => {
@@ -28,12 +27,10 @@ function ChatContent() {
     }
   }, []);
 
-  // Sync ref with state
   useEffect(() => {
     activeChatRef.current = activeChat;
   }, [activeChat]);
 
-  // 1. Initial Data Load
   async function initialize() {
     const { data } = await supabase.auth.getUser();
     if (data?.user) {
@@ -45,8 +42,7 @@ function ChatContent() {
     }
   }
 
-  // 2. --- REAL-TIME SUBSCRIPTION ---
-  // This effect manages the live connection to the database
+  // --- REAL-TIME SUBSCRIPTION ---
   useEffect(() => {
     if (!user) return;
 
@@ -58,17 +54,20 @@ function ChatContent() {
           event: 'INSERT',
           schema: 'public',
           table: 'messages',
-          filter: `receiver_id=eq.${user.id}` // Only listen for messages sent TO us
+          filter: `receiver_id=eq.${user.id}` 
         },
         (payload) => {
           const incomingMsg = payload.new;
           
-          // If the message is from the user currently open in the chat window
           if (incomingMsg.sender_id === activeChatRef.current) {
             setMessages((prev) => [...prev, incomingMsg]);
             setTimeout(scrollToBottom, 100);
           } else {
-            // Trigger notification and update sidebar for background messages
+            // Update the red dot indicator for the specific sender
+            setUnreadCounts(prev => ({
+              ...prev,
+              [incomingMsg.sender_id]: (prev[incomingMsg.sender_id] || 0) + 1
+            }));
             showNotification(incomingMsg);
             loadRecentChats(user.id);
           }
@@ -79,7 +78,7 @@ function ChatContent() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id]); // Restart subscription if the logged-in user changes
+  }, [user?.id]);
 
   function showNotification(msg) {
     if ("Notification" in window && Notification.permission === "granted") {
@@ -87,7 +86,6 @@ function ChatContent() {
         body: `New message received!`,
         icon: "/images/final-logo.png"
       });
-      
       const audio = new Audio('/sounds/notification.mp3'); 
       audio.play().catch(() => {});
     }
@@ -96,17 +94,27 @@ function ChatContent() {
   async function loadRecentChats(myId) {
     const { data } = await supabase
       .from('messages')
-      .select('sender_id, receiver_id, created_at')
+      .select('sender_id, receiver_id, created_at, is_read')
       .or(`sender_id.eq.${myId},receiver_id.eq.${myId}`)
       .order('created_at', { ascending: false });
       
     if (!data) return;
 
     const uniqueIds = new Set();
+    const newUnread = {};
+
     data.forEach(m => {
-      if (m.sender_id !== myId) uniqueIds.add(m.sender_id);
+      if (m.sender_id !== myId) {
+        uniqueIds.add(m.sender_id);
+        // If message is to us and unread, add to dot count
+        if (m.receiver_id === myId && !m.is_read) {
+          newUnread[m.sender_id] = (newUnread[m.sender_id] || 0) + 1;
+        }
+      }
       if (m.receiver_id !== myId) uniqueIds.add(m.receiver_id);
     });
+
+    setUnreadCounts(newUnread);
 
     if (uniqueIds.size > 0) {
       const { data: profiles } = await supabase
@@ -136,11 +144,24 @@ function ChatContent() {
     setActiveChat(partnerId);
     setActiveChatUser(partnerProfile);
 
+    // Clear the unread dot locally and in DB
+    setUnreadCounts(prev => ({ ...prev, [partnerId]: 0 }));
+    await supabase.from('messages').update({ is_read: true }).match({ sender_id: partnerId, receiver_id: myId, is_read: false });
+
+    // Fetch messages
     const { data } = await supabase.from('messages').select('*')
       .or(`and(sender_id.eq.${myId},receiver_id.eq.${partnerId}),and(sender_id.eq.${partnerId},receiver_id.eq.${myId})`)
       .order('created_at', { ascending: true });
-      
-    setMessages(data || []);
+
+    // Apply "Clear History" filter based on local timestamp
+    const clearTimestamp = localStorage.getItem(`chat_cleared_${myId}_${partnerId}`);
+    if (clearTimestamp) {
+      const filtered = data.filter(m => new Date(m.created_at) > new Date(clearTimestamp));
+      setMessages(filtered);
+    } else {
+      setMessages(data || []);
+    }
+    
     setTimeout(scrollToBottom, 100);
   }
 
@@ -158,10 +179,17 @@ function ChatContent() {
     }).select().single();
 
     if (!error && data) {
-      // Manually add our own message so the sender sees it instantly
       setMessages(prev => [...prev, data]);
       setTimeout(scrollToBottom, 100);
     }
+  }
+
+  // --- NEW: CLEAR HISTORY FUNCTION ---
+  function clearHistory() {
+    if (!confirm("Wipe chat history locally? This won't delete messages from the database.")) return;
+    const now = new Date().toISOString();
+    localStorage.setItem(`chat_cleared_${user.id}_${activeChat}`, now);
+    setMessages([]);
   }
 
   function scrollToBottom() {
@@ -177,11 +205,16 @@ function ChatContent() {
       <div style={{ borderRight: '1px solid #eee', background: '#f9f9f9', overflowY:'auto' }}>
         <div style={{ padding: '20px', fontWeight: 'bold', color: '#0b2e4a', borderBottom:'1px solid #eee' }}>💬 Messages</div>
         {chats.map(c => (
-          <div key={c.id} onClick={() => loadChatWithUser(c.id, user.id)} style={{ padding: '15px', cursor: 'pointer', background: activeChat === c.id ? '#e8f5e9' : 'transparent', borderBottom: '1px solid #f0f0f0', display:'flex', alignItems:'center', gap:'10px' }}>
+          <div key={c.id} onClick={() => loadChatWithUser(c.id, user.id)} style={{ padding: '15px', cursor: 'pointer', background: activeChat === c.id ? '#e8f5e9' : 'transparent', borderBottom: '1px solid #f0f0f0', display:'flex', alignItems:'center', gap:'10px', position: 'relative' }}>
             <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#ccc', overflow:'hidden' }}>
                <img src={c.avatar_url || '/images/default-avatar.png'} style={{width:'100%', height:'100%', objectFit:'cover'}}/>
             </div>
-            <div style={{fontWeight:'bold', fontSize:'14px', color:'#000'}}>{c.full_name}</div>
+            <div style={{fontWeight:'bold', fontSize:'14px', color:'#000', flex: 1}}>{c.full_name}</div>
+            
+            {/* RED DOT INDICATOR */}
+            {unreadCounts[c.id] > 0 && (
+              <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#e74c3c', marginRight: '5px' }} />
+            )}
           </div>
         ))}
       </div>
@@ -190,18 +223,28 @@ function ChatContent() {
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         {activeChat ? (
           <>
-            <div style={{padding:'15px', borderBottom:'1px solid #eee', fontWeight:'bold', background:'#fff', color:'#0b2e4a', display:'flex', alignItems:'center', gap:'10px'}}>
-              <img src={activeChatUser?.avatar_url || '/images/default-avatar.png'} style={{width:30, height:30, borderRadius:'50%'}} />
-              {activeChatUser?.full_name}
+            <div style={{padding:'15px', borderBottom:'1px solid #eee', fontWeight:'bold', background:'#fff', color:'#0b2e4a', display:'flex', alignItems:'center', justifyContent: 'space-between'}}>
+              <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+                <img src={activeChatUser?.avatar_url || '/images/default-avatar.png'} style={{width:30, height:30, borderRadius:'50%'}} />
+                {activeChatUser?.full_name}
+              </div>
+              <button onClick={clearHistory} style={{ background: 'none', border: '1px solid #ddd', padding: '5px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', color: '#666' }}>
+                Clear History
+              </button>
             </div>
+            
             <div style={{ flex: 1, padding: '20px', overflowY: 'auto', background: '#fff' }}>
               {messages.map(m => {
                 const isMe = m.sender_id === user.id;
                 return (
-                  <div key={m.id} style={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start', marginBottom: '10px' }}>
+                  <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', marginBottom: '15px' }}>
                     <div style={{ maxWidth: '70%', padding: '10px 15px', borderRadius: '12px', background: isMe ? '#2e8b57' : '#f0f0f0', color: isMe ? 'white' : '#333', boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }}>
                       {m.content}
                     </div>
+                    {/* TIMESTAMP */}
+                    <span style={{ fontSize: '10px', color: '#999', marginTop: '4px', padding: '0 5px' }}>
+                      {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
                   </div>
                 );
               })}
