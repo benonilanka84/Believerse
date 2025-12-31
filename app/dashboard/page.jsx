@@ -2,7 +2,7 @@
 
 import DailyVerseWidget from "@/components/DailyVerseWidget";
 import DailyPrayerWidget from "@/components/DailyPrayerWidget";
-import { useEffect, useState, Suspense } from "react"; // Added Suspense
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import CreatePost from "@/components/CreatePost";
@@ -46,7 +46,6 @@ function DashboardContent() {
   const [prayerEditContent, setPrayerEditContent] = useState("");
 
   const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  const PLATFORM_UPI_ID = "your-platform-upi@okhdfcbank"; 
 
   useEffect(() => {
     setMounted(true);
@@ -225,7 +224,38 @@ function DashboardContent() {
   }
 
   function startEditing(post) { setEditingPost(post.id); setEditContent(post.content); setEditTitle(post.title || ''); setOpenMenuId(null); }
-  function handleShare(text) { const shareUrl = window.location.origin; const fullText = `${text}\n\nVia The Believerse: ${shareUrl}`; if (navigator.share) { navigator.share({ title: 'The Believerse', text: fullText, url: shareUrl }); } else { navigator.clipboard.writeText(fullText); alert("Copied to clipboard!"); } }
+
+  // NEW: Updated Marketing-First Spread Logic
+  async function handleSpread(post) {
+    const shareUrl = `${window.location.origin}/walk/${post.id}`;
+    const marketingText = `Check out this testimony on The Believerse sanctuary! 📖\n\n"${post.content.substring(0, 100)}..."\n\nJoin us: ${shareUrl}`;
+    
+    try {
+      if (post.media_url && !post.media_url.includes('iframe')) {
+        const response = await fetch(post.media_url);
+        const blob = await response.blob();
+        const file = new File([blob], `the-walk-post.png`, { type: blob.type });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: 'The Believerse',
+            text: marketingText
+          });
+          return;
+        }
+      }
+
+      if (navigator.share) {
+        await navigator.share({ title: 'The Believerse', text: marketingText, url: shareUrl });
+      } else {
+        await navigator.clipboard.writeText(`${marketingText}`);
+        alert("Spread link and content copied to clipboard!");
+      }
+    } catch (err) {
+      console.error("Spread failed:", err);
+    }
+  }
 
   async function toggleComments(postId) {
     if (activeCommentPostId === postId) { setActiveCommentPostId(null); } 
@@ -240,10 +270,27 @@ function DashboardContent() {
 
   async function postComment(postId) {
     if (!newComment.trim()) return;
-    const tempComment = { id: Date.now(), post_id: postId, content: newComment, created_at: new Date().toISOString(), profiles: { full_name: profile.full_name, avatar_url: profile.avatar_url } };
-    setComments(prev => ({ ...prev, [postId]: [...(prev[postId] || []), tempComment] }));
-    setNewComment("");
-    await supabase.from('comments').insert({ post_id: postId, user_id: user.id, content: tempComment.content });
+    const { data, error } = await supabase.from('comments').insert({ post_id: postId, user_id: user.id, content: newComment }).select('*, profiles(full_name, avatar_url)').single();
+    if (data) {
+      setComments(prev => ({ ...prev, [postId]: [...(prev[postId] || []), data] }));
+      setNewComment("");
+    }
+  }
+
+  // NEW: Comment Actions (Delete & Report)
+  async function deleteComment(postId, commentId) {
+    if (!confirm("Delete your comment?")) return;
+    const { error } = await supabase.from('comments').delete().eq('id', commentId);
+    if (!error) {
+      setComments(prev => ({ ...prev, [postId]: prev[postId].filter(c => c.id !== commentId) }));
+    }
+  }
+
+  async function reportComment(commentId) {
+    if (confirm("Report this comment for community guideline violations?")) {
+      await supabase.from('reports').insert({ target_type: 'comment', target_id: commentId, reporter_id: user.id });
+      alert("Thank you. Leadership will review this comment.");
+    }
   }
 
   if (!mounted) return null;
@@ -320,10 +367,35 @@ function DashboardContent() {
                      <button onClick={() => handleAmen(post, post.hasAmened)} style={{background:'none', border:'none', color: post.hasAmened ? '#2e8b57' : '#666', fontWeight: post.hasAmened ? 'bold' : 'normal', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}>🙏 Amen ({post.amenCount})</button>
                      <button onClick={() => toggleComments(post.id)} style={{background:'none', border:'none', color:'#666', fontWeight:'bold', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}>💬 Comment</button>
                      <button onClick={() => handleBlessClick(post.author)} style={{background:'none', border:'none', color:'#d4af37', fontWeight:'bold', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}>✨ Bless</button>
-                     <button onClick={() => handleShare(post.content)} style={{background:'none', border:'none', color:'#666', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}>📢 Spread</button>
+                     <button onClick={() => handleSpread(post)} style={{background:'none', border:'none', color:'#666', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}>📢 Spread</button>
                  </div>
                  {activeCommentPostId === post.id && (
-                   <div style={{marginTop:'15px', background:'#f9f9f9', padding:'10px', borderRadius:'8px'}}><div style={{maxHeight:'200px', overflowY:'auto', marginBottom:'10px'}}>{comments[post.id]?.length > 0 ? comments[post.id].map(c => (<div key={c.id} style={{display:'flex', gap:'10px', marginBottom:'8px'}}><img src={c.profiles?.avatar_url || '/images/default-avatar.png'} style={{width:25, height:25, borderRadius:'50%'}} /><div style={{background:'white', padding:'5px 10px', borderRadius:'10px', fontSize:'13px', flex:1, color:'#333'}}><div style={{fontWeight:'bold', fontSize:'12px', color:'#0b2e4a'}}>{c.profiles?.full_name}</div>{c.content}</div></div>)) : <p style={{fontSize:'12px', color:'#999'}}>No comments yet.</p>}</div><div style={{display:'flex', gap:'10px'}}><input type="text" placeholder="Write a comment..." value={newComment} onChange={e => setNewComment(e.target.value)} style={{flex:1, padding:'8px', borderRadius:'20px', border:'1px solid #ddd', fontSize:'13px', color:'#333'}} onKeyDown={e => e.key === 'Enter' && postComment(post.id)} /><button onClick={() => postComment(post.id)} style={{background:'#0b2e4a', color:'white', border:'none', borderRadius:'50%', width:'35px', height:'35px', cursor:'pointer'}}>➤</button></div></div>
+                   <div style={{marginTop:'15px', background:'#f9f9f9', padding:'10px', borderRadius:'8px'}}>
+                     <div style={{maxHeight:'200px', overflowY:'auto', marginBottom:'10px'}}>
+                       {comments[post.id]?.length > 0 ? comments[post.id].map(c => (
+                         <div key={c.id} style={{display:'flex', gap:'10px', marginBottom:'8px', position:'relative'}}>
+                           <img src={c.profiles?.avatar_url || '/images/default-avatar.png'} style={{width:25, height:25, borderRadius:'50%'}} />
+                           <div style={{background:'white', padding:'5px 10px', borderRadius:'10px', fontSize:'13px', flex:1, color:'#333'}}>
+                             <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                               <div style={{fontWeight:'bold', fontSize:'12px', color:'#0b2e4a'}}>{c.profiles?.full_name}</div>
+                               <div style={{display:'flex', gap:'5px'}}>
+                                 {user?.id === c.user_id ? (
+                                   <button onClick={() => deleteComment(post.id, c.id)} style={{border:'none', background:'none', cursor:'pointer', fontSize:'10px', color:'red'}}>🗑️</button>
+                                 ) : (
+                                   <button onClick={() => reportComment(c.id)} style={{border:'none', background:'none', cursor:'pointer', fontSize:'10px'}}>🚩</button>
+                                 )}
+                               </div>
+                             </div>
+                             {c.content}
+                           </div>
+                         </div>
+                       )) : <p style={{fontSize:'12px', color:'#999'}}>No comments yet.</p>}
+                     </div>
+                     <div style={{display:'flex', gap:'10px'}}>
+                       <input type="text" placeholder="Write a comment..." value={newComment} onChange={e => setNewComment(e.target.value)} style={{flex:1, padding:'8px', borderRadius:'20px', border:'1px solid #ddd', fontSize:'13px', color:'#333'}} onKeyDown={e => e.key === 'Enter' && postComment(post.id)} />
+                       <button onClick={() => postComment(post.id)} style={{background:'#0b2e4a', color:'white', border:'none', borderRadius:'50%', width:'35px', height:'35px', cursor:'pointer'}}>➤</button>
+                     </div>
+                   </div>
                  )}
                </div>
              ))

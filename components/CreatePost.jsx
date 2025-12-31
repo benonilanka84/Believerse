@@ -14,11 +14,8 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
    
   const [previewUrl, setPreviewUrl] = useState(null);
   const fileInputRef = useRef(null);
-
-  // --- NEW: DRAG & DROP STATE ---
   const [dragActive, setDragActive] = useState(false);
 
-  // Generate preview URL
   useEffect(() => {
     if (!mediaFile) {
       setPreviewUrl(null);
@@ -29,7 +26,6 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
     return () => URL.revokeObjectURL(objectUrl);
   }, [mediaFile]);
 
-  // --- NEW: DRAG & DROP HANDLERS ---
   const handleDrag = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -153,12 +149,8 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
           boxShadow: "0 2px 8px rgba(0,0,0,0.05)", display: "flex", alignItems: "center", gap: "15px", cursor: "pointer" 
         }}
       >
-        <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#f0f0f0", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          ✍️
-        </div>
-        <div style={{ color: "#888", fontSize: "16px", fontWeight: "500" }}>
-          What's in your heart today?
-        </div>
+        <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#f0f0f0", display: "flex", alignItems: "center", justifyContent: "center" }}>✍️</div>
+        <div style={{ color: "#888", fontSize: "16px", fontWeight: "500" }}>What's in your heart today?</div>
       </div>
     );
   }
@@ -170,11 +162,7 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
         <button onClick={() => setIsOpen(false)} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer" }}>×</button>
       </div>
 
-      <select 
-        value={type}
-        onChange={e => setType(e.target.value)}
-        style={{ padding: "8px", borderRadius: "6px", border: "1px solid #ddd", marginBottom: "10px", fontSize: "14px" }}
-      >
+      <select value={type} onChange={e => setType(e.target.value)} style={{ padding: "8px", borderRadius: "6px", border: "1px solid #ddd", marginBottom: "10px", fontSize: "14px" }}>
         <option value="Testimony">💬 Testimony</option>
         <option value="Prayer">🙏 Prayer Request</option>
         <option value="Scripture">📖 Scripture</option>
@@ -183,129 +171,31 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
         <option value="Others">📝 Others</option>
       </select>
 
-      <input 
-        type="text" 
-        placeholder="Post Title (Optional)" 
-        value={title} 
-        onChange={e => setTitle(e.target.value)}
-        style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #ddd", marginBottom: "10px", fontSize: "14px" }}
-      />
-
-      <textarea
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        placeholder="Share your testimony, prayer, or message..."
-        style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #ddd", minHeight: "100px", fontFamily: "inherit", resize: "vertical", marginBottom: "15px" }}
-      />
+      <input type="text" placeholder="Post Title (Optional)" value={title} onChange={e => setTitle(e.target.value)} style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #ddd", marginBottom: "10px", fontSize: "14px" }} />
+      <textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Share your message..." style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #ddd", minHeight: "100px", fontFamily: "inherit", resize: "vertical", marginBottom: "15px" }} />
 
       <div style={{ marginBottom: "15px" }}>
-        <input 
-          type="file" 
-          accept="image/*,video/*" 
-          ref={fileInputRef} 
-          style={{ display: 'none' }}
-          onChange={(e) => setMediaFile(e.target.files[0])}
-        />
-        
+        <input type="file" accept="image/*,video/*" ref={fileInputRef} style={{ display: 'none' }} onChange={(e) => setMediaFile(e.target.files[0])} />
         {!mediaFile ? (
-          <div 
-            onDragEnter={handleDrag}
-            onDragLeave={handleDrag}
-            onDragOver={handleDrag}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current.click()}
-            style={{ 
-              padding: "20px", 
-              border: dragActive ? "2px dashed #2e8b57" : "2px dashed #e0e0e0", 
-              borderRadius: "12px", 
-              textAlign: "center", 
-              color: "#666", 
-              fontSize: "14px", 
-              cursor: "pointer", 
-              background: dragActive ? "#f0fff4" : "#fafafa",
-              transition: "all 0.2s ease"
-            }}
-          >
-            📷 Add high-quality Image or Video
-            <br />
-            <span style={{ fontSize: "12px", color: "#999" }}>(Drag & Drop supported)</span>
-          </div>
+          <div onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop} onClick={() => fileInputRef.current.click()} style={{ padding: "20px", border: dragActive ? "2px dashed #2e8b57" : "2px dashed #e0e0e0", borderRadius: "12px", textAlign: "center", color: "#666", fontSize: "14px", cursor: "pointer", background: dragActive ? "#f0fff4" : "#fafafa", transition: "all 0.2s ease" }}>📷 Add high-quality Image or Video<br /><span style={{ fontSize: "12px", color: "#999" }}>(Drag & Drop supported)</span></div>
         ) : (
           <div style={{ position: "relative", width: "100%", borderRadius: "12px", overflow: "hidden", background: "#000", boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}>
-            <div style={{ 
-              position: "relative",
-              paddingTop: type === "Glimpse" ? "177.77%" : "56.25%",
-              height: 0,
-              background: "#000"
-            }}>
+            <div style={{ position: "relative", paddingTop: type === "Glimpse" ? "177.77%" : "56.25%", height: 0, background: "#000" }}>
               {mediaFile.type.startsWith("video/") ? (
-                <video 
-                  src={previewUrl} 
-                  controls 
-                  style={{ 
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: "100%", 
-                    height: "100%", 
-                    objectFit: type === "Glimpse" ? "cover" : "contain",
-                    display: "block"
-                  }} 
-                />
+                <video src={previewUrl} controls style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: type === "Glimpse" ? "cover" : "contain", display: "block" }} />
               ) : (
-                <img 
-                  src={previewUrl} 
-                  alt="Preview" 
-                  style={{ 
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: "100%", 
-                    height: "100%", 
-                    objectFit: "contain",
-                    display: "block"
-                  }} 
-                />
+                <img src={previewUrl} alt="Preview" style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "contain", display: "block" }} />
               )}
-
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setMediaFile(null);
-                  setPreviewUrl(null);
-                  fileInputRef.current.value = ""; 
-                }}
-                style={{ 
-                  position: "absolute", top: "10px", right: "10px", width: "32px", height: "32px", 
-                  background: "rgba(0,0,0,0.6)", color: "white", border: "none", borderRadius: "50%", 
-                  cursor: "pointer", fontSize: "18px", display: "flex", alignItems: "center", justifyContent: "center",
-                  backdropFilter: "blur(4px)", zIndex: 10
-                }}
-              >
-                ×
-              </button>
+              <button onClick={(e) => { e.stopPropagation(); setMediaFile(null); setPreviewUrl(null); fileInputRef.current.value = ""; }} style={{ position: "absolute", top: "10px", right: "10px", width: "32px", height: "32px", background: "rgba(0,0,0,0.6)", color: "white", border: "none", borderRadius: "50%", cursor: "pointer", fontSize: "18px", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)", zIndex: 10 }}>×</button>
             </div>
           </div>
         )}
       </div>
 
-      {loading && uploadProgress > 0 && (
-        <div style={{ width: "100%", background: "#f0f0f0", borderRadius: "4px", height: "6px", marginBottom: "15px", overflow: "hidden" }}>
-          <div style={{ width: `${uploadProgress}%`, background: "#2e8b57", height: "100%", transition: "width 0.3s ease" }}></div>
-        </div>
-      )}
+      {loading && uploadProgress > 0 && (<div style={{ width: "100%", background: "#f0f0f0", borderRadius: "4px", height: "6px", marginBottom: "15px", overflow: "hidden" }}><div style={{ width: `${uploadProgress}%`, background: "#2e8b57", height: "100%", transition: "width 0.3s ease" }}></div></div>)}
 
       <div style={{ textAlign: "right" }}>
-        <button
-          onClick={handlePost}
-          disabled={loading || (!content.trim() && !mediaFile)}
-          style={{
-            background: "#2e8b57", color: "white", padding: "10px 25px", borderRadius: "8px", border: "none", fontWeight: "bold",
-            cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1
-          }}
-        >
-          {loading ? (uploadProgress > 0 ? `Uploading ${uploadProgress}%` : "Posting...") : "Post"}
-        </button>
+        <button onClick={handlePost} disabled={loading || (!content.trim() && !mediaFile)} style={{ background: "#2e8b57", color: "white", padding: "10px 25px", borderRadius: "8px", border: "none", fontWeight: "bold", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}>{loading ? (uploadProgress > 0 ? `Uploading ${uploadProgress}%` : "Posting...") : "Post"}</button>
       </div>
     </div>
   );

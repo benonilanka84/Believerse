@@ -33,7 +33,7 @@ export default function DailyVerseWidget() {
 
     if (data) {
       setVerse(data);
-      const TOTAL_IMAGES = 30; // Update this if you upload more
+      const TOTAL_IMAGES = 30; 
       const bgIndex = (safeDay % TOTAL_IMAGES) + 1; 
       setBgImage(`/verses/${bgIndex}.jpg`);
     }
@@ -50,44 +50,35 @@ export default function DailyVerseWidget() {
     }
   }
 
-  // --- SMART SHARE LOGIC ---
+  // --- UPDATED MARKETING-FIRST SHARE LOGIC ---
   async function handleSpread() {
     if (!cardRef.current) return;
     setSharing(true);
 
     try {
-      // 1. Generate the image
+      // 1. Generate the image blob
       const blob = await toBlob(cardRef.current, { cacheBust: true });
       const file = new File([blob], "daily-verse.png", { type: "image/png" });
+      
+      // 2. Marketing Text with platform URL
+      const shareText = `"${verse.verse_text}" - ${verse.verse_reference}\n\nJoin our global sanctuary for edification and fellowship: https://www.thebelieverse.com`;
 
-      // 2. Try Native Share (Best for Mobile)
+      // 3. Share with file attachment (Triggers Image preview in WhatsApp)
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
-          title: "Daily Verse",
-          text: `"${verse.verse_text}" - ${verse.verse_reference}\n\nVia The Believerse`,
+          title: "The Believerse Daily Verse",
+          text: shareText,
         });
       } else {
-        // 3. Desktop Fallback: Copy to Clipboard
-        try {
-          await navigator.clipboard.write([
-            new ClipboardItem({
-              [blob.type]: blob
-            })
-          ]);
-          alert("✅ Image copied to clipboard!\n\nJust Paste (Ctrl+V) it into WhatsApp, Facebook, or Email.");
-        } catch (clipboardErr) {
-          // 4. Last Resort: Download
-          const link = document.createElement("a");
-          link.download = "daily-verse.png";
-          link.href = URL.createObjectURL(blob);
-          link.click();
-          alert("✅ Image downloaded! You can now upload it anywhere.");
-        }
+        // Desktop/Browser Fallback
+        await navigator.clipboard.write([
+          new ClipboardItem({ [blob.type]: blob })
+        ]);
+        alert("✅ Verse Image copied! Paste it into WhatsApp with our link: https://www.thebelieverse.com");
       }
     } catch (err) {
       console.error("Share failed:", err);
-      alert("Could not create image. Please screenshot manually.");
     } finally {
       setSharing(false);
     }
@@ -98,8 +89,6 @@ export default function DailyVerseWidget() {
 
   return (
     <div className="panel-card" style={{ padding: 0, overflow: 'hidden', borderRadius: '12px', border: 'none', position: 'relative', marginBottom: '20px' }}>
-      
-      {/* CAPTURE AREA */}
       <div 
         ref={cardRef}
         style={{
@@ -118,7 +107,6 @@ export default function DailyVerseWidget() {
         }}
       >
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1 }} />
-
         <div style={{ position: 'relative', zIndex: 2, textShadow: '0 2px 8px rgba(0,0,0,0.8)' }}>
           <p style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: 'Georgia, serif', lineHeight: '1.5', marginBottom: '15px' }}>
             "{verse.verse_text}"
@@ -127,13 +115,11 @@ export default function DailyVerseWidget() {
             {verse.verse_reference}
           </p>
         </div>
-        
         <div style={{ position: 'absolute', bottom: 15, fontSize: '10px', opacity: 0.7, zIndex: 2 }}>
           The Believerse
         </div>
       </div>
 
-      {/* BUTTONS */}
       <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #eee', background: 'white' }}>
         <button 
           onClick={handleAmen}
@@ -146,7 +132,7 @@ export default function DailyVerseWidget() {
           disabled={sharing}
           style={{ flex: 1, padding: '12px', border: 'none', background: 'transparent', cursor: 'pointer', color: '#0b2e4a', fontWeight: 'bold' }}
         >
-          {sharing ? '⏳ Creating...' : '📢 Spread'}
+          {sharing ? '⏳ Preparing...' : '📢 Spread'}
         </button>
       </div>
     </div>
