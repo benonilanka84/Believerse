@@ -71,6 +71,26 @@ function DashboardContent() {
     getUser();
   }, [mounted]);
 
+  // NEW: Deep Linking & Highlight Logic
+  useEffect(() => {
+    const targetPostId = searchParams.get('postId');
+    if (targetPostId && posts.length > 0) {
+      // Auto-expand comments for the targeted post
+      setActiveCommentPostId(targetPostId);
+      if (!comments[targetPostId]) {
+        toggleComments(targetPostId);
+      }
+      
+      // Smooth scroll to the specific post with a slight delay for rendering
+      setTimeout(() => {
+        const element = document.getElementById(`post-${targetPostId}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 500);
+    }
+  }, [searchParams, posts.length]);
+
   const loadRazorpayScript = () => {
     return new Promise((resolve) => {
       const script = document.createElement("script");
@@ -207,7 +227,16 @@ function DashboardContent() {
     if (currentlyAmened) { await supabase.from('amens').delete().match({ user_id: user.id, post_id: post.id }); } 
     else { 
         await supabase.from('amens').insert({ user_id: user.id, post_id: post.id });
-        if (user && user.id !== post.user_id) { await supabase.from('notifications').insert({ user_id: post.user_id, actor_id: user.id, type: 'amen', content: 'said Amen to your post.', link: '/dashboard' }); }
+        if (user && user.id !== post.user_id) { 
+          // UPDATED: Deep Linking for Amen
+          await supabase.from('notifications').insert({ 
+            user_id: post.user_id, 
+            actor_id: user.id, 
+            type: 'amen', 
+            content: 'said Amen to your post.', 
+            link: `/dashboard?postId=${post.id}#post-${post.id}` 
+          }); 
+        }
     }
   }
 
@@ -225,7 +254,6 @@ function DashboardContent() {
 
   function startEditing(post) { setEditingPost(post.id); setEditContent(post.content); setEditTitle(post.title || ''); setOpenMenuId(null); }
 
-  // NEW: Updated Marketing-First Spread Logic
   async function handleSpread(post) {
     const shareUrl = `${window.location.origin}/walk/${post.id}`;
     const marketingText = `Check out this testimony on The Believerse sanctuary! 📖\n\n"${post.content.substring(0, 100)}..."\n\nJoin us: ${shareUrl}`;
@@ -274,10 +302,21 @@ function DashboardContent() {
     if (data) {
       setComments(prev => ({ ...prev, [postId]: [...(prev[postId] || []), data] }));
       setNewComment("");
+      
+      // NEW: Deep Linking Notification for Comment
+      const targetPost = posts.find(p => p.id === postId);
+      if (user && user.id !== targetPost.user_id) {
+        await supabase.from('notifications').insert({
+          user_id: targetPost.user_id,
+          actor_id: user.id,
+          type: 'comment',
+          content: 'commented on your post.',
+          link: `/dashboard?postId=${postId}#post-${postId}`
+        });
+      }
     }
   }
 
-  // NEW: Comment Actions (Delete & Report)
   async function deleteComment(postId, commentId) {
     if (!confirm("Delete your comment?")) return;
     const { error } = await supabase.from('comments').delete().eq('id', commentId);
@@ -338,7 +377,19 @@ function DashboardContent() {
             {loadingPosts ? <p style={{textAlign:'center', padding:'20px'}}>Loading...</p> : 
              posts.length === 0 ? <div style={{textAlign:'center', padding:'40px', color:'#666'}}>The Walk is quiet. Be the first to share!</div> :
              posts.map(post => (
-               <div key={post.id} style={{border:'1px solid #eee', borderRadius:'12px', padding:'15px', marginBottom:'15px', background:'#fafafa'}}>
+               // UPDATED: Post Identifier & Highlighting
+               <div 
+                 key={post.id} 
+                 id={`post-${post.id}`}
+                 style={{
+                   border: searchParams.get('postId') === post.id ? '2px solid #d4af37' : '1px solid #eee', 
+                   borderRadius:'12px', 
+                   padding:'15px', 
+                   marginBottom:'15px', 
+                   background: searchParams.get('postId') === post.id ? '#fff9e6' : '#fafafa',
+                   transition: 'all 0.4s ease'
+                 }}
+               >
                  <div style={{display:'flex', alignItems:'center', gap:'10px', marginBottom:'10px'}}>
                    <Link href={`/profile/${post.user_id}`}><img src={post.author?.avatar_url || '/images/default-avatar.png'} style={{width:40, height:40, borderRadius:'50%', objectFit:'cover', cursor: 'pointer'}} /></Link>
                    <div>
