@@ -9,38 +9,34 @@ const supabaseAdmin = createClient(
 export async function POST(req) {
   try {
     const body = await req.json();
-
-    // Bunny Stream status '3' means the video is finished and ready
-    if (body.Status !== 3) {
-      return NextResponse.json({ message: "Status ignored" });
-    }
+    if (body.Status !== 3) return NextResponse.json({ message: "Encoding..." });
 
     const videoId = body.VideoGuid;
     const libraryId = body.VideoLibraryId;
-    const title = body.Title || "Live Stream Archive";
 
-    // You need a way to link this to a User ID. 
-    // Tip: When you start the upload/stream, pass the userId in the title or metadata.
-    // For now, we fetch the first admin or a placeholder if userId isn't in the payload.
-    const userId = body.UserId || "PLACEHOLDER_SYSTEM_USER_ID"; 
+    // 1. "Double-Check" to get the userId from Bunny's API
+    const videoDataRes = await fetch(`https://video.bunnycdn.com/library/${libraryId}/videos/${videoId}`, {
+      headers: { 'AccessKey': process.env.BUNNY_API_KEY }
+    });
+    const videoData = await videoDataRes.json();
+    
+    // 2. Extract the userId we stored in Step 2
+    const userId = videoData.searchTags || "SYSTEM_USER"; 
 
     const embedUrl = `https://iframe.mediadelivery.net/embed/${libraryId}/${videoId}`;
 
-    // Insert into 'The Walk'
+    // 3. Post to the broadcaster's wall
     const { error } = await supabaseAdmin.from('posts').insert({
       user_id: userId,
       type: 'Sermon',
-      title: title,
-      content: `I was live! Here is the recorded broadcast for the fellowship.`,
-      media_url: embedUrl,
-      created_at: new Date().toISOString()
+      title: videoData.title,
+      content: `Praise God! The live broadcast is now available for replay.`,
+      media_url: embedUrl
     });
 
     if (error) throw error;
-
-    return NextResponse.json({ message: "Broadcast posted to The Walk" });
+    return NextResponse.json({ message: "Live Archive Published" });
   } catch (err) {
-    console.error("Bunny Webhook Error:", err.message);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

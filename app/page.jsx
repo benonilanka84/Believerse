@@ -62,14 +62,25 @@ export default function Home() {
     }
   };
 
+  // --- UPDATED FORGOT PASSWORD TRIGGER ---
   const handleForgot = async () => {
     if (!identifier || !identifier.includes("@")) {
       setMsg("Please enter your Email Address to reset password.");
       return;
     }
-    const { error } = await supabase.auth.resetPasswordForEmail(identifier);
-    if (error) return setMsg(error.message);
-    setMsg("Password reset link sent to your email.");
+    
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(identifier, {
+      // FIXED: Redirects the user specifically to the new recovery page
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    
+    setLoading(false);
+    if (error) {
+      setMsg(error.message);
+    } else {
+      setMsg("Peace be with you. A reset link has been sent to your email.");
+    }
   };
 
   if (!mounted) return null;
@@ -165,8 +176,6 @@ export default function Home() {
             </p>
           </div>
 
-          {/* Social Login Section Removed for Brand Integrity */}
-
           <div style={{ marginBottom: "20px" }}>
             <label style={{ display: "block", marginBottom: "8px", fontSize: "14px", fontWeight: "600", color: "#333" }}>
               Email or Username
@@ -242,8 +251,8 @@ export default function Home() {
           {msg && (
             <div style={{
               marginTop: "20px", padding: "12px 16px",
-              background: msg.includes("reset") ? "#e8f5e9" : "#ffebee",
-              color: msg.includes("reset") ? "#2e7d32" : "#c62828",
+              background: msg.includes("reset") || msg.includes("Peace") ? "#e8f5e9" : "#ffebee",
+              color: msg.includes("reset") || msg.includes("Peace") ? "#2e7d32" : "#c62828",
               borderRadius: "10px", fontSize: "14px", textAlign: "center"
             }}>
               {msg}
@@ -265,10 +274,10 @@ export default function Home() {
             margin-bottom: 20px;
           }
           .hero-title {
-            fontSize: 48px !important;
+            font-size: 48px !important;
           }
           .hero-subtitle {
-            fontSize: 20px !important;
+            font-size: 20px !important;
           }
           .login-card {
             padding: 30px 20px !important;

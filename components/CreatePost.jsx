@@ -83,6 +83,8 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
               metadata: {
                 filetype: mediaFile.type,
                 title: title || "Untitled",
+                // ADDED: Pass the userId in the metadata for the webhook to find
+                userId: user.id 
               },
               onError: (error) => reject(error),
               onProgress: (bytesUploaded, bytesTotal) => {

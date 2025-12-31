@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
 
-// Use Service Role Key for Admin privileges (bypasses RLS)
+// Admin client to bypass RLS
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -21,28 +21,63 @@ export async function POST(req) {
       .digest("hex");
 
     if (expectedSignature !== signature) {
+      console.error("Invalid Webhook Signature");
       return NextResponse.json({ error: "Unauthorized" }, { status: 400 });
     }
 
     const payload = JSON.parse(body);
-    
-    // 2. Handle Payment Captured
-    if (payload.event === "payment.captured") {
-      const paymentEntity = payload.payload.payment.entity;
-      const notes = paymentEntity.notes;
-      const { userId, planType } = notes;
+    const event = payload.event;
+
+    // 2. Handle 90-Day Trial Setup (The ₹1 Handshake)
+    if (event === "subscription.authenticated") {
+      const subscription = payload.payload.subscription.entity;
+      const { userId, planType } = subscription.notes;
 
       if (userId && planType) {
-        // Calculate 30-day end date
-        const endDate = new Date();
-        endDate.setDate(endDate.getDate() + 30);
+        // Set end date to 90 days from now for the trial
+        const trialEndDate = new Date();
+        trialEndDate.setDate(trialEndDate.getDate() + 90);
 
-        // Update Database
+        await supabaseAdmin
+          .from("profiles")
+          .update({ 
+            subscription_plan: planType, 
+            subscription_tier: planType.toLowerCase(),
+            subscription_end_date: trialEndDate.toISOString() 
+          })
+          .eq("id", userId);
+
+        await supabaseAdmin.from("notifications").insert({
+          user_id: userId,
+          content: `Blessings! Your 90-day trial for ${planType} is now active. 🌿`,
+          type: "system",
+          link: "/dashboard"
+        });
+      }
+    }
+
+    // 3. Handle Payment Captured (Manual Upgrades or Recurring Charges)
+    if (event === "payment.captured") {
+      const paymentEntity = payload.payload.payment.entity;
+      const { userId, planType } = paymentEntity.notes;
+
+      if (userId && planType) {
+        let endDate = new Date();
+        const isPlatinum = planType.toLowerCase().includes('platinum');
+
+        if (isPlatinum) {
+          // Lifetime for Platinum Partners
+          endDate.setFullYear(endDate.getFullYear() + 99);
+        } else {
+          // Standard 30 days for others
+          endDate.setDate(endDate.getDate() + 30);
+        }
+
         const { data: profile, error: updateError } = await supabaseAdmin
           .from("profiles")
           .update({ 
-            subscription_plan: planType, // Legacy field
-            subscription_tier: planType.toLowerCase(), // New tier field for badges
+            subscription_plan: planType, 
+            subscription_tier: planType.toLowerCase(),
             subscription_end_date: endDate.toISOString() 
           })
           .eq("id", userId)
@@ -51,36 +86,26 @@ export async function POST(req) {
 
         if (updateError) throw updateError;
 
-        // Notify User in Dashboard
-        await supabaseAdmin.from("notifications").insert({
-          user_id: userId,
-          content: `Your ${planType} plan is now active! Thank you for walking with us. 👑`,
-          type: "system",
-          link: "/dashboard"
-        });
-
-        // 3. Trigger Upgrade Email via Resend
-        // We call our existing internal API route to handle the Resend dispatch
+        // Trigger Upgrade Email
         try {
           await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/emails/upgrade`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              email: profile.email,
-              full_name: profile.full_name || "The Believer", // Fallback if name is missing
-              tier_name: planType // Passes "Gold" or "Platinum" to {{tier_name}}
+              email: profile.email || paymentEntity.email, 
+              full_name: profile.full_name || "The Believer",
+              tier_name: planType 
             })
           });
         } catch (emailErr) {
-          console.error("Email trigger failed:", emailErr);
-          // We don't throw here to avoid Razorpay retrying a successful payment update
+          console.error("Email dispatch failed:", emailErr);
         }
       }
     }
 
     return NextResponse.json({ status: "ok" });
   } catch (err) {
-    console.error("Webhook Error:", err.message);
+    console.error("Webhook Logic Error:", err.message);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
