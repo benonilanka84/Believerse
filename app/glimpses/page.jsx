@@ -9,12 +9,14 @@ export default function GlimpsesPage() {
   const [mounted, setMounted] = useState(false);
   const [glimpses, setGlimpses] = useState([]);
   const [user, setUser] = useState(null);
+  const [userTier, setUserTier] = useState("free"); // Tier tracking for guardrails
   
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0); 
   const [newGlimpseCaption, setNewGlimpseCaption] = useState("");
-  const [selectedFileName, setSelectedFileName] = useState(""); // Fix for file name visibility
+  const [selectedFileName, setSelectedFileName] = useState(""); 
+  const [errorMsg, setErrorMsg] = useState(null); // Empathic feedback
   const fileInputRef = useRef(null);
   
   const [blessModalUser, setBlessModalUser] = useState(null);
@@ -27,10 +29,19 @@ export default function GlimpsesPage() {
   }, []);
 
   async function checkUser() {
-    const { data } = await supabase.auth.getUser();
-    if (data?.user) {
-      setUser(data.user);
-      loadGlimpses(data.user.id);
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (authUser) {
+      setUser(authUser);
+      
+      // Fetch user tier from profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('subscription_tier')
+        .eq('id', authUser.id)
+        .single();
+      
+      setUserTier(profile?.subscription_tier?.toLowerCase() || "free");
+      loadGlimpses(authUser.id);
     }
   }
 
@@ -42,7 +53,6 @@ export default function GlimpsesPage() {
       .order('created_at', { ascending: false });
 
     if (data) {
-      // Filter out ghost records
       const validGlimpses = data.filter(p => p.media_url && p.media_url.trim() !== "");
       
       const formatted = validGlimpses.map(p => ({
@@ -59,21 +69,44 @@ export default function GlimpsesPage() {
     }
   }
 
-  // Handle file selection and validate duration
+  // Monthly Limit Verification logic
+  const validateGlimpseLimit = async () => {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const { count, error } = await supabase
+      .from('posts')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('type', 'Glimpse')
+      .gte('created_at', thirtyDaysAgo.toISOString());
+
+    if (error) console.error("Limit check error:", error);
+
+    if (userTier === "free" && count >= 15) {
+      setErrorMsg("You've shared so much light! You've reached your limit of 15 Glimpses this month. Upgrade to Gold for unlimited Glimpses.");
+      return false;
+    }
+    if (userTier === "gold" && count >= 60) {
+      setErrorMsg("Your light is shining bright! You've reached your limit of 60 Glimpses. Explore Platinum Partnership for unlimited sharing.");
+      return false;
+    }
+    return true;
+  };
+
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Fix: Show file name clearly
+    setErrorMsg(null);
     setSelectedFileName(file.name);
 
-    // RESTRICTION: 60 Second Limit Check
     const video = document.createElement('video');
     video.preload = 'metadata';
     video.onloadedmetadata = () => {
       window.URL.revokeObjectURL(video.src);
       if (video.duration > 60) {
-        alert("⚠️ Glimpses must be 60 seconds or less. This video is " + Math.round(video.duration) + " seconds.");
+        setErrorMsg("⚡ Glimpses must be 60 seconds or less. This video is " + Math.round(video.duration) + "s.");
         fileInputRef.current.value = "";
         setSelectedFileName("");
       }
@@ -84,6 +117,10 @@ export default function GlimpsesPage() {
   async function handleFileUpload() {
     const file = fileInputRef.current?.files?.[0];
     if (!file || !user) return;
+
+    setErrorMsg(null);
+    const isAllowed = await validateGlimpseLimit();
+    if (!isAllowed) return;
 
     setUploading(true);
     setUploadProgress(0);
@@ -125,13 +162,12 @@ export default function GlimpsesPage() {
         media_type: "video"
       });
 
-      alert("✅ Glimpse Uploaded!");
       setIsUploadModalOpen(false); 
       setNewGlimpseCaption("");
       setSelectedFileName("");
       loadGlimpses(user.id);
     } catch (err) {
-      alert("Error: " + err.message);
+      setErrorMsg(err.message);
     } finally {
       setUploading(false);
     }
@@ -160,7 +196,7 @@ export default function GlimpsesPage() {
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, padding: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 10, background: 'linear-gradient(to bottom, rgba(0,0,0,0.5), transparent)' }}>
         <h2 style={{ color: "white", margin: 0, fontSize: "20px", fontWeight:'bold' }}>⚡ Glimpses</h2>
         <div style={{display:'flex', gap:'15px', alignItems:'center'}}>
-           <button onClick={() => setIsUploadModalOpen(true)} style={{ background: "rgba(255,255,255,0.2)", border: "1px solid white", color: "white", padding: "6px 15px", borderRadius: "20px", fontSize:'13px', cursor: "pointer", fontWeight:'bold' }}>+ Upload</button>
+           <button onClick={() => { setErrorMsg(null); setIsUploadModalOpen(true); }} style={{ background: "rgba(255,255,255,0.2)", border: "1px solid white", color: "white", padding: "6px 15px", borderRadius: "20px", fontSize:'13px', cursor: "pointer", fontWeight:'bold' }}>+ Upload</button>
            <Link href="/dashboard" style={{color:'white', fontSize:'24px', textDecoration:'none'}}>✕</Link>
         </div>
       </div>
@@ -185,15 +221,22 @@ export default function GlimpsesPage() {
       {isUploadModalOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: 'white', padding: '25px', borderRadius: '16px', width: '90%', maxWidth: '350px', textAlign: 'center' }}>
-            <h3 style={{ marginTop: 0, color: '#0b2e4a' }}>Upload New Glimpse</h3>
+            <h3 style={{ marginTop: 0, color: '#0b2e4a' }}>Upload Glimpse</h3>
+            
+            {errorMsg && (
+              <div style={{ background: '#fff5f5', borderLeft: '4px solid #c62828', padding: '12px', borderRadius: '8px', marginBottom: '15px', textAlign: 'left', fontSize: '13px' }}>
+                <p style={{ margin: '0 0 8px 0', color: '#c62828' }}>{errorMsg}</p>
+                <Link href="/pricing" style={{ color: '#2d6be3', fontWeight: 'bold' }}>View Support Plans</Link>
+              </div>
+            )}
+
             <textarea 
               value={newGlimpseCaption} 
               onChange={e => setNewGlimpseCaption(e.target.value)} 
-              placeholder="Add a caption..." 
+              placeholder="What's on your heart?" 
               style={{ width: '100%', padding: '10px', marginBottom: '15px', borderRadius: '8px', border: '1px solid #ddd', minHeight: '80px', color:'#333' }} 
             />
             
-            {/* FILE INPUT WRAPPER FOR VISIBILITY */}
             <div style={{ textAlign: 'left', marginBottom: '20px' }}>
               <button 
                 onClick={() => fileInputRef.current.click()} 
@@ -203,7 +246,6 @@ export default function GlimpsesPage() {
               </button>
               <input type="file" ref={fileInputRef} accept="video/*" style={{ display: 'none' }} onChange={handleFileChange} />
               
-              {/* CLEARLY VISIBLE FILE NAME */}
               {selectedFileName && (
                 <div style={{ marginTop: '8px', fontSize: '12px', color: '#2e8b57', fontWeight: 'bold', wordBreak: 'break-all' }}>
                   Selected: {selectedFileName}
@@ -220,8 +262,8 @@ export default function GlimpsesPage() {
               </div>
             )}
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button onClick={handleFileUpload} disabled={uploading || !selectedFileName} style={{ flex: 1, padding: '10px', background: '#2e8b57', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', opacity: (uploading || !selectedFileName) ? 0.6 : 1 }}>{uploading ? 'Processing...' : 'Upload'}</button>
-              <button onClick={() => { setIsUploadModalOpen(false); setSelectedFileName(""); }} style={{ flex: 1, padding: '10px', background: '#f0f0f0', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>Cancel</button>
+              <button onClick={handleFileUpload} disabled={uploading || !selectedFileName || errorMsg} style={{ flex: 1, padding: '10px', background: '#2e8b57', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', opacity: (uploading || !selectedFileName || errorMsg) ? 0.6 : 1 }}>{uploading ? 'Processing...' : 'Upload'}</button>
+              <button onClick={() => { setIsUploadModalOpen(false); setSelectedFileName(""); setErrorMsg(null); }} style={{ flex: 1, padding: '10px', background: '#f0f0f0', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>Cancel</button>
             </div>
           </div>
         </div>
@@ -242,6 +284,7 @@ export default function GlimpsesPage() {
   );
 }
 
+// Child Component for each vertical scroll item
 function GlimpseItem({ glimpse, user, isActive, setActiveGlimpseId, onAmen, setBlessModalUser, onDelete, openMenuId, setOpenMenuId }) {
   const containerRef = useRef(null);
 

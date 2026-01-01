@@ -8,6 +8,7 @@ import Link from "next/link";
 export default function FellowshipsPage() {
   const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState(null);
+  const [userTier, setUserTier] = useState("free"); // Track tier for restrictions
   
   // Views: 'discover' | 'active_group'
   const [view, setView] = useState("discover"); 
@@ -38,10 +39,19 @@ export default function FellowshipsPage() {
   }, []);
 
   async function checkUser() {
-    const { data } = await supabase.auth.getUser();
-    if (data?.user) {
-      setUser(data.user);
-      loadFellowships(data.user.id);
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (authUser) {
+      setUser(authUser);
+      
+      // Fetch user tier from profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('subscription_tier')
+        .eq('id', authUser.id)
+        .single();
+      
+      setUserTier(profile?.subscription_tier?.toLowerCase() || "free");
+      loadFellowships(authUser.id);
     }
   }
 
@@ -103,6 +113,13 @@ export default function FellowshipsPage() {
   // --- ACTIONS ---
   async function handleCreateGroup(e) {
     e.preventDefault();
+
+    // TIER GUARDRAIL
+    if (userTier === "free") {
+      alert("Leading a Fellowship is a beautiful calling reserved for our Gold Supporters and Platinum Partners who sustain this sanctuary. Explore our support plans to start your own group.");
+      return;
+    }
+
     const { data, error } = await supabase.from('fellowships').insert({
       created_by: user.id,
       name: newGroup.name,
@@ -117,6 +134,15 @@ export default function FellowshipsPage() {
       loadFellowships(user.id);
     }
   }
+
+  // UI Trigger for Creation Modal
+  const triggerCreateModal = () => {
+    if (userTier === "free") {
+      alert("Leading a Fellowship is a beautiful calling reserved for our Gold Supporters and Platinum Partners who help sustain this sanctuary. Visit our support plans to learn how you can lead your own group.");
+    } else {
+      setShowCreate(true);
+    }
+  };
 
   async function handleDeleteFellowship(groupId) {
     if (!confirm("Are you sure? All posts and member data will be lost.")) return;
@@ -221,7 +247,20 @@ export default function FellowshipsPage() {
             <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#333' }}>{g.name}</div>
           </div>
         ))}
-        <button onClick={() => setShowCreate(true)} style={{ width: "100%", padding: "10px", marginTop: "20px", background: "#0b2e4a", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "bold" }}>+ Create New</button>
+        
+        {/* MODIFIED CREATE BUTTON */}
+        <button 
+          onClick={triggerCreateModal} 
+          style={{ 
+            width: "100%", padding: "12px", marginTop: "20px", 
+            background: userTier === "free" ? "#f8f9fa" : "#0b2e4a", 
+            color: userTier === "free" ? "#666" : "white", 
+            border: userTier === "free" ? "1px solid #ddd" : "none", 
+            borderRadius: "8px", cursor: "pointer", fontWeight: "bold" 
+          }}
+        >
+          {userTier === "free" ? "🔒 Upgrade to Create" : "+ Create New"}
+        </button>
       </div>
 
       {/* CENTER CONTENT */}
@@ -296,25 +335,22 @@ export default function FellowshipsPage() {
                           </div>
                         </div>
 
-                        {/* FIX: Explicit color set for post text */}
                         <p style={{color: '#333', lineHeight: '1.5'}}>{post.content}</p>
                         {post.media_url && <img src={post.media_url} style={{ width: '100%', borderRadius: '8px', marginTop: '10px' }} />}
 
-                        {/* FELLOWSHIP INTERACTIONS (AMEN / COMMENT) */}
                         <div style={{ display:'flex', gap:'20px', marginTop:'15px', borderTop:'1px solid #eee', paddingTop:'10px' }}>
                            <button onClick={() => handleAmen(post, post.hasAmened)} style={{background:'none', border:'none', color: post.hasAmened ? '#2e8b57' : '#666', fontWeight: post.hasAmened ? 'bold' : 'normal', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}>🙏 Amen ({post.amenCount})</button>
                            <button onClick={() => toggleComments(post.id)} style={{background:'none', border:'none', color:'#666', fontWeight:'bold', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}>💬 Comment</button>
                         </div>
 
-                        {/* COMMENTS SECTION */}
                         {activeCommentPostId === post.id && (
                            <div style={{marginTop:'15px', background:'#f9f9f9', padding:'10px', borderRadius:'8px'}}>
                              <div style={{maxHeight:'200px', overflowY:'auto', marginBottom:'10px'}}>
                                {comments[post.id]?.length > 0 ? comments[post.id].map(c => (
                                  <div key={c.id} style={{display:'flex', gap:'10px', marginBottom:'8px'}}>
                                    <img src={c.profiles?.avatar_url || '/images/default-avatar.png'} style={{width:25, height:25, borderRadius:'50%'}} />
-                                   <div style={{background:'white', padding:'5px 10px', borderRadius:'10px', fontSize:'13px', flex:1, color:'#333'}}> {/* FIX: Color #333 */}
-                                     <div style={{fontWeight:'bold', fontSize:'12px', color:'#0b2e4a'}}>{c.profiles?.full_name}</div> {/* FIX: Color #0b2e4a */}
+                                   <div style={{background:'white', padding:'5px 10px', borderRadius:'10px', fontSize:'13px', flex:1, color:'#333'}}>
+                                     <div style={{fontWeight:'bold', fontSize:'12px', color:'#0b2e4a'}}>{c.profiles?.full_name}</div>
                                      {c.content}
                                    </div>
                                  </div>
