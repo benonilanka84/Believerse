@@ -63,6 +63,7 @@ function DashboardContent() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUser(user);
+        // Corrected to fetch all fields including subscription_plan
         const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
         setProfile(data);
         loadAllData(user.id);
@@ -107,9 +108,10 @@ function DashboardContent() {
   }
 
   const getBadgeUI = () => {
-    if (!profile || !profile.subscription_tier) return null;
-    const plan = profile.subscription_tier.trim().toLowerCase();
-    // Inclusive check ensures "Platinum Partner" displays the badge
+    // Aligned logic with subscription_plan column
+    if (!profile || !profile.subscription_plan) return null;
+    const plan = profile.subscription_plan.trim().toLowerCase();
+    
     if (plan.includes('platinum')) {
       return (
         <span style={{ background: "linear-gradient(45deg, #29b6f6, #0288d1)", color: "white", padding: "4px 10px", borderRadius: "12px", fontSize: "12px", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "4px", marginLeft: "10px", boxShadow: "0 2px 5px rgba(41, 182, 246, 0.4)" }}>
@@ -367,8 +369,14 @@ function DashboardContent() {
         </div>
 
         <div className="center-panel">
-          {/* Wait for profile to load before rendering CreatePost to prevent "Free" defaults */}
-          {user && profile && <CreatePost user={user} tier={profile?.subscription_tier} onPostCreated={() => { loadPosts(user.id, true); loadPrayerWall(user.id); }} />}
+          {/* Mapping 'standard' to 'free' and waiting for profile load to prevent banners */}
+          {user && profile && (
+            <CreatePost 
+              user={user} 
+              tier={profile.subscription_plan?.toLowerCase().trim() === 'standard' ? 'free' : profile.subscription_plan} 
+              onPostCreated={() => { loadPosts(user.id, true); loadPrayerWall(user.id); }} 
+            />
+          )}
           <div className="panel-card">
             <h3>🏠 The Walk</h3>
             {loadingPosts ? <p style={{textAlign:'center', padding:'20px'}}>Loading...</p> : 

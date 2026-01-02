@@ -35,13 +35,18 @@ export default function PricingPage() {
       
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        // Pointed to subscription_plan column
         const { data: profile } = await supabase
           .from("profiles")
-          .select("subscription_tier")
+          .select("subscription_plan")
           .eq("id", user.id)
           .single();
-        // Normalize to lowercase to ensure match with button logic
-        if (profile) setCurrentPlan(profile.subscription_tier?.toLowerCase() || "free");
+        
+        if (profile) {
+          const rawPlan = profile.subscription_plan?.toLowerCase().trim() || "free";
+          // Mapping 'standard' to 'free' to enable 'Current Plan' buttons correctly
+          setCurrentPlan(rawPlan === 'standard' ? 'free' : rawPlan);
+        }
       }
       setLoadingGeo(false);
     }
@@ -79,7 +84,6 @@ export default function PricingPage() {
     }
 
     try {
-      // NOTE: To fix the mandate issue, the backend endpoint MUST use Razorpay Subscriptions API
       const response = await fetch("/api/razorpay", { 
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -88,7 +92,7 @@ export default function PricingPage() {
           currency,
           userId: user.id,
           planName,
-          isSubscription: true // Added flag for backend to switch to Subscription API
+          isSubscription: true 
         }), 
       });
 
@@ -97,8 +101,6 @@ export default function PricingPage() {
 
       const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID, 
-        // For Subscriptions, we pass subscription_id instead of order_id
-        // If data.subscriptionId exists, use it; otherwise fallback to order_id
         ...(data.subscriptionId ? { subscription_id: data.subscriptionId } : { order_id: data.order.id }),
         name: "The Believerse",
         description: `${planName} Plan`,
@@ -130,7 +132,6 @@ export default function PricingPage() {
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafd", padding: "40px 20px" }}>
       
-      {/* 1. INAUGURAL BANNER */}
       {billingCycle === "monthly" && (
         <div style={{ 
           background: "linear-gradient(90deg, #d4af37 0%, #f9d976 100%)", 
@@ -146,7 +147,6 @@ export default function PricingPage() {
         </div>
       )}
 
-      {/* 2. HERO SECTION */}
       <div style={{ textAlign: "center", marginBottom: "40px", maxWidth: "800px", margin: "0 auto 40px auto" }}>
         <h1 style={{ color: "#0b2e4a", fontSize: "2.8rem", fontWeight: "800", marginBottom: "15px" }}>Premium Access</h1>
         <div style={{ background: "#e0e0e0", borderRadius: "30px", padding: "4px", display: "inline-flex" }}>
@@ -193,10 +193,11 @@ export default function PricingPage() {
           </ul>
           <button 
             onClick={() => handlePurchase("Gold", activeGold)} 
-            disabled={processing === 'gold' || currentPlan === 'gold'} 
-            style={{ width: "100%", padding: "16px", borderRadius: "12px", border: "none", background: (currentPlan === 'gold' || currentPlan === 'platinum') ? "#f8fafd" : "#d4af37", color: (currentPlan === 'gold' || currentPlan === 'platinum') ? "#64748b" : "white", fontWeight: "800", cursor: "pointer" }}
+            // Corrected match for subscription_plan values
+            disabled={processing === 'gold' || currentPlan.includes('gold') || currentPlan.includes('platinum')} 
+            style={{ width: "100%", padding: "16px", borderRadius: "12px", border: "none", background: (currentPlan.includes('gold') || currentPlan.includes('platinum')) ? "#f8fafd" : "#d4af37", color: (currentPlan.includes('gold') || currentPlan.includes('platinum')) ? "#64748b" : "white", fontWeight: "800", cursor: "pointer" }}
           >
-            {processing === 'gold' ? "Processing..." : (currentPlan === 'gold' || currentPlan === 'platinum') ? "Current Plan" : "Claim Offer: ₹1"}
+            {processing === 'gold' ? "Processing..." : (currentPlan.includes('gold') || currentPlan.includes('platinum')) ? "Current Plan" : "Claim Offer: ₹1"}
           </button>
         </div>
 
@@ -216,10 +217,10 @@ export default function PricingPage() {
           </ul>
           <button 
             onClick={() => handlePurchase("Platinum", activePlat)} 
-            disabled={processing === 'platinum' || currentPlan === 'platinum'} 
-            style={{ width: "100%", padding: "16px", borderRadius: "12px", border: "none", background: currentPlan === 'platinum' ? "#f8fafd" : "#29b6f6", color: currentPlan === 'platinum' ? "#64748b" : "#0b2e4a", fontWeight: "800", cursor: "pointer" }}
+            disabled={processing === 'platinum' || currentPlan.includes('platinum')} 
+            style={{ width: "100%", padding: "16px", borderRadius: "12px", border: "none", background: currentPlan.includes('platinum') ? "#f8fafd" : "#29b6f6", color: currentPlan.includes('platinum') ? "#64748b" : "#0b2e4a", fontWeight: "800", cursor: "pointer" }}
           >
-            {processing === 'platinum' ? "Processing..." : currentPlan === 'platinum' ? "Current Plan" : "Get Platinum"}
+            {processing === 'platinum' ? "Processing..." : currentPlan.includes('platinum') ? "Current Plan" : "Get Platinum"}
           </button>
         </div>
       </div>
