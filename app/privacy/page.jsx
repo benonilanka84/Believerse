@@ -1,124 +1,223 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
-export default function PrivacyPage() {
+export default function PricingPage() {
+  const [currency, setCurrency] = useState("USD"); 
+  const [billingCycle, setBillingCycle] = useState("monthly");
+  const [loadingGeo, setLoadingGeo] = useState(true);
+  const [processing, setProcessing] = useState(null); 
+  const [currentPlan, setCurrentPlan] = useState("free"); 
+  
+  const router = useRouter();
+
+  const pricing = {
+    gold: {
+      INR: { monthly: 99, yearly: 999, symbol: "₹" },
+      USD: { monthly: 4.99, yearly: 49.99, symbol: "$" }
+    },
+    platinum: {
+      INR: { monthly: 499, yearly: 4999, symbol: "₹" },
+      USD: { monthly: 14.99, yearly: 149.99, symbol: "$" }
+    }
+  };
+
+  useEffect(() => {
+    async function initPage() {
+      try {
+        const res = await fetch('https://ipapi.co/json/');
+        const data = await res.json();
+        setCurrency(data.country_code === "IN" ? "INR" : "USD");
+      } catch (e) { setCurrency("USD"); }
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("subscription_tier")
+          .eq("id", user.id)
+          .single();
+        // Set state immediately from database
+        if (profile) setCurrentPlan(profile.subscription_tier?.toLowerCase().trim() || "free");
+      }
+      setLoadingGeo(false);
+    }
+    initPage();
+  }, []);
+
+  const activeGold = pricing.gold[currency];
+  const activePlat = pricing.platinum[currency];
+  const getPrice = (planObj) => billingCycle === "monthly" ? planObj.monthly : planObj.yearly;
+
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handlePurchase = async (planName, planObj) => {
+    setProcessing(planName.toLowerCase());
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      alert("Please log in to upgrade.");
+      router.push("/login");
+      return;
+    }
+
+    const scriptLoaded = await loadRazorpayScript();
+    if (!scriptLoaded) {
+      alert("Gateway failed to load.");
+      setProcessing(null);
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/razorpay", { 
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          amount: getPrice(planObj), 
+          currency,
+          userId: user.id,
+          planName,
+          isSubscription: true 
+        }), 
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message);
+
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID, 
+        ...(data.subscriptionId ? { subscription_id: data.subscriptionId } : { order_id: data.order.id }),
+        name: "The Believerse",
+        description: `${planName} Plan`,
+        image: "/images/final-logo.png",
+        handler: async function (res) {
+          const verify = await fetch("/api/razorpay/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...res, planName, userId: user.id })
+          });
+          if (verify.ok) {
+            alert("Hallelujah! Upgrade successful.");
+            window.location.reload();
+          }
+        },
+        prefill: { email: user.email },
+        theme: { color: "#d4af37" },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (error) {
+      alert("Error: " + error.message);
+    } finally {
+      setProcessing(null);
+    }
+  };
+
   return (
-    <div style={styles.wrapper}>
-      <div style={styles.card}>
-        <h1 style={{ color: "#0b2e4a" }}>The Believerse — Privacy & Stewardship</h1>
-        <p style={styles.lastUpdated}>Last Updated: December 2025</p>
+    <div style={{ minHeight: "100vh", background: "#f8fafd", padding: "40px 20px" }}>
+      
+      {billingCycle === "monthly" && (
+        <div style={{ 
+          background: "linear-gradient(90deg, #d4af37 0%, #f9d976 100%)", 
+          color: "#0b2e4a", padding: "15px", borderRadius: "12px", 
+          textAlign: "center", maxWidth: "800px", margin: "0 auto 30px auto",
+          boxShadow: "0 4px 15px rgba(212, 175, 55, 0.3)", border: "1px solid #fff"
+        }}>
+          <h3 style={{ margin: "0 0 5px 0", fontSize: "1.2rem" }}>🎉 Inaugural Launch Offer!</h3>
+          <p style={{ margin: 0, fontSize: "0.95rem", fontWeight: "500" }}>
+            Get <strong>3 Months of Gold</strong> for just <strong>{activeGold?.symbol || "₹"}1</strong>.
+            <br/><span style={{fontSize:"0.85rem", opacity:0.8}}>(Auto-renews at ₹99/mo after 90 days)</span>
+          </p>
+        </div>
+      )}
 
-        <p>
-          At <strong>The Believerse</strong>, we consider the protection of your 
-          journey and data to be a sacred trust. This policy outlines how we 
-          steward the information you share within our sanctuary to ensure a 
-          secure, private, and Christ-centered environment.
-        </p>
+      <div style={{ textAlign: "center", marginBottom: "40px", maxWidth: "800px", margin: "0 auto 40px auto" }}>
+        <h1 style={{ color: "#0b2e4a", fontSize: "2.8rem", fontWeight: "800", marginBottom: "15px" }}>Premium Access</h1>
+        <div style={{ background: "#e0e0e0", borderRadius: "30px", padding: "4px", display: "inline-flex" }}>
+            <button onClick={() => setBillingCycle("monthly")} style={{ padding: "10px 25px", borderRadius: "25px", border: "none", cursor: "pointer", fontWeight: "bold", background: billingCycle === "monthly" ? "white" : "transparent", color: "#0b2e4a" }}>Monthly</button>
+            <button onClick={() => setBillingCycle("yearly")} style={{ padding: "10px 25px", borderRadius: "25px", border: "none", cursor: "pointer", fontWeight: "bold", background: billingCycle === "yearly" ? "white" : "transparent", color: "#0b2e4a" }}>
+              Yearly <span style={{fontSize:"10px", color:"#2e8b57", marginLeft:"4px"}}>(Save 17%)</span>
+            </button>
+        </div>
+      </div>
 
-        <h3>1. Information We Steward</h3>
-        <p>We collect only what is necessary to maintain your place in the fellowship:</p>
-        <ul style={styles.list}>
-          <li>
-            <strong>Believer Details:</strong> Your name, email, and the 
-            profile details you provide to identify yourself within the community.
-          </li>
-          <li>
-            <strong>Shared Glimpses:</strong> The media, posts, and interactive 
-            fellowship you voluntarily share within our digital walls.
-          </li>
-          <li>
-            <strong>Stewardship Transactions:</strong> History related to 
-            partnership upgrades or digital service fees. <em>Note: We do not 
-            store card details. Financial data is securely processed via 
-            authorized third-party gateways (e.g., Razorpay).</em>
-          </li>
-          <li>
-            <strong>Sanctuary Performance:</strong> Technical data used 
-            solely to ensure the sanctuary remains stable, fast, and secure 
-            for all believers.
-          </li>
-        </ul>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "25px", maxWidth: "1200px", margin: "0 auto 60px auto" }}>
 
-        <h3>2. Purpose of Stewardship</h3>
-        <p>Your information is used to foster fellowship and maintain order:</p>
-        <ul style={styles.list}>
-          <li>To manage your sanctuary access and partner features.</li>
-          <li>To facilitate secure fellowship and the sharing of the Word.</li>
-          <li>To process partnership transactions and provide digital confirmations.</li>
-          <li>To protect the community from noise, fraud, and unholy interactions.</li>
-        </ul>
+        {/* COMMUNITY CARD */}
+        <div style={{ background: "#ffffff", borderRadius: "20px", padding: "40px", border: "1px solid #e1e8ed" }}>
+          <h3 style={{ color: "#5a7184", fontSize: "1.4rem", fontWeight: "600", marginBottom: "10px" }}>Community</h3>
+          <div style={{ fontSize: "2.8rem", fontWeight: "800", color: "#0b2e4a", marginBottom: "20px" }}>Free</div>
+          <ul style={{ listStyle: "none", padding: 0, margin: "0 0 35px 0", lineHeight: "2.4", fontSize: "1rem", color: "#334155" }}>
+            <li>📖 Unlimited Content Access</li>
+            <li>🙏 Post Prayer Requests</li>
+            <li>🛡️ <strong>100% Privacy</strong></li>
+            <li>✨ Standard Profile Badge</li>
+            <li style={{ color: "#cbd5e1" }}>❌ Create Fellowships</li>
+            <li style={{ color: "#cbd5e1" }}>❌ Long Video Uploads</li>
+          </ul>
+          <button disabled style={{ width: "100%", padding: "16px", borderRadius: "12px", border: "2px solid #e1e8ed", background: "#f8fafd", color: "#64748b", fontWeight: "700" }}>
+            {currentPlan === "free" ? "Current Plan" : "Basic Access"}
+          </button>
+        </div>
 
-        <h3>3. Trusted Partners</h3>
-        <p>
-          The Believerse <strong>never</strong> sells or trades the data of our 
-          fellowship. We coordinate with trusted stewards only for technical necessity:
-        </p>
-        <ul style={styles.list}>
-          <li>
-            <strong>Stewardship Processing:</strong> Razorpay handles all 
-            transaction security for partnership fees.
-          </li>
-          <li>
-            <strong>Identity Protection:</strong> We use secure authentication 
-            to ensure only you can access your account.
-          </li>
-          <li>
-            <strong>Legal Integrity:</strong> We act only to satisfy legal 
-            requirements or to protect the safety of the fellowship.
-          </li>
-        </ul>
+        {/* GOLD CARD */}
+        <div style={{ background: "#fffdf5", borderRadius: "20px", padding: "40px", border: "2px solid #d4af37", position: "relative" }}>
+          <div style={{ position: "absolute", top: "-14px", left: "50%", transform: "translateX(-50%)", background: "#d4af37", color: "white", padding: "6px 16px", borderRadius: "20px", fontSize: "0.75rem", fontWeight: "800" }}>CREATOR FAVORITE</div>
+          <h3 style={{ color: "#d4af37", fontSize: "1.4rem", fontWeight: "700", marginBottom: "10px" }}>Gold Supporter</h3>
+          <div style={{ fontSize: "2.8rem", fontWeight: "800", color: "#0b2e4a", marginBottom: "20px" }}>
+            {activeGold?.symbol}{getPrice(activeGold)} <span style={{fontSize:"0.9rem", color:"#64748b"}}>/{billingCycle === "monthly" ? "mo" : "yr"}</span>
+          </div>
+          <ul style={{ listStyle: "none", padding: 0, margin: "0 0 35px 0", lineHeight: "2.4", fontSize: "1rem", color: "#334155" }}>
+            <li>🚫 <strong>Ad-Free Experience</strong></li>
+            <li>📹 <strong>Unlimited</strong> Glimpses</li>
+            <li>🎥 60 Min Video Uploads</li>
+            <li>💾 <strong>50 GB</strong> Storage</li>
+            <li>👥 Create & Lead Fellowships</li>
+            <li>🥇 <strong>Gold Profile Badge</strong></li>
+          </ul>
+          <button 
+            onClick={() => handlePurchase("Gold", activeGold)} 
+            disabled={processing === 'gold' || currentPlan.includes('gold') || currentPlan.includes('platinum')} 
+            style={{ width: "100%", padding: "16px", borderRadius: "12px", border: "none", background: (currentPlan.includes('gold') || currentPlan.includes('platinum')) ? "#f8fafd" : "#d4af37", color: (currentPlan.includes('gold') || currentPlan.includes('platinum')) ? "#64748b" : "white", fontWeight: "800", cursor: "pointer" }}
+          >
+            {processing === 'gold' ? "Processing..." : (currentPlan.includes('gold') || currentPlan.includes('platinum')) ? "Current Plan" : "Claim Offer: ₹1"}
+          </button>
+        </div>
 
-        <h3>4. Protecting the Sanctuary</h3>
-        <p>
-          We utilize industry-standard encryption to guard your data. While we 
-          steward our digital walls with high-grade security, we encourage 
-          every believer to use unique and strong credentials to protect their 
-          account.
-        </p>
-
-        <h3>5. Your Sovereignty & Account Rights</h3>
-        <p>
-          You remain the steward of your own data. You have the right to access, 
-          correct, or request the removal of your information at any time.
-        </p>
-        <ul style={styles.list}>
-          <li>
-            <strong>Account Deletion & Recovery:</strong> For requests regarding 
-            the permanent removal of your account, content recovery, or technical 
-            upgrades, please contact <strong>support@thebelieverse.com</strong>.
-          </li>
-          <li>
-            <strong>Profile Management:</strong> Basic updates can be made 
-            instantly through your sanctuary dashboard.
-          </li>
-        </ul>
-
-        <hr style={{ margin: "30px 0", border: "1px solid #eee" }} />
-
-        <h3>Contact the Stewards</h3>
-        <p style={{ margin: "5px 0" }}>
-          <strong>General Fellowship:</strong> <span style={{ color: "#d4af37" }}>contact@thebelieverse.com</span>
-        </p>
-        <p style={{ margin: "5px 0" }}>
-          <strong>Technical Support & Deletion:</strong> <span style={{ color: "#d4af37" }}>support@thebelieverse.com</span>
-        </p>
-        <p style={{ margin: "5px 0" }}>
-          <strong>Partnership & Leadership:</strong> <span style={{ color: "#d4af37" }}>ceo@thebelieverse.com</span>
-        </p>
-
-        <Link href="/dashboard" style={styles.link}>
-          ⬅ Back to Sanctuary
-        </Link>
+        {/* PLATINUM CARD */}
+        <div style={{ background: "linear-gradient(145deg, #0b2e4a 0%, #1a4f7a 100%)", borderRadius: "20px", padding: "40px", color: "white" }}>
+          <h3 style={{ color: "#4fc3f7", fontSize: "1.4rem", fontWeight: "700", marginBottom: "10px" }}>Platinum Partner</h3>
+          <div style={{ fontSize: "2.8rem", fontWeight: "800", color: "white", marginBottom: "20px" }}>
+            {activePlat?.symbol}{getPrice(activePlat)} <span style={{fontSize:"0.9rem", color:"#81d4fa"}}>/{billingCycle === "monthly" ? "mo" : "yr"}</span>
+          </div>
+          <ul style={{ listStyle: "none", padding: 0, margin: "0 0 35px 0", lineHeight: "2.4", fontSize: "1rem" }}>
+            <li>✅ Everything in Gold</li>
+            <li>🎥 3 Hour Video Uploads</li>
+            <li>💾 <strong>500 GB</strong> Storage</li>
+            <li>💎 <strong>Platinum Verification</strong></li>
+            <li>🏛️ Ministry Content Tools</li>
+            <li>💙 Founder Priority Access</li>
+          </ul>
+          <button 
+            onClick={() => handlePurchase("Platinum", activePlat)} 
+            disabled={processing === 'platinum' || currentPlan.includes('platinum')} 
+            style={{ width: "100%", padding: "16px", borderRadius: "12px", border: "none", background: currentPlan.includes('platinum') ? "#f8fafd" : "#29b6f6", color: currentPlan.includes('platinum') ? "#64748b" : "#0b2e4a", fontWeight: "800", cursor: "pointer" }}
+          >
+            {processing === 'platinum' ? "Processing..." : currentPlan.includes('platinum') ? "Current Plan" : "Get Platinum"}
+          </button>
+        </div>
       </div>
     </div>
   );
 }
-
-const styles = {
-  wrapper: { minHeight: "100vh", padding: "40px", display: "flex", justifyContent: "center", alignItems: "flex-start", background: "#b4dcff" },
-  card: { maxWidth: "900px", padding: "30px", background: "white", borderRadius: "12px", boxShadow: "0 8px 20px rgba(0,0,0,0.2)", color: "#333" },
-  lastUpdated: { fontSize: "0.9rem", color: "#666", fontStyle: "italic", marginBottom: "20px" },
-  list: { paddingLeft: "20px", lineHeight: "1.8", marginBottom: "20px" },
-  link: { display: "inline-block", marginTop: "20px", padding: "12px 25px", background: "#0b2e4a", color: "white", borderRadius: "8px", textDecoration: "none", fontWeight: "600" },
-};

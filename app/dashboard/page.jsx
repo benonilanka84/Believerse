@@ -109,7 +109,7 @@ function DashboardContent() {
   const getBadgeUI = () => {
     if (!profile || !profile.subscription_tier) return null;
     const plan = profile.subscription_tier.trim().toLowerCase();
-    // Logic updated to ensure Platinum Partner shows correctly
+    // Inclusive check ensures "Platinum Partner" displays the badge
     if (plan.includes('platinum')) {
       return (
         <span style={{ background: "linear-gradient(45deg, #29b6f6, #0288d1)", color: "white", padding: "4px 10px", borderRadius: "12px", fontSize: "12px", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "4px", marginLeft: "10px", boxShadow: "0 2px 5px rgba(41, 182, 246, 0.4)" }}>
@@ -367,8 +367,8 @@ function DashboardContent() {
         </div>
 
         <div className="center-panel">
-          {/* UPDATED: Passing the subscription_tier to CreatePost for Guardrail recognition */}
-          {user && <CreatePost user={user} tier={profile?.subscription_tier} onPostCreated={() => { loadPosts(user.id, true); loadPrayerWall(user.id); }} />}
+          {/* Wait for profile to load before rendering CreatePost to prevent "Free" defaults */}
+          {user && profile && <CreatePost user={user} tier={profile?.subscription_tier} onPostCreated={() => { loadPosts(user.id, true); loadPrayerWall(user.id); }} />}
           <div className="panel-card">
             <h3>🏠 The Walk</h3>
             {loadingPosts ? <p style={{textAlign:'center', padding:'20px'}}>Loading...</p> : 
@@ -408,7 +408,7 @@ function DashboardContent() {
                  {editingPost === post.id ? (
                    <div style={{marginBottom:'10px'}}><input type="text" value={editTitle} onChange={e => setEditTitle(e.target.value)} placeholder="Title" style={{width:'100%', padding:'8px', marginBottom:'5px', borderRadius:'4px', border:'1px solid #ddd'}} /><textarea value={editContent} onChange={e => setEditContent(e.target.value)} placeholder="Content" style={{width:'100%', padding:'10px', borderRadius:'8px', border:'1px solid #ddd', minHeight:'100px'}} /><div style={{marginTop:'5px', display:'flex', gap:'5px', justifyContent:'flex-end'}}><button onClick={() => handleUpdatePost(post.id)} style={{padding:'6px 12px', background:'#2e8b57', color:'white', border:'none', borderRadius:'4px', cursor:'pointer'}}>Save</button><button onClick={() => setEditingPost(null)} style={{padding:'6px 12px', background:'#ccc', border:'none', borderRadius:'4px', cursor:'pointer'}}>Cancel</button></div></div>
                  ) : (
-                   <>{post.title && <h4 style={{margin:'0 0 5px 0', color: '#0b2e4a'}}>{post.title}</h4>}<p style={{whiteSpace:'pre-wrap', color:'#333'}}>{post.content}</p>{post.media_url && ((post.media_url.includes("iframe.mediadelivery.net") || post.media_url.includes("video.bunnycdn")) ? (<div style={{ position: 'relative', width: '100%', height: 0, paddingBottom: post.type === 'Glimpse' ? '177.77%' : '56.25%', marginTop: '10px', background: 'black', borderRadius: '8px', overflow: 'hidden' }}><iframe src={post.media_url + "?autoplay=false&loop=false"} loading="lazy" style={{ position: 'absolute', top: 0, left: 0, border: 'none', width: '100%', height: '100%' }} allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;" allowFullScreen={true} /></div>) : (<img src={post.media_url} style={{width:'100%', borderRadius:'8px', marginTop:'10px', objectFit:'cover'}} onError={(e) => { e.target.style.display='none'; }} />))}</>
+                   <>{post.title && <h4 style={{margin:'0 0 5px 0', color: '#0b2e4a'}}>{post.title}</h4>}<p style={{whiteSpace:'pre-wrap', color:'#334155'}}>{post.content}</p>{post.media_url && ((post.media_url.includes("iframe.mediadelivery.net") || post.media_url.includes("video.bunnycdn")) ? (<div style={{ position: 'relative', width: '100%', height: 0, paddingBottom: post.type === 'Glimpse' ? '177.77%' : '56.25%', marginTop: '10px', background: 'black', borderRadius: '12px', overflow: 'hidden' }}><iframe src={post.media_url + "?autoplay=false&loop=false"} loading="lazy" style={{ position: 'absolute', top: 0, left: 0, border: 'none', width: '100%', height: '100%' }} allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;" allowFullScreen={true} /></div>) : (<img src={post.media_url} style={{width:'100%', borderRadius:'8px', marginTop:'10px', objectFit:'cover'}} onError={(e) => { e.target.style.display='none'; }} />))}</>
                  )}
                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:'15px', borderTop:'1px solid #eee', paddingTop:'10px', width:'100%'}}>
                      <button onClick={() => handleAmen(post, post.hasAmened)} style={{background:'none', border:'none', color: post.hasAmened ? '#2e8b57' : '#666', fontWeight: post.hasAmened ? 'bold' : 'normal', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}>🙏 Amen ({post.amenCount})</button>
@@ -422,7 +422,7 @@ function DashboardContent() {
                        {comments[post.id]?.length > 0 ? comments[post.id].map(c => (
                          <div key={c.id} style={{display:'flex', gap:'10px', marginBottom:'8px', position:'relative'}}>
                            <img src={c.profiles?.avatar_url || '/images/default-avatar.png'} style={{width:25, height:25, borderRadius:'50%'}} />
-                           <div style={{background:'white', padding:'5px 10px', borderRadius:'10px', fontSize:'13px', flex:1, color:'#333'}}>
+                           <div style={{background:'white', padding:'5px 10px', borderRadius:'10px', fontSize:'13px', flex:1, color:'#334155'}}>
                              <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
                                <div style={{fontWeight:'bold', fontSize:'12px', color:'#0b2e4a'}}>{c.profiles?.full_name}</div>
                                <div style={{display:'flex', gap:'5px'}}>
