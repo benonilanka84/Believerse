@@ -1,10 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
+  // output: 'export', // COMMENT THIS OUT for Vercel; uncomment ONLY for local Android builds
   images: { unoptimized: true },
-  // ADD THIS LINE:
-  eslint: { ignoreDuringBuilds: true }, 
-  typescript: { ignoreBuildErrors: true },
-}
+  reactStrictMode: true,
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;
