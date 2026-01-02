@@ -11,6 +11,9 @@
   },
   "dependencies": {
     "@aws-sdk/client-ivs": "^3.958.0",
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/cli": "^8.0.0",
+    "@capacitor/core": "^8.0.0",
     "@supabase/auth-helpers-nextjs": "^0.15.0",
     "@supabase/supabase-js": "^2.89.0",
     "html-to-image": "^1.11.13",

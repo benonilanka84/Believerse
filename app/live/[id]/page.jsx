@@ -4,6 +4,8 @@ import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { useParams } from "next/navigation";
 
+export const dynamic = 'force-dynamic';
+export const dynamicParams = true;
 export default function LiveViewerPage() {
   const { id } = useParams(); 
   const [stream, setStream] = useState(null);

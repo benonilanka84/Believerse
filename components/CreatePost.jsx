@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import * as tus from "tus-js-client";
 import Link from "next/link";
 
-export default function CreatePost({ user, onPostCreated, fellowshipId = null }) {
+export default function CreatePost({ user, tier, onPostCreated, fellowshipId = null }) {
   const [isOpen, setIsOpen] = useState(false);
   const [content, setContent] = useState("");
   const [title, setTitle] = useState("");
@@ -18,8 +18,8 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
   const fileInputRef = useRef(null);
   const [dragActive, setDragActive] = useState(false);
 
-  // Sync Tier Data from User Profile
-  const userTier = user?.subscription_tier?.toLowerCase() || "free";
+  // Sync Tier Data from Prop or User Profile
+  const userTier = (tier || user?.subscription_tier || "free").toLowerCase().trim();
 
   useEffect(() => {
     if (!mediaFile) {
@@ -204,6 +204,7 @@ export default function CreatePost({ user, onPostCreated, fellowshipId = null })
           <option value="Glimpse">⚡ Glimpse</option>
         </select>
         
+        {/* Updated Logic: Only show for Free users */}
         {userTier === "free" && (
           <div style={{ fontSize: "12px", background: "#fff9db", color: "#856404", padding: "8px 12px", borderRadius: "8px", display: "flex", alignItems: "center" }}>
             ⭐ Gold members get 1080p uploads & Fellowships

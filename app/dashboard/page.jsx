@@ -71,17 +71,14 @@ function DashboardContent() {
     getUser();
   }, [mounted]);
 
-  // NEW: Deep Linking & Highlight Logic
   useEffect(() => {
     const targetPostId = searchParams.get('postId');
     if (targetPostId && posts.length > 0) {
-      // Auto-expand comments for the targeted post
       setActiveCommentPostId(targetPostId);
       if (!comments[targetPostId]) {
         toggleComments(targetPostId);
       }
       
-      // Smooth scroll to the specific post with a slight delay for rendering
       setTimeout(() => {
         const element = document.getElementById(`post-${targetPostId}`);
         if (element) {
@@ -112,6 +109,7 @@ function DashboardContent() {
   const getBadgeUI = () => {
     if (!profile || !profile.subscription_tier) return null;
     const plan = profile.subscription_tier.trim().toLowerCase();
+    // Logic updated to ensure Platinum Partner shows correctly
     if (plan.includes('platinum')) {
       return (
         <span style={{ background: "linear-gradient(45deg, #29b6f6, #0288d1)", color: "white", padding: "4px 10px", borderRadius: "12px", fontSize: "12px", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "4px", marginLeft: "10px", boxShadow: "0 2px 5px rgba(41, 182, 246, 0.4)" }}>
@@ -228,7 +226,6 @@ function DashboardContent() {
     else { 
         await supabase.from('amens').insert({ user_id: user.id, post_id: post.id });
         if (user && user.id !== post.user_id) { 
-          // UPDATED: Deep Linking for Amen
           await supabase.from('notifications').insert({ 
             user_id: post.user_id, 
             actor_id: user.id, 
@@ -303,7 +300,6 @@ function DashboardContent() {
       setComments(prev => ({ ...prev, [postId]: [...(prev[postId] || []), data] }));
       setNewComment("");
       
-      // NEW: Deep Linking Notification for Comment
       const targetPost = posts.find(p => p.id === postId);
       if (user && user.id !== targetPost.user_id) {
         await supabase.from('notifications').insert({
@@ -371,13 +367,13 @@ function DashboardContent() {
         </div>
 
         <div className="center-panel">
-          {user && <CreatePost user={user} onPostCreated={() => { loadPosts(user.id, true); loadPrayerWall(user.id); }} />}
+          {/* UPDATED: Passing the subscription_tier to CreatePost for Guardrail recognition */}
+          {user && <CreatePost user={user} tier={profile?.subscription_tier} onPostCreated={() => { loadPosts(user.id, true); loadPrayerWall(user.id); }} />}
           <div className="panel-card">
             <h3>🏠 The Walk</h3>
             {loadingPosts ? <p style={{textAlign:'center', padding:'20px'}}>Loading...</p> : 
              posts.length === 0 ? <div style={{textAlign:'center', padding:'40px', color:'#666'}}>The Walk is quiet. Be the first to share!</div> :
              posts.map(post => (
-               // UPDATED: Post Identifier & Highlighting
                <div 
                  key={post.id} 
                  id={`post-${post.id}`}

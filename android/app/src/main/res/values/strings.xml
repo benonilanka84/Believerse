@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">The Believerse</string>
+    <string name="title_activity_main">The Believerse</string>
+    <string name="package_name">com.thebelieverse.app</string>
+    <string name="custom_url_scheme">com.thebelieverse.app</string>
+</resources>

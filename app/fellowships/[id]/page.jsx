@@ -6,6 +6,8 @@ import { useParams, useRouter } from "next/navigation";
 import CreatePost from "@/components/CreatePost";
 import Link from "next/link";
 
+export const dynamic = 'force-dynamic';
+export const dynamicParams = true;
 export default function FellowshipDetails() {
   const { id } = useParams();
   const router = useRouter();
