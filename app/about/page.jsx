@@ -47,7 +47,7 @@ export default function AboutPage() {
             </p>
           </div>
 
-          {/* Core Values */}
+          {/* Kingdom Standards */}
           <div style={{ background: "white", padding: "30px", borderRadius: "16px", boxShadow: "0 8px 20px rgba(0,0,0,0.1)" }}>
             <h2 style={{ color: "#0b2e4a", marginBottom: "15px", fontSize: "1.8rem" }}>
               💎 Kingdom Standards
@@ -110,7 +110,7 @@ export default function AboutPage() {
               👼 <strong>The Believerse Kids</strong>: An exclusive, sacred space for children's content, ensuring the next generation grows in a protected digital garden.
             </li>
             <li style={{ color: "#333", fontSize: "1.05rem", padding: "10px 0", borderLeft: "4px solid #2e8b57", paddingLeft: "15px" }}>
-              🌍 Multi-Language Prayer Support
+              🌍 <strong>Global Language Localization</strong>: Enabling the entire platform to be viewed in all Indian and global languages, from the Dashboard to settings.
             </li>
             <li style={{ color: "#333", fontSize: "1.05rem", padding: "10px 0", borderLeft: "4px solid #2e8b57", paddingLeft: "15px" }}>
               🙌 Partnership & Support Tools
@@ -120,7 +120,7 @@ export default function AboutPage() {
 
         {/* Support & Blessing Section */}
         <div style={{ background: "linear-gradient(135deg, #0b2e4a 0%, #1d5d3a 100%)", padding: "50px 40px", borderRadius: "16px", boxShadow: "0 8px 20px rgba(0,0,0,0.1)", marginTop: "30px", textAlign: "center", color: "white" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "40px", alignItems: "center" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(350px, 1fr))", gap: "40px", alignItems: "center" }}>
             
             {/* Technical Support Column */}
             <div>
@@ -133,18 +133,27 @@ export default function AboutPage() {
               </a>
             </div>
 
-            {/* Donation/Blessing Column */}
+            {/* Donation/Blessing Column - Updated Text & Enlarged QR */}
             <div style={{ background: "rgba(255,255,255,0.05)", padding: "30px", borderRadius: "15px", border: "1px solid rgba(255,255,255,0.1)" }}>
               <h3 style={{ color: "#d4af37", fontSize: "1.5rem", marginBottom: "15px" }}>🎁 Bless the Ministry</h3>
-              <p style={{ fontSize: "0.95rem", marginBottom: "20px", opacity: "0.8" }}>
-                Support the development of BAN and the Kids sanctuary. Scan to give a tithe or offering via UPI.
+              <p style={{ fontSize: "1rem", marginBottom: "25px", opacity: "0.8" }}>
+                Support the development of <strong>The Believerse</strong>. Scan to give a tithe or offering via UPI.
               </p>
               <img 
                 src="/QR_code/The_Believerse_QR.jpeg" 
                 alt="Ministry Donation QR" 
-                style={{ width: "150px", height: "150px", borderRadius: "10px", background: "white", padding: "10px", marginBottom: "15px", objectFit: "contain" }} 
+                style={{ 
+                  width: "250px", 
+                  height: "250px", 
+                  borderRadius: "15px", 
+                  background: "white", 
+                  padding: "15px", 
+                  marginBottom: "20px", 
+                  objectFit: "contain",
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.3)"
+                }} 
               />
-              <p style={{ fontSize: "0.85rem", fontWeight: "bold", color: "#d4af37" }}>Kingdom Stewards: Vijayawada, India</p>
+              <p style={{ fontSize: "0.9rem", fontWeight: "bold", color: "#d4af37" }}>Kingdom Stewards: Vijayawada, India</p>
             </div>
           </div>
         </div>
