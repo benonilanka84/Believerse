@@ -32,13 +32,16 @@ function ChatContent() {
   }, [activeChat]);
 
   async function initialize() {
-    const { data } = await supabase.auth.getUser();
-    if (data?.user) {
-      setUser(data.user);
-      await loadRecentChats(data.user.id);
+    const { data: authData } = await supabase.auth.getUser();
+    if (authData?.user) {
+      setUser(authData.user);
+      await loadRecentChats(authData.user.id);
       
       const targetId = searchParams.get('uid');
-      if (targetId) loadChatWithUser(targetId, data.user.id);
+      if (targetId) {
+        // If we have a target user from URL, load that chat immediately
+        loadChatWithUser(targetId, authData.user.id);
+      }
     }
   }
 
@@ -61,11 +64,11 @@ function ChatContent() {
           
           if (incomingMsg.sender_id === activeChatRef.current) {
             setMessages((prev) => [...prev, incomingMsg]);
-            // Mark as read immediately if chat is open
+            // Mark as read immediately since we are in the active chat
             supabase.from('messages').update({ is_read: true }).eq('id', incomingMsg.id);
             setTimeout(scrollToBottom, 100);
           } else {
-            // Update the red dot indicator for the specific sender ONLY
+            // Update red dot ONLY for the specific sender who sent a new message
             setUnreadCounts(prev => ({
               ...prev,
               [incomingMsg.sender_id]: (prev[incomingMsg.sender_id] || 0) + 1
@@ -94,24 +97,23 @@ function ChatContent() {
   }
 
   async function loadRecentChats(myId) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('messages')
-      .select('sender_id, receiver_id, created_at, is_read')
+      .select('sender_id, receiver_id, is_read')
       .or(`sender_id.eq.${myId},receiver_id.eq.${myId}`)
       .order('created_at', { ascending: false });
       
-    if (!data) return;
+    if (error || !data) return;
 
     const uniqueIds = new Set();
     const newUnread = {};
 
     data.forEach(m => {
-      // Add everyone we've talked to to the sidebar
       if (m.sender_id !== myId) uniqueIds.add(m.sender_id);
       if (m.receiver_id !== myId) uniqueIds.add(m.receiver_id);
 
-      // RED DOT LOGIC FIX: Only count if I am the receiver AND it is unread
-      if (m.receiver_id === myId && m.is_read === false) {
+      // STRICT RED DOT LOGIC: Only count if message is TO me and is explicitly UNREAD
+      if (m.receiver_id === myId && (m.is_read === false || m.is_read === 'false')) {
         newUnread[m.sender_id] = (newUnread[m.sender_id] || 0) + 1;
       }
     });
@@ -146,12 +148,21 @@ function ChatContent() {
     setActiveChat(partnerId);
     setActiveChatUser(partnerProfile);
 
-    // Clear the unread dot locally and in database for THIS user
-    setUnreadCounts(prev => ({ ...prev, [partnerId]: 0 }));
-    await supabase.from('messages').update({ is_read: true }).match({ sender_id: partnerId, receiver_id: myId, is_read: false });
+    // IMMEDIATELY CLEAR LOCAL RED DOT for this user
+    setUnreadCounts(prev => {
+      const updated = { ...prev };
+      delete updated[partnerId];
+      return updated;
+    });
 
-    // Fetch messages
-    const { data } = await supabase.from('messages').select('*')
+    // Mark as read in Database
+    await supabase.from('messages')
+      .update({ is_read: true })
+      .match({ sender_id: partnerId, receiver_id: myId, is_read: false });
+
+    // Fetch message history
+    const { data } = await supabase.from('messages')
+      .select('*')
       .or(`and(sender_id.eq.${myId},receiver_id.eq.${partnerId}),and(sender_id.eq.${partnerId},receiver_id.eq.${myId})`)
       .order('created_at', { ascending: true });
 
@@ -177,7 +188,7 @@ function ChatContent() {
       sender_id: user.id, 
       receiver_id: activeChat, 
       content: msgContent,
-      is_read: false // Default to unread for the recipient
+      is_read: false
     }).select().single();
 
     if (!error && data) {
@@ -205,19 +216,32 @@ function ChatContent() {
       {/* Sidebar */}
       <div style={{ borderRight: '1px solid #eee', background: '#f9f9f9', overflowY:'auto' }}>
         <div style={{ padding: '20px', fontWeight: 'bold', color: '#0b2e4a', borderBottom:'1px solid #eee' }}>💬 Messages</div>
-        {chats.map(c => (
-          <div key={c.id} onClick={() => loadChatWithUser(c.id, user.id)} style={{ padding: '15px', cursor: 'pointer', background: activeChat === c.id ? '#e8f5e9' : 'transparent', borderBottom: '1px solid #f0f0f0', display:'flex', alignItems:'center', gap:'10px', position: 'relative' }}>
-            <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#ccc', overflow:'hidden' }}>
-               <img src={c.avatar_url || '/images/default-avatar.png'} style={{width:'100%', height:'100%', objectFit:'cover'}}/>
+        {chats.length === 0 ? (
+          <div style={{ padding: '20px', color: '#999', fontSize: '13px' }}>No active conversations</div>
+        ) : (
+          chats.map(c => (
+            <div 
+              key={c.id} 
+              onClick={() => loadChatWithUser(c.id, user.id)} 
+              style={{ 
+                padding: '15px', cursor: 'pointer', 
+                background: activeChat === c.id ? '#e8f5e9' : 'transparent', 
+                borderBottom: '1px solid #f0f0f0', display:'flex', 
+                alignItems:'center', gap:'10px', position: 'relative' 
+              }}
+            >
+              <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#ccc', overflow:'hidden' }}>
+                 <img src={c.avatar_url || '/images/default-avatar.png'} style={{width:'100%', height:'100%', objectFit:'cover'}}/>
+              </div>
+              <div style={{fontWeight:'bold', fontSize:'14px', color:'#000', flex: 1}}>{c.full_name}</div>
+              
+              {/* ACCURATE RED DOT: Only shows if this specific user has unread messages */}
+              {unreadCounts[c.id] > 0 && (
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#e74c3c', marginRight: '5px' }} />
+              )}
             </div>
-            <div style={{fontWeight:'bold', fontSize:'14px', color:'#000', flex: 1}}>{c.full_name}</div>
-            
-            {/* RED DOT INDICATOR - Only shows for actual unread messages */}
-            {unreadCounts[c.id] > 0 && (
-              <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#e74c3c', marginRight: '5px' }} />
-            )}
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
       {/* Chat Area */}
