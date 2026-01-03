@@ -35,7 +35,6 @@ export default function NavBar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Use count with explicit 'is_read' check to match DB
   async function checkInitialUnread(userId) {
     const { count, error } = await supabase
       .from('messages')
@@ -64,7 +63,6 @@ export default function NavBar() {
         table: 'messages', 
         filter: `receiver_id=eq.${userId}` 
       }, (payload) => {
-        // Dot only appears if we are not on chat page and message is unread
         if (window.location.pathname !== '/chat' && payload.new.is_read === false) {
           setHasUnreadMessages(true);
         }
@@ -143,7 +141,7 @@ export default function NavBar() {
           </button>
         </Link>
 
-        {/* MESSENGER with Dot Logic */}
+        {/* MESSENGER */}
         <Link href="/chat" onClick={() => setHasUnreadMessages(false)} style={{ position: 'relative', fontSize: "22px", textDecoration: 'none' }} title="Messenger">
           💬
           {hasUnreadMessages && (
@@ -176,7 +174,7 @@ export default function NavBar() {
                 <div style={{ fontSize: "13px", color: "#64748b" }}>{user?.email}</div>
               </div>
               <div style={{ padding: "8px 0" }}>
-                <Link href="/profile/edit" onClick={() => setIsProfileOpen(false)} style={{ display: "block", padding: "12px 20px", textDecoration: "none", color: "#334155", fontSize: "14px" }}✏️ Edit Profile</Link>
+                <Link href="/profile/edit" onClick={() => setIsProfileOpen(false)} style={{ display: "block", padding: "12px 20px", textDecoration: "none", color: "#334155", fontSize: "14px" }}>✏️ Edit Profile</Link>
                 <Link href="/settings" onClick={() => setIsProfileOpen(false)} style={{ display: "block", padding: "12px 20px", textDecoration: "none", color: "#334155", fontSize: "14px" }}>⚙️ Settings</Link>
                 <Link href="/about" onClick={() => setIsProfileOpen(false)} style={{ display: "block", padding: "12px 20px", textDecoration: "none", color: "#334155", fontSize: "14px" }}>ℹ️ About Us</Link>
                 <Link href="/terms" onClick={() => setIsProfileOpen(false)} style={{ display: "block", padding: "12px 20px", textDecoration: "none", color: "#334155", fontSize: "14px" }}>📜 Terms & Conditions</Link>
