@@ -8,7 +8,7 @@ function ChatContent() {
   const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState(null);
   const [chats, setChats] = useState([]);
-  const [unreadCounts, setUnreadCounts] = useState({}); // Tracks unread dots per user
+  const [unreadCounts, setUnreadCounts] = useState({}); 
   const [activeChat, setActiveChat] = useState(null);
   const [activeChatUser, setActiveChatUser] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -61,9 +61,11 @@ function ChatContent() {
           
           if (incomingMsg.sender_id === activeChatRef.current) {
             setMessages((prev) => [...prev, incomingMsg]);
+            // Mark as read immediately if chat is open
+            supabase.from('messages').update({ is_read: true }).eq('id', incomingMsg.id);
             setTimeout(scrollToBottom, 100);
           } else {
-            // Update the red dot indicator for the specific sender
+            // Update the red dot indicator for the specific sender ONLY
             setUnreadCounts(prev => ({
               ...prev,
               [incomingMsg.sender_id]: (prev[incomingMsg.sender_id] || 0) + 1
@@ -104,14 +106,14 @@ function ChatContent() {
     const newUnread = {};
 
     data.forEach(m => {
-      if (m.sender_id !== myId) {
-        uniqueIds.add(m.sender_id);
-        // If message is to us and unread, add to dot count
-        if (m.receiver_id === myId && !m.is_read) {
-          newUnread[m.sender_id] = (newUnread[m.sender_id] || 0) + 1;
-        }
-      }
+      // Add everyone we've talked to to the sidebar
+      if (m.sender_id !== myId) uniqueIds.add(m.sender_id);
       if (m.receiver_id !== myId) uniqueIds.add(m.receiver_id);
+
+      // RED DOT LOGIC FIX: Only count if I am the receiver AND it is unread
+      if (m.receiver_id === myId && m.is_read === false) {
+        newUnread[m.sender_id] = (newUnread[m.sender_id] || 0) + 1;
+      }
     });
 
     setUnreadCounts(newUnread);
@@ -144,7 +146,7 @@ function ChatContent() {
     setActiveChat(partnerId);
     setActiveChatUser(partnerProfile);
 
-    // Clear the unread dot locally and in DB
+    // Clear the unread dot locally and in database for THIS user
     setUnreadCounts(prev => ({ ...prev, [partnerId]: 0 }));
     await supabase.from('messages').update({ is_read: true }).match({ sender_id: partnerId, receiver_id: myId, is_read: false });
 
@@ -153,7 +155,6 @@ function ChatContent() {
       .or(`and(sender_id.eq.${myId},receiver_id.eq.${partnerId}),and(sender_id.eq.${partnerId},receiver_id.eq.${myId})`)
       .order('created_at', { ascending: true });
 
-    // Apply "Clear History" filter based on local timestamp
     const clearTimestamp = localStorage.getItem(`chat_cleared_${myId}_${partnerId}`);
     if (clearTimestamp) {
       const filtered = data.filter(m => new Date(m.created_at) > new Date(clearTimestamp));
@@ -175,7 +176,8 @@ function ChatContent() {
     const { data, error } = await supabase.from('messages').insert({
       sender_id: user.id, 
       receiver_id: activeChat, 
-      content: msgContent
+      content: msgContent,
+      is_read: false // Default to unread for the recipient
     }).select().single();
 
     if (!error && data) {
@@ -184,7 +186,6 @@ function ChatContent() {
     }
   }
 
-  // --- NEW: CLEAR HISTORY FUNCTION ---
   function clearHistory() {
     if (!confirm("Wipe chat history locally? This won't delete messages from the database.")) return;
     const now = new Date().toISOString();
@@ -211,7 +212,7 @@ function ChatContent() {
             </div>
             <div style={{fontWeight:'bold', fontSize:'14px', color:'#000', flex: 1}}>{c.full_name}</div>
             
-            {/* RED DOT INDICATOR */}
+            {/* RED DOT INDICATOR - Only shows for actual unread messages */}
             {unreadCounts[c.id] > 0 && (
               <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#e74c3c', marginRight: '5px' }} />
             )}
@@ -241,7 +242,6 @@ function ChatContent() {
                     <div style={{ maxWidth: '70%', padding: '10px 15px', borderRadius: '12px', background: isMe ? '#2e8b57' : '#f0f0f0', color: isMe ? 'white' : '#333', boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }}>
                       {m.content}
                     </div>
-                    {/* TIMESTAMP */}
                     <span style={{ fontSize: '10px', color: '#999', marginTop: '4px', padding: '0 5px' }}>
                       {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
