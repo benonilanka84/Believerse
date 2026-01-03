@@ -103,11 +103,11 @@ export default function AboutPage() {
             🌱 Growing the Vine
           </h2>
           <ul style={{ listStyle: "none", padding: 0, display: "grid", gap: "15px", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", maxWidth: "900px", margin: "0 auto" }}>
-            <li style={{ color: "#333", fontSize: "1.05rem", padding: "10px 0", borderLeft: "4px solid #2e8b57", paddingLeft: "15px" }}>
-              ✨ Global Live Ministry Streaming
+            <li style={{ color: "#333", fontSize: "1.05rem", padding: "10px 0", borderLeft: "4px solid #d4af37", paddingLeft: "15px" }}>
+              💰 <strong>Believerse Ad Network (BAN)</strong>: Building a curated network for Christian ads to empower creators with Kingdom-aligned monetization.
             </li>
             <li style={{ color: "#333", fontSize: "1.05rem", padding: "10px 0", borderLeft: "4px solid #2e8b57", paddingLeft: "15px" }}>
-              📱 Mobile Sanctuary Applications
+              👼 <strong>The Believerse Kids</strong>: An exclusive, sacred space for children's content, ensuring the next generation grows in a protected digital garden.
             </li>
             <li style={{ color: "#333", fontSize: "1.05rem", padding: "10px 0", borderLeft: "4px solid #2e8b57", paddingLeft: "15px" }}>
               🌍 Multi-Language Prayer Support
@@ -118,16 +118,35 @@ export default function AboutPage() {
           </ul>
         </div>
 
-        {/* Support Section */}
+        {/* Support & Blessing Section */}
         <div style={{ background: "linear-gradient(135deg, #0b2e4a 0%, #1d5d3a 100%)", padding: "50px 40px", borderRadius: "16px", boxShadow: "0 8px 20px rgba(0,0,0,0.1)", marginTop: "30px", textAlign: "center", color: "white" }}>
-          <h2 style={{ fontSize: "2rem", marginBottom: "20px" }}>📩 Support the Walk</h2>
-          <p style={{ fontSize: "1.2rem", marginBottom: "20px" }}>For technical fellowship or partnership inquiries.</p>
-          <a href="mailto:support@thebelieverse.com" style={{ display: "inline-block", padding: "15px 40px", background: "white", color: "#0b2e4a", borderRadius: "10px", textDecoration: "none", fontWeight: "700", fontSize: "1.1rem", boxShadow: "0 4px 15px rgba(0,0,0,0.2)", marginBottom: "15px" }}>
-            support@thebelieverse.com
-          </a>
-          <p style={{ fontSize: "1rem", marginTop: "20px", opacity: "0.9" }}>
-            Building from: <strong>Vijayawada, India</strong>
-          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "40px", alignItems: "center" }}>
+            
+            {/* Technical Support Column */}
+            <div>
+              <h2 style={{ fontSize: "2rem", marginBottom: "20px" }}>🤝 Sanctuary Support</h2>
+              <p style={{ fontSize: "1.1rem", marginBottom: "25px", opacity: "0.9" }}>
+                Reach out to our stewards for technical assistance, partnership inquiries, or fellowship management.
+              </p>
+              <a href="mailto:support@thebelieverse.com" style={{ display: "inline-block", padding: "15px 40px", background: "white", color: "#0b2e4a", borderRadius: "10px", textDecoration: "none", fontWeight: "700", fontSize: "1.1rem", boxShadow: "0 4px 15px rgba(0,0,0,0.2)" }}>
+                support@thebelieverse.com
+              </a>
+            </div>
+
+            {/* Donation/Blessing Column */}
+            <div style={{ background: "rgba(255,255,255,0.05)", padding: "30px", borderRadius: "15px", border: "1px solid rgba(255,255,255,0.1)" }}>
+              <h3 style={{ color: "#d4af37", fontSize: "1.5rem", marginBottom: "15px" }}>🎁 Bless the Ministry</h3>
+              <p style={{ fontSize: "0.95rem", marginBottom: "20px", opacity: "0.8" }}>
+                Support the development of BAN and the Kids sanctuary. Scan to give a tithe or offering via UPI.
+              </p>
+              <img 
+                src="/QR_code/The_Believerse_QR.jpeg" 
+                alt="Ministry Donation QR" 
+                style={{ width: "150px", height: "150px", borderRadius: "10px", background: "white", padding: "10px", marginBottom: "15px", objectFit: "contain" }} 
+              />
+              <p style={{ fontSize: "0.85rem", fontWeight: "bold", color: "#d4af37" }}>Kingdom Stewards: Vijayawada, India</p>
+            </div>
+          </div>
         </div>
 
         {/* Back to Sanctuary */}

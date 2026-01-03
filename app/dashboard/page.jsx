@@ -63,7 +63,7 @@ function DashboardContent() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUser(user);
-        // Corrected to fetch all fields including subscription_plan
+        // Corrected to subscription_plan
         const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
         setProfile(data);
         loadAllData(user.id);
@@ -108,7 +108,7 @@ function DashboardContent() {
   }
 
   const getBadgeUI = () => {
-    // Aligned logic with subscription_plan column
+    // Aligned with subscription_plan database column
     if (!profile || !profile.subscription_plan) return null;
     const plan = profile.subscription_plan.trim().toLowerCase();
     
@@ -369,7 +369,7 @@ function DashboardContent() {
         </div>
 
         <div className="center-panel">
-          {/* Mapping 'standard' to 'free' and waiting for profile load to prevent banners */}
+          {/* Aligned with subscription_plan and standardized Standard -> free */}
           {user && profile && (
             <CreatePost 
               user={user} 

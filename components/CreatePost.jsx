@@ -18,8 +18,8 @@ export default function CreatePost({ user, tier, onPostCreated, fellowshipId = n
   const fileInputRef = useRef(null);
   const [dragActive, setDragActive] = useState(false);
 
-  // Sync Tier Data from Prop or User Profile
-  const userTier = (tier || user?.subscription_tier || "free").toLowerCase().trim();
+  // Updated to use subscription_plan to align with database
+  const userTier = (tier || user?.subscription_plan || "free").toLowerCase().trim();
 
   useEffect(() => {
     if (!mediaFile) {
@@ -47,20 +47,32 @@ export default function CreatePost({ user, tier, onPostCreated, fellowshipId = n
   }, [mediaFile]);
 
   const validateLimits = async () => {
-    // 1. Video Duration Check
+    // 1. Video Duration Check with Inclusive Database Logic
     if (mediaFile && mediaFile.type.startsWith("video/")) {
       const mins = videoDuration / 60;
-      if (userTier === "free" && mins > 10) {
-        setErrorMsg("What a wonderful message! Community uploads are limited to 10 minutes. Support the ministry as a Gold Supporter to share up to 60 minutes.");
-        return false;
+      
+      // Standard/Free Check
+      if (userTier.includes("standard") || userTier === "free") {
+        if (mins > 10) {
+          setErrorMsg("What a wonderful message! Community uploads are limited to 10 minutes. Support the ministry as a Gold Supporter to share up to 60 minutes.");
+          return false;
+        }
       }
-      if (userTier === "gold" && mins > 60) {
-        setErrorMsg("This is a powerful sermon! You've reached the 60-minute limit for Gold Supporters. Become a Platinum Partner to share journeys up to 3 hours.");
-        return false;
+      
+      // Gold Check (Ensuring we don't accidentally block Platinum)
+      if (userTier.includes("gold") && !userTier.includes("platinum")) {
+        if (mins > 60) {
+          setErrorMsg("This is a powerful sermon! You've reached the 60-minute limit for Gold Supporters. Become a Platinum Partner to share journeys up to 3 hours.");
+          return false;
+        }
       }
-      if (userTier === "platinum" && mins > 180) {
-        setErrorMsg("To maintain our sanctuary's quality, videos are limited to 3 hours. Please consider sharing this in parts.");
-        return false;
+      
+      // Platinum Check
+      if (userTier.includes("platinum")) {
+        if (mins > 180) {
+          setErrorMsg("To maintain our sanctuary's quality, journeys are limited to 3 hours. Please consider sharing this in parts.");
+          return false;
+        }
       }
     }
 
@@ -78,11 +90,11 @@ export default function CreatePost({ user, tier, onPostCreated, fellowshipId = n
 
       if (error) console.error("Limit check error:", error);
 
-      if (userTier === "free" && count >= 15) {
+      if ((userTier.includes("standard") || userTier === "free") && count >= 15) {
         setErrorMsg("You've shared so much light! You've reached your limit of 15 Glimpses this month. Upgrade to Gold for unlimited Glimpses.");
         return false;
       }
-      if (userTier === "gold" && count >= 60) {
+      if (userTier.includes("gold") && !userTier.includes("platinum") && count >= 60) {
         setErrorMsg("Your light is shining bright! You've reached your limit of 60 Glimpses. Explore Platinum Partnership for unlimited sharing.");
         return false;
       }
@@ -204,8 +216,8 @@ export default function CreatePost({ user, tier, onPostCreated, fellowshipId = n
           <option value="Glimpse">⚡ Glimpse</option>
         </select>
         
-        {/* Updated Logic: Only show for Free users */}
-        {userTier === "free" && (
+        {/* Banner visibility locked to Standard/Free users only */}
+        {(userTier.includes("standard") || userTier === "free") && (
           <div style={{ fontSize: "12px", background: "#fff9db", color: "#856404", padding: "8px 12px", borderRadius: "8px", display: "flex", alignItems: "center" }}>
             ⭐ Gold members get 1080p uploads & Fellowships
           </div>
@@ -222,7 +234,7 @@ export default function CreatePost({ user, tier, onPostCreated, fellowshipId = n
         </div>
       )}
 
-      {/* Media Upload UI (Same as before) */}
+      {/* Media Upload UI */}
       <div style={{ marginBottom: "20px" }}>
          <input type="file" accept="image/*,video/*" ref={fileInputRef} style={{ display: 'none' }} onChange={(e) => setMediaFile(e.target.files[0])} />
          {!mediaFile ? (

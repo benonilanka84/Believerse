@@ -35,7 +35,7 @@ export default function PricingPage() {
       
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        // Pointed to subscription_plan column
+        // Corrected to subscription_plan column
         const { data: profile } = await supabase
           .from("profiles")
           .select("subscription_plan")
@@ -44,7 +44,7 @@ export default function PricingPage() {
         
         if (profile) {
           const rawPlan = profile.subscription_plan?.toLowerCase().trim() || "free";
-          // Mapping 'standard' to 'free' to enable 'Current Plan' buttons correctly
+          // Mapping database 'standard' to internal 'free' state
           setCurrentPlan(rawPlan === 'standard' ? 'free' : rawPlan);
         }
       }
@@ -172,7 +172,7 @@ export default function PricingPage() {
             <li style={{ color: "#cbd5e1" }}>❌ Long Video Uploads</li>
           </ul>
           <button disabled style={{ width: "100%", padding: "16px", borderRadius: "12px", border: "2px solid #e1e8ed", background: "#f8fafd", color: "#64748b", fontWeight: "700" }}>
-            {currentPlan === "free" ? "Current Plan" : "Basic Access"}
+            {(currentPlan === 'free' || currentPlan === 'standard') ? "Current Plan" : "Basic Access"}
           </button>
         </div>
 
@@ -193,11 +193,11 @@ export default function PricingPage() {
           </ul>
           <button 
             onClick={() => handlePurchase("Gold", activeGold)} 
-            // Corrected match for subscription_plan values
+            // Fixed strict exclusivity: Gold only shows Current for Gold plan
             disabled={processing === 'gold' || currentPlan.includes('gold') || currentPlan.includes('platinum')} 
             style={{ width: "100%", padding: "16px", borderRadius: "12px", border: "none", background: (currentPlan.includes('gold') || currentPlan.includes('platinum')) ? "#f8fafd" : "#d4af37", color: (currentPlan.includes('gold') || currentPlan.includes('platinum')) ? "#64748b" : "white", fontWeight: "800", cursor: "pointer" }}
           >
-            {processing === 'gold' ? "Processing..." : (currentPlan.includes('gold') || currentPlan.includes('platinum')) ? "Current Plan" : "Claim Offer: ₹1"}
+            {processing === 'gold' ? "Processing..." : currentPlan.includes('platinum') ? "Included with Platinum" : currentPlan.includes('gold') ? "Current Plan" : "Claim Offer: ₹1"}
           </button>
         </div>
 
