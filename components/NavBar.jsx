@@ -35,7 +35,20 @@ export default function NavBar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Re-check unread status when pathname changes
+  useEffect(() => {
+    if (user?.id) {
+      checkInitialUnread(user.id);
+    }
+  }, [pathname, user?.id]);
+
   async function checkInitialUnread(userId) {
+    // Only show red dot if NOT on chat page and there are unread messages
+    if (pathname === '/chat') {
+      setHasUnreadMessages(false);
+      return;
+    }
+
     const { count, error } = await supabase
       .from('messages')
       .select('*', { count: 'exact', head: true })
@@ -63,8 +76,26 @@ export default function NavBar() {
         table: 'messages', 
         filter: `receiver_id=eq.${userId}` 
       }, (payload) => {
+        // Only show red dot if NOT currently on chat page
         if (window.location.pathname !== '/chat' && payload.new.is_read === false) {
           setHasUnreadMessages(true);
+        }
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'messages',
+        filter: `receiver_id=eq.${userId}`
+      }, async () => {
+        // When messages are updated (marked as read), recheck unread count
+        if (window.location.pathname !== '/chat') {
+          const { count } = await supabase
+            .from('messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('receiver_id', userId)
+            .eq('is_read', false);
+          
+          setHasUnreadMessages(count > 0);
         }
       })
       .subscribe();
@@ -82,7 +113,7 @@ export default function NavBar() {
   if (pathname === "/login" || pathname === "/signup") return null;
 
   const navLinks = [
-    { name: "The Walk", href: "/dashboard", icon: "🏠" },
+    { name: "The Walk", href: "/dashboard", icon: "🏛" },
     { name: "Glimpses", href: "/glimpses", icon: "⚡" },
     { name: "Fellowships", href: "/fellowships", icon: "👥" },
     { name: "Believers", href: "/believers", icon: "🤝" },
@@ -141,11 +172,24 @@ export default function NavBar() {
           </button>
         </Link>
 
-        {/* MESSENGER */}
-        <Link href="/chat" onClick={() => setHasUnreadMessages(false)} style={{ position: 'relative', fontSize: "22px", textDecoration: 'none' }} title="Messenger">
+        {/* MESSENGER - Red dot only shows when NOT on chat page AND there are unread messages */}
+        <Link 
+          href="/chat" 
+          style={{ position: 'relative', fontSize: "22px", textDecoration: 'none' }} 
+          title="Messenger"
+        >
           💬
-          {hasUnreadMessages && (
-            <span style={{ position: 'absolute', top: '-5px', right: '-5px', width: '10px', height: '10px', background: 'red', borderRadius: '50%', border: '2px solid white' }}></span>
+          {hasUnreadMessages && pathname !== '/chat' && (
+            <span style={{ 
+              position: 'absolute', 
+              top: '-5px', 
+              right: '-5px', 
+              width: '10px', 
+              height: '10px', 
+              background: 'red', 
+              borderRadius: '50%', 
+              border: '2px solid white' 
+            }}></span>
           )}
         </Link>
 
