@@ -18,11 +18,14 @@ export default function NavBar() {
 
   useEffect(() => {
     const init = async () => {
-      const { data } = await supabase.auth.getUser();
-      if (data?.user) {
-        setUser(data.user);
-        fetchProfile(data.user.id);
-        setupMessageListener(data.user.id); 
+      const { data: authData } = await supabase.auth.getUser();
+      if (authData?.user) {
+        setUser(authData.user);
+        fetchProfile(authData.user.id);
+        
+        // --- NEW: Accurate Unread Logic ---
+        checkInitialUnread(authData.user.id); 
+        setupMessageListener(authData.user.id); 
       }
     };
     init();
@@ -33,6 +36,21 @@ export default function NavBar() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // NEW: Initial database scan to set the correct dot state on load
+  async function checkInitialUnread(userId) {
+    const { count, error } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('receiver_id', userId)
+      .eq('is_read', false);
+    
+    if (!error && count > 0) {
+      setHasUnreadMessages(true);
+    } else {
+      setHasUnreadMessages(false);
+    }
+  }
 
   async function fetchProfile(uid) {
     const { data } = await supabase.from("profiles").select("*").eq("id", uid).single();
@@ -47,8 +65,9 @@ export default function NavBar() {
         schema: 'public', 
         table: 'messages', 
         filter: `receiver_id=eq.${userId}` 
-      }, () => {
-        if (window.location.pathname !== '/chat') {
+      }, (payload) => {
+        // Only show red dot if we are not currently viewing the chat page
+        if (window.location.pathname !== '/chat' && payload.new.is_read === false) {
           setHasUnreadMessages(true);
         }
       })
@@ -126,7 +145,7 @@ export default function NavBar() {
           </button>
         </Link>
 
-        {/* MESSENGER */}
+        {/* MESSENGER with Refined Unread Logic */}
         <Link href="/chat" onClick={() => setHasUnreadMessages(false)} style={{ position: 'relative', fontSize: "22px", textDecoration: 'none' }} title="Messenger">
           💬
           {hasUnreadMessages && (
@@ -167,7 +186,6 @@ export default function NavBar() {
             )}
           </div>
 
-          {/* IMPROVED PROFILE MENU */}
           {isProfileOpen && (
             <div style={{ 
               position: "absolute", 
@@ -181,173 +199,48 @@ export default function NavBar() {
               overflow: "hidden", 
               zIndex: 2000 
             }}>
-              {/* Header Info Block */}
               <div style={{ 
                 padding: "20px 20px 16px 20px", 
                 borderBottom: "1px solid #f3f4f6", 
                 background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)"
               }}>
-                <div style={{ 
-                  fontWeight: "700", 
-                  color: "#0b2e4a", 
-                  fontSize: "16px",
-                  marginBottom: "6px",
-                  letterSpacing: "-0.01em"
-                }}>
+                <div style={{ fontWeight: "700", color: "#0b2e4a", fontSize: "16px", marginBottom: "6px" }}>
                   {profile?.full_name || "Believer"}
                 </div>
-                <div style={{ 
-                  fontSize: "13px", 
-                  color: "#64748b", 
-                  wordBreak: "break-word",
-                  lineHeight: "1.4"
-                }}>
+                <div style={{ fontSize: "13px", color: "#64748b", wordBreak: "break-word", lineHeight: "1.4" }}>
                   {user?.email}
                 </div>
               </div>
               
-              {/* Menu Links List */}
               <div style={{ padding: "8px 0" }}>
-                <Link 
-                  href="/profile/edit" 
-                  className="profile-menu-item" 
-                  onClick={() => setIsProfileOpen(false)}
-                  style={{
-                    display: "block",
-                    padding: "12px 20px",
-                    textDecoration: "none",
-                    color: "#334155",
-                    fontSize: "14px",
-                    fontWeight: "500",
-                    transition: "all 0.15s ease"
-                  }}
-                >
-                  <span style={{ marginRight: "12px", fontSize: "16px" }}>✏️</span>
-                  Edit Profile
+                <Link href="/profile/edit" onClick={() => setIsProfileOpen(false)} style={{ display: "block", padding: "12px 20px", textDecoration: "none", color: "#334155", fontSize: "14px", fontWeight: "500" }}>
+                  <span style={{ marginRight: "12px" }}>✏️</span> Edit Profile
                 </Link>
-
-                <Link 
-                  href="/settings" 
-                  className="profile-menu-item" 
-                  onClick={() => setIsProfileOpen(false)}
-                  style={{
-                    display: "block",
-                    padding: "12px 20px",
-                    textDecoration: "none",
-                    color: "#334155",
-                    fontSize: "14px",
-                    fontWeight: "500",
-                    transition: "all 0.15s ease"
-                  }}
-                >
-                  <span style={{ marginRight: "12px", fontSize: "16px" }}>⚙️</span>
-                  Settings
+                <Link href="/settings" onClick={() => setIsProfileOpen(false)} style={{ display: "block", padding: "12px 20px", textDecoration: "none", color: "#334155", fontSize: "14px", fontWeight: "500" }}>
+                  <span style={{ marginRight: "12px" }}>⚙️</span> Settings
                 </Link>
-
-                <Link 
-                  href="/about" 
-                  className="profile-menu-item" 
-                  onClick={() => setIsProfileOpen(false)}
-                  style={{
-                    display: "block",
-                    padding: "12px 20px",
-                    textDecoration: "none",
-                    color: "#334155",
-                    fontSize: "14px",
-                    fontWeight: "500",
-                    transition: "all 0.15s ease"
-                  }}
-                >
-                  <span style={{ marginRight: "12px", fontSize: "16px" }}>ℹ️</span>
-                  About Us
+                <Link href="/about" onClick={() => setIsProfileOpen(false)} style={{ display: "block", padding: "12px 20px", textDecoration: "none", color: "#334155", fontSize: "14px", fontWeight: "500" }}>
+                  <span style={{ marginRight: "12px" }}>ℹ️</span> About Us
                 </Link>
-
-                <Link 
-                  href="/terms" 
-                  className="profile-menu-item" 
-                  onClick={() => setIsProfileOpen(false)}
-                  style={{
-                    display: "block",
-                    padding: "12px 20px",
-                    textDecoration: "none",
-                    color: "#334155",
-                    fontSize: "14px",
-                    fontWeight: "500",
-                    transition: "all 0.15s ease"
-                  }}
-                >
-                  <span style={{ marginRight: "12px", fontSize: "16px" }}>📜</span>
-                  Terms & Conditions
+                <Link href="/terms" onClick={() => setIsProfileOpen(false)} style={{ display: "block", padding: "12px 20px", textDecoration: "none", color: "#334155", fontSize: "14px", fontWeight: "500" }}>
+                  <span style={{ marginRight: "12px" }}>📜</span> Terms & Conditions
                 </Link>
-                
                 {profile?.role === 'admin' && (
-                  <Link 
-                    href="/admin" 
-                    className="profile-menu-item admin-item" 
-                    onClick={() => setIsProfileOpen(false)}
-                    style={{
-                      display: "block",
-                      padding: "12px 20px",
-                      textDecoration: "none",
-                      color: "#dc2626",
-                      fontSize: "14px",
-                      fontWeight: "600",
-                      background: "#fef2f2",
-                      transition: "all 0.15s ease"
-                    }}
-                  >
-                    <span style={{ marginRight: "12px", fontSize: "16px" }}>🛡️</span>
-                    Admin Panel
+                  <Link href="/admin" onClick={() => setIsProfileOpen(false)} style={{ display: "block", padding: "12px 20px", textDecoration: "none", color: "#dc2626", fontSize: "14px", fontWeight: "600", background: "#fef2f2" }}>
+                    <span style={{ marginRight: "12px" }}>🛡️</span> Admin Panel
                   </Link>
                 )}
               </div>
 
-              {/* Sign Out Block */}
               <div style={{ borderTop: "1px solid #f3f4f6", padding: "8px 0" }}>
-                <div 
-                  onClick={handleLogout} 
-                  className="profile-menu-item signout-item"
-                  style={{
-                    padding: "12px 20px",
-                    textDecoration: "none",
-                    color: "#dc2626",
-                    fontSize: "14px",
-                    fontWeight: "600",
-                    cursor: "pointer",
-                    transition: "all 0.15s ease"
-                  }}
-                >
-                  <span style={{ marginRight: "12px", fontSize: "16px" }}>🚪</span>
-                  Sign Out
+                <div onClick={handleLogout} style={{ padding: "12px 20px", textDecoration: "none", color: "#dc2626", fontSize: "14px", fontWeight: "600", cursor: "pointer" }}>
+                  <span style={{ marginRight: "12px" }}>🚪</span> Sign Out
                 </div>
               </div>
             </div>
           )}
         </div>
       </div>
-
-      <style jsx>{`
-        .profile-menu-item:hover {
-          background: #f8fafc !important;
-          color: #0f172a !important;
-        }
-        
-        .admin-item:hover {
-          background: #fee2e2 !important;
-          color: #b91c1c !important;
-        }
-        
-        .signout-item:hover {
-          background: #fef2f2 !important;
-          color: #b91c1c !important;
-        }
-        
-        @media (max-width: 1024px) { 
-          .nav-links { 
-            display: none !important; 
-          } 
-        }
-      `}</style>
     </nav>
   );
 }
